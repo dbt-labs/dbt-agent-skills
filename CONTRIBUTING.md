@@ -1,156 +1,313 @@
-** replace `dbt-oss-template` with your repository name in all docs
+# Contributing to dbt CLI Skills
 
+Thank you for your interest in contributing dbt CLI skills! This guide will help you create, improve, and submit skills that help AI agents work effectively with dbt.
 
-# Contributing to `dbt-oss-template`
+## Table of Contents
 
-`dbt-oss-template` is a template for open source software projects at dbt Labs.
-
-
-1. [About this document](#about-this-document)
-2. [Getting the code](#getting-the-code)
-3. [Setting up an environment](#setting-up-an-environment)
-4. [Running in development](#running-dbt-oss-template-in-development)
-5. [Testing](#testing)
-6. [Debugging](#debugging)
-7. [Adding or modifying a changelog entry](#adding-or-modifying-a-changelog-entry)
+1. [About this Repository](#about-this-repository)
+2. [How to Contribute](#how-to-contribute)
+3. [Setup](#setup)
+4. [Using skills-ref](#using-skills-ref)
+5. [Creating a New dbt Skill](#creating-a-new-dbt-skill)
+6. [Skill Quality Guidelines](#skill-quality-guidelines)
+7. [Testing Your Skill](#testing-your-skill)
 8. [Submitting a Pull Request](#submitting-a-pull-request)
-9. [Troubleshooting Tips](#troubleshooting-tips)
+9. [Style Guide](#style-guide)
+10. [Troubleshooting](#troubleshooting)
 
-## About this document
+## About this Repository
 
-There are many ways to contribute to the ongoing development of `dbt-oss-template`, such as by participating in discussions and issues. We encourage you to first read our higher-level document: ["Expectations for Open Source Contributors"](https://docs.getdbt.com/docs/contributing/oss-expectations).
+This repository contains Agent Skills specifically for dbt CLI operations. Skills follow the [Agent Skills specification](https://agentskills.io/specification) and help AI agents execute dbt commands, understand workflows, and troubleshoot issues.
 
-The rest of this document serves as a more granular guide for contributing code changes to `dbt-oss-template` (this repository). It is not intended as a guide for using `dbt-oss-template`, and some pieces assume a level of familiarity with Python development (virtualenvs, `pip`, etc). Specific code snippets in this guide assume you are using macOS or Linux and are comfortable with the command line.
+## How to Contribute
 
-If you get stuck, we're happy to help! Drop us a line in the `#dbt-oss-template-development` channel in the [dbt Community Slack](https://community.getdbt.com).
+There are several ways to contribute:
 
-### Notes
+- **Add a new dbt skill**: Create skills for commands, workflows, or patterns you use frequently
+- **Improve existing skills**: Enhance command examples, add selector patterns, or clarify instructions
+- **Fix issues**: Help resolve incorrect commands or unclear documentation
+- **Share dbt patterns**: Document your team's best practices or optimization techniques
 
-- **CLA:** Please note that anyone contributing code to `dbt-oss-template` must sign the [Contributor License Agreement](https://docs.getdbt.com/docs/contributor-license-agreements). If you are unable to sign the CLA, the `dbt-oss-template` maintainers will unfortunately be unable to merge any of your Pull Requests. We welcome you to participate in discussions, open issues, and comment on existing ones.
-- **Branches:** All pull requests from community contributors should target the `main` branch (default).
-- **Releases**: This repository is never released.
+## Setup
 
-## Getting the code
+### Prerequisites
 
-### Installing git
+- [uv](https://docs.astral.sh/uv/) - Fast Python package installer
+- Python 3.11+ (required by skills-ref)
+- Git
 
-You will need `git` in order to download and modify the source code.
+### Installing skills-ref
 
-### External contributors
+The `skills-ref` library provides tools to validate skills and generate prompt XML. It's installed directly from GitHub using uv.
 
-If you are not a member of the `dbt-labs` GitHub organization, you can contribute to `dbt-oss-template` by forking the `dbt-oss-template` repository. For a detailed overview on forking, check out the [GitHub docs on forking](https://help.github.com/en/articles/fork-a-repo). In short, you will need to:
+1. From the repository root, install development dependencies:
 
-1. Fork the `dbt-oss-template` repository
-2. Clone your fork locally
-3. Check out a new branch for your proposed changes
-4. Push changes to your fork
-5. Open a pull request against `dbt-labs/dbt-oss-template` from your forked repository
+   ```bash
+   uv sync
+   ```
 
-### dbt Labs contributors
+2. Activate the virtual environment:
 
-If you are a member of the `dbt-labs` GitHub organization, you will have push access to the `dbt-oss-template` repo. Rather than forking `dbt-oss-template` to make your changes, just clone the repository, check out a new branch, and push directly to that branch.
+   ```bash
+   source .venv/bin/activate
+   ```
 
-## Setting up an environment
+3. Verify installation:
 
-There are some tools that will be helpful to you in developing locally. While this is the list relevant for `dbt-oss-template` development, many of these tools are used commonly across open-source python projects.
+   ```bash
+   skills-ref --help
+   ```
 
-### Tools
+The `skills-ref` package is installed from the [agentskills repository](https://github.com/agentskills/agentskills/tree/main/skills-ref) without checking all the code into this repository.
 
-These are the tools used in `dbt-oss-template` development and testing:
+## Using skills-ref
 
-- [`flake8`](https://flake8.pycqa.org/en/latest/) for code linting
-- [`black`](https://github.com/psf/black) for code formatting
-- [`mypy`](https://mypy.readthedocs.io/en/stable/) for static type checking
-- [`pre-commit`](https://pre-commit.com) to easily run those checks
-- [`changie`](https://changie.dev/) to create changelog entries, without merge conflicts
+### Validate a Skill
 
-A deep understanding of these tools in not required to effectively contribute to `dbt-oss-template`, but we recommend checking out the attached documentation if you're interested in learning more about each one.
+Before submitting a skill, validate it follows the specification:
 
-#### Virtual environments
+```bash
+# With venv activated from the repository root
+skills-ref validate path/to/your-skill
 
-We strongly recommend using virtual environments when developing code in `dbt-oss-template`. We recommend creating this virtualenv
-in the root of the `dbt-oss-template` repository. To create a new virtualenv, run:
-```sh
-python3 -m venv env
-source env/bin/activate
+# Example:
+skills-ref validate dbt-commands/run-models
 ```
 
-This will create and activate a new Python virtual environment.
+The validator checks:
 
-## Running `dbt-oss-template` in development
+- Required SKILL.md file exists
+- Valid YAML frontmatter
+- Required metadata fields (name, description)
+- Proper file structure
 
-### Installation
+### Quick Reference
 
-First make sure that you set up your `virtualenv` as described in [Setting up an environment](#setting-up-an-environment).  Also ensure you have the latest version of pip installed with `pip install --upgrade pip`. Next, install `dbt-oss-template` (and its dependencies):
+```bash
+# Setup (one-time)
+uv sync
+source .venv/bin/activate
 
-```sh
-git
-pre-commit install
+# Validate skill
+skills-ref validate path/to/skill
+
+# Read properties
+skills-ref read-properties path/to/skill
+
+# Generate prompt
+skills-ref to-prompt path/to/skill
+
+# Deactivate venv when done
+deactivate
 ```
 
-### Running `dbt-oss-template`
+## Creating a New dbt Skill
 
-This repository is just a template and cannot be run.
+### 1. Create the Skill Folder
 
-## Testing
+Create a new folder with a descriptive name using kebab-case:
 
-Once you're able to manually test that your code change is working as expected, it's important to run existing automated tests, as well as adding some new ones. These tests will ensure that:
-- Your code changes do not unexpectedly break other established functionality
-- Your code changes can handle all known edge cases
-- The functionality you're adding will _keep_ working in the future
-
-
-### Initial setup
-
-None needed.
-
-### Test commands
-
-No tests included.
-
-
-### Unit, Integration, Functional?
-
-Here are some general rules for adding tests:
-* unit tests (`tests/unit`) don’t need to access a database; "pure Python" tests should be written as unit tests
-* functional tests (`tests/functional`) cover anything that interacts with a database, namely adapter
-
-## Debugging
-
-1. The logs for a `dbt run` have stack traces and other information for debugging errors (in `logs/dbt.log` in your project directory).
-2. Try using a debugger, like `ipdb`. For pytest: `--pdb --pdbcls=IPython.terminal.debugger:pdb`
-3. 
-
-### Assorted development tips
-* Append `# type: ignore` to the end of a line if you need to disable `mypy` on that line.
-* Sometimes flake8 complains about lines that are actually fine, in which case you can put a comment on the line such as: # noqa or # noqa: ANNN, where ANNN is the error code that flake8 issues.
-* To collect output for `CProfile`, run dbt with the `-r` option and the name of an output file, i.e. `dbt -r dbt.cprof run`. If you just want to profile parsing, you can do: `dbt -r dbt.cprof parse`. `pip` install `snakeviz` to view the output. Run `snakeviz dbt.cprof` and output will be rendered in a browser window.
-
-## Adding or modifying a CHANGELOG Entry
-
-We use [changie](https://changie.dev) to generate `CHANGELOG` entries. **Note:** Do not edit the `CHANGELOG.md` directly. Your modifications will be lost.
-
-Follow the steps to [install `changie`](https://changie.dev/guide/installation/) for your system.
-
-Once changie is installed and your PR is created for a new feature, simply run the following command and changie will walk you through the process of creating a changelog entry:
-
-```shell
-changie new
+```bash
+mkdir -p dbt-commands/run-incremental-models
 ```
 
-Commit the file that's created and your changelog entry is complete!
+### 2. Create SKILL.md
 
-If you are contributing to a feature already in progress, you will modify the changie yaml file in dbt/.changes/unreleased/ related to your change. If you need help finding this file, please ask within the discussion for the pull request!
+Every skill must have a `SKILL.md` file following the Agent Skills specification:
 
-You don't need to worry about which `dbt-oss-template` version your change will go into. Just create the changelog entry with `changie`, and open your PR against the `main` branch. All merged changes will be included in the next minor version of `dbt-oss-template`. The Core maintainers _may_ choose to "backport" specific changes in order to patch older minor versions. In that case, a maintainer will take care of that backport after merging your PR, before releasing the new version of `dbt-oss-template`.
+```markdown
+---
+name: run-incremental-models
+description: Execute dbt incremental models with proper refresh strategies
+---
 
-## Submitting a Pull Request
+# Run Incremental Models
 
-Code can be merged into the current development branch `main` by opening a pull request. A `dbt-oss-template` maintainer will review your PR. They may suggest code revision for style or clarity, or request that you add unit or integration test(s). These are good things! We believe that, with a little bit of help, anyone can contribute high-quality code.
+This skill helps agents execute incremental dbt models effectively, understanding when to use full refresh and how to handle incremental logic.
 
-Automated tests run via GitHub Actions. If you're a first-time contributor, all tests (including code checks and unit tests) will require a maintainer to approve. Changes in the `dbt-oss-template` repository trigger integration tests against Postgres. dbt Labs also provides CI environments in which to test changes to other adapters, triggered by PRs in those adapters' repositories, as well as periodic maintenance checks of each adapter in concert with the latest `dbt-oss-template` code changes.
+## When to Use
 
-Once all tests are passing and your PR has been approved, a `dbt-oss-template` maintainer will merge your changes into the active development branch. And that's it! Happy developing :tada:
+Use this skill when:
+- Running specific incremental models
+- Forcing a full refresh of incremental models
+- Testing incremental logic after changes
+- Rebuilding corrupted incremental tables
 
-## Troubleshooting Tips
-- Sometimes, the content license agreement auto-check bot doesn't find a user's entry in its roster. If you need to force a rerun, add `@cla-bot check` in a comment on the pull request.
+## Prerequisites
+
+- dbt Core or dbt Cloud CLI installed
+- Active dbt project with `dbt_project.yml`
+- Configured database connection in `profiles.yml`
+- At least one incremental model in the project
+
+## Commands
+
+### Run All Incremental Models
+\`\`\`bash
+dbt run --select config.materialized:incremental
+\`\`\`
+
+### Full Refresh Incremental Models
+\`\`\`bash
+dbt run --select config.materialized:incremental --full-refresh
+\`\`\`
+
+### Run Specific Incremental Model
+\`\`\`bash
+dbt run --select model_name --full-refresh
+\`\`\`
+
+## Examples
+
+### Scenario 1: Daily Incremental Run
+\`\`\`bash
+# Run only incremental models for daily refresh
+dbt run --select config.materialized:incremental
+\`\`\`
+
+### Scenario 2: Fix Corrupted Incremental Table
+\`\`\`bash
+# Full refresh a specific model to rebuild from scratch
+dbt run --select my_incremental_model --full-refresh
+\`\`\`
+
+### Scenario 3: Test Incremental Logic
+\`\`\`bash
+# Run with full refresh on a subset
+dbt run --select my_incremental_model+ --full-refresh
+\`\`\`
+
+## Common Issues
+
+- **Incremental logic not working**: Use `--full-refresh` to rebuild
+- **Performance issues**: Check incremental predicates and unique keys
+- **Missing records**: Verify the incremental strategy matches your use case
+
+## Related Commands
+
+- `dbt build --select config.materialized:incremental` - Build with tests
+- `dbt run --select state:modified+ --state ./target` - Run changed incrementals
+- `dbt compile --select model_name` - Check compiled SQL
+
+## Notes
+
+- Full refresh can be expensive on large tables
+- Always test incremental logic in development first
+- Consider using `--full-refresh` when data quality issues are detected
+```
+
+### 3. Add Supporting Resources (Optional)
+
+Include examples or helper content if needed:
+
+```
+run-incremental-models/
+├── SKILL.md
+└── examples/
+    ├── incremental_model_example.sql
+    └── selector_patterns.txt
+```
+
+### 4. Validate the Skill
+
+```bash
+source .venv/bin/activate
+skills-ref validate dbt-commands/your-skill-name
+```
+
+## Style Guide
+
+### Naming Conventions
+
+- **Folders**: Use kebab-case with dbt context (e.g., `dbt-run-models`, `dbt-test-selection`)
+- **Files**: `SKILL.md` (uppercase), supporting files lowercase
+- **Skill names**: Must match folder name exactly - lowercase with hyphens (e.g., `run-models-with-selectors`)
+
+### Command Examples
+
+Always use code blocks with bash syntax highlighting:
+
+```bash
+dbt run --select model_name
+```
+
+Include inline comments for complex commands:
+
+```bash
+# Run changed models and downstream dependencies
+dbt run --select state:modified+ --state ./target
+```
+
+### dbt-Specific Guidelines
+
+- Always specify relevant flags (`--select`, `--exclude`, `--full-refresh`, etc.)
+- Explain selector syntax when using graph operators (`+`, `@`, etc.)
+- Include both simple and complex examples
+- Mention version requirements for newer features
+- Warn about potentially destructive operations
+
+### Writing Style
+
+- Use clear, concise language familiar to dbt users
+- Reference official dbt terminology (models, sources, tests, macros, etc.)
+- Write in imperative mood for instructions
+- Include "When to Use" and "Prerequisites" sections
+- Add "Common Issues" or "Troubleshooting" when relevant
+
+### Metadata
+
+Required frontmatter in `SKILL.md`:
+
+```yaml
+---
+name: skill-name-in-lowercase-with-hyphens
+description: One-sentence summary of functionality
+---
+```
+
+**Important**:
+
+- The `name` field must be lowercase and use only letters, digits, and hyphens
+- The `name` must match the directory name exactly
+- Only these fields are allowed: `name`, `description`, `allowed-tools`, `compatibility`, `license`, `metadata`
+
+## Troubleshooting
+
+### "Command not found: skills-ref"
+
+Make sure you've installed dependencies and activated the virtual environment:
+
+```bash
+uv sync
+source .venv/bin/activate
+```
+
+## dbt Skill Ideas
+
+Need inspiration? Consider creating skills for:
+
+- **Commands**: run, test, build, seed, snapshot, compile, parse, docs, source
+- **Selectors**: tag:, config:, source:, exposure:, path:, package:
+- **Graph operators**: +model, model+, +model+, @model
+- **State comparison**: state:modified, state:new
+- **Testing strategies**: schema tests, data tests, unit tests
+- **Debugging**: Compilation errors, adapter issues, macro problems
+- **Performance**: Optimization, profiling, troubleshooting slow models
+- **CI/CD**: Slim CI patterns, deployment workflows
+- **dbt Cloud**: CLI-specific commands and features
+
+## Resources
+
+- [dbt Documentation](https://docs.getdbt.com/)
+- [Agent Skills Specification](https://agentskills.io/specification)
+- [skills-ref GitHub](https://github.com/agentskills/agentskills/tree/main/skills-ref)
+
+## Questions or Issues?
+
+- Open an issue for questions or discussions
+- Check existing skills and issues before creating new ones
+- Abide by the [dbt Community Code of Conduct](https://docs.getdbt.com/community/resources/code-of-conduct)
+
+## License
+
+By contributing, you agree that your contributions will be licensed under the same license as this repository.
