@@ -5,6 +5,6 @@ flaky
 freezegun==1.4.0
 hypothesis
 ipdb
-mypy==1.8.0
+mypy==1.19.1
 pip-tools
 pre-commit
