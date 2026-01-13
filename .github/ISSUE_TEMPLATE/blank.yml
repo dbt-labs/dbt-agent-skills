@@ -1,0 +1,10 @@
+name: Blank Issue
+description: Create a blank issue
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe your issue
+    validations:
+      required: false
