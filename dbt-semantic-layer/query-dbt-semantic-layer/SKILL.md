@@ -11,36 +11,22 @@ Answer business questions using dbt Semantic Layer MCP tools. If the question ca
 
 ## Workflow
 
-```dot
-digraph dbt_sl {
-    "Business question received" [shape=box];
-    "List metrics (list_metrics)" [shape=box];
-    "Relevant metric exists?" [shape=diamond];
-    "Get dimensions (get_dimensions)" [shape=box];
-    "Required dimensions exist?" [shape=diamond];
-    "Query metrics (query_metrics)" [shape=box];
-    "Return answer" [shape=box];
-    "Say: metric not available" [shape=box];
-    "Say: dimension not available" [shape=box];
-    "In dbt project?" [shape=diamond];
-    "Suggest semantic layer changes" [shape=box];
-    "Done" [shape=doublecircle];
-
-    "Business question received" -> "List metrics (list_metrics)";
-    "List metrics (list_metrics)" -> "Relevant metric exists?";
-    "Relevant metric exists?" -> "Get dimensions (get_dimensions)" [label="yes"];
-    "Relevant metric exists?" -> "Say: metric not available" [label="no"];
-    "Get dimensions (get_dimensions)" -> "Required dimensions exist?";
-    "Required dimensions exist?" -> "Query metrics (query_metrics)" [label="yes"];
-    "Required dimensions exist?" -> "Say: dimension not available" [label="no"];
-    "Query metrics (query_metrics)" -> "Return answer";
-    "Return answer" -> "Done";
-    "Say: metric not available" -> "In dbt project?";
-    "Say: dimension not available" -> "In dbt project?";
-    "In dbt project?" -> "Suggest semantic layer changes" [label="yes"];
-    "In dbt project?" -> "Done" [label="no"];
-    "Suggest semantic layer changes" -> "Done";
-}
+```mermaid
+flowchart TD
+    A[Business question received] --> B[List metrics - list_metrics]
+    B --> C{Relevant metric exists?}
+    C -->|yes| D[Get dimensions - get_dimensions]
+    C -->|no| E[Say: metric not available]
+    D --> F{Required dimensions exist?}
+    F -->|yes| G[Query metrics - query_metrics]
+    F -->|no| H[Say: dimension not available]
+    G --> I[Return answer]
+    I --> J(((Done)))
+    E --> K{In dbt project?}
+    H --> K
+    K -->|yes| L[Suggest semantic layer changes]
+    K -->|no| J
+    L --> J
 ```
 
 ## Quick Reference

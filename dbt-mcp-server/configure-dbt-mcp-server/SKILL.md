@@ -11,36 +11,21 @@ The dbt MCP server connects AI tools to dbt's CLI, Semantic Layer, Discovery API
 
 ## Decision Flow
 
-```dot
-digraph setup_flow {
-    rankdir=TB;
-    node [shape=box];
-
-    start [label="User wants dbt MCP" shape=ellipse];
-    q1 [label="Local or Remote?" shape=diamond];
-    local [label="Local Server\n(uvx dbt-mcp)"];
-    remote [label="Remote Server\n(HTTP endpoint)"];
-    q2 [label="Which client?" shape=diamond];
-    claude_desktop [label="Claude Desktop"];
-    claude_code [label="Claude Code"];
-    cursor [label="Cursor"];
-    vscode [label="VS Code"];
-    config [label="Generate config\n+ test setup"];
-
-    start -> q1;
-    q1 -> local [label="dev workflows\nCLI access needed"];
-    q1 -> remote [label="consumption only\nno local install"];
-    local -> q2;
-    remote -> q2;
-    q2 -> claude_desktop;
-    q2 -> claude_code;
-    q2 -> cursor;
-    q2 -> vscode;
-    claude_desktop -> config;
-    claude_code -> config;
-    cursor -> config;
-    vscode -> config;
-}
+```mermaid
+flowchart TB
+    start([User wants dbt MCP]) --> q1{Local or Remote?}
+    q1 -->|dev workflows,<br>CLI access needed| local[Local Server<br>uvx dbt-mcp]
+    q1 -->|consumption only,<br>no local install| remote[Remote Server<br>HTTP endpoint]
+    local --> q2{Which client?}
+    remote --> q2
+    q2 --> claude_desktop[Claude Desktop]
+    q2 --> claude_code[Claude Code]
+    q2 --> cursor[Cursor]
+    q2 --> vscode[VS Code]
+    claude_desktop --> config[Generate config<br>+ test setup]
+    claude_code --> config
+    cursor --> config
+    vscode --> config
 ```
 
 ## Questions to Ask
