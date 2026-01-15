@@ -1,0 +1,117 @@
+{
+  "name": "dbt-skills",
+  "version": "1.0.0",
+  "description": "dbt skills for analytics engineering workflows",
+  "plugins": [
+    {
+      "id": "using-dbt-for-analytics-engineering",
+      "name": "Using dbt for Analytics Engineering",
+      "description": "The core workflow loop when asked to interact with a dbt project. Includes best practices on developing and configuring models, adding tests, and refactoring projects.",
+      "skills": [
+        {
+          "path": "using-dbt-for-analytics-engineering/SKILL.md"
+        }
+      ]
+    },
+    {
+      "id": "debugging-dbt-errors",
+      "name": "Debugging dbt Errors",
+      "description": "Work out the root cause of a dbt project's error, e.g. parsing, compilation, or database errors.",
+      "skills": [
+        {
+          "path": "dbt-commands/debugging-dbt-errors/SKILL.md"
+        }
+      ]
+    },
+    {
+      "id": "planning-dbt-models",
+      "name": "Planning dbt Models",
+      "description": "Plan dbt models by working backwards from the desired output to understand required data structures and transformations.",
+      "skills": [
+        {
+          "path": "dbt-commands/planning-dbt-models/SKILL.md"
+        }
+      ]
+    },
+    {
+      "id": "writing-data-tests",
+      "name": "Writing Data Tests",
+      "description": "Use when adding dbt tests to models, after data discovery is complete, or when reviewing test coverage for warehouse cost optimization.",
+      "skills": [
+        {
+          "path": "dbt-commands/writing-data-tests/SKILL.md"
+        }
+      ]
+    },
+    {
+      "id": "discovering-data",
+      "name": "Discovering Data",
+      "description": "Use when exploring unfamiliar data sources, onboarding to a new dbt project, or investigating data quality issues before building models.",
+      "skills": [
+        {
+          "path": "dbt-commands/discovering-data/SKILL.md"
+        }
+      ]
+    },
+    {
+      "id": "evaluating-impact-of-a-dbt-model-change",
+      "name": "Evaluating Impact of a dbt Model Change",
+      "description": "Use when modifying an existing dbt model's SQL logic, schema, or columns to understand downstream effects before making changes.",
+      "skills": [
+        {
+          "path": "dbt-commands/evaluating-impact-of-a-dbt-model-change/SKILL.md"
+        }
+      ]
+    },
+    {
+      "id": "fetching-dbt-docs",
+      "name": "Fetching dbt Docs",
+      "description": "Use when fetching dbt documentation, looking up dbt features, or answering questions about dbt Cloud, dbt Core, or the dbt Semantic Layer.",
+      "skills": [
+        {
+          "path": "dbt-docs/fetching-dbt-docs/SKILL.md"
+        }
+      ]
+    },
+    {
+      "id": "configuring-dbt-mcp-server",
+      "name": "Configuring dbt MCP Server",
+      "description": "Use when user wants to set up, configure, or troubleshoot the dbt MCP server for AI tools like Claude Desktop, Claude Code, Cursor, or VS Code.",
+      "skills": [
+        {
+          "path": "dbt-mcp-server/configuring-dbt-mcp-server/SKILL.md"
+        }
+      ]
+    },
+    {
+      "id": "troubleshooting-dbt-job-errors",
+      "name": "Troubleshooting dbt Job Errors",
+      "description": "Use when a dbt Cloud job fails and you need to diagnose the root cause, especially when error messages are unclear or when intermittent failures occur.",
+      "skills": [
+        {
+          "path": "dbt-operations/troubleshooting-dbt-job-errors/SKILL.md"
+        }
+      ]
+    },
+    {
+      "id": "adding-time-spine-metricflow-semantic-layer",
+      "name": "Adding Time Spine for MetricFlow",
+      "description": "Use when setting up a dbt project for the semantic layer and time-based metrics are needed, when MetricFlow queries fail due to missing time spine.",
+      "skills": [
+        {
+          "path": "dbt-semantic-layer/adding-time-spine-metricflow-semantic-layer/SKILL.md"
+        }
+      ]
+    },
+    {
+      "id": "querying-dbt-semantic-layer",
+      "name": "Querying dbt Semantic Layer",
+      "description": "Use when answering business questions that could be answered by querying data, when dbt MCP tools are available.",
+      "skills": [
+        {
+          "path": "dbt-semantic-layer/querying-dbt-semantic-layer/SKILL.md"
+        }
+      ]
+    }
+  ]
+}
