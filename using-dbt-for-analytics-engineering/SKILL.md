@@ -5,6 +5,8 @@ description: Use when building, modifying, or refactoring dbt models, sources, t
 
 # Using dbt for Analytics Engineering
 
+**When you use this skill, announce:** "Using dbt analytics engineering skill to [brief purpose]."
+
 **Core principle:** Apply software engineering discipline (DRY, modularity, testing) to data transformation work through dbt's abstraction layer.
 
 ## When to Use
