@@ -30,6 +30,20 @@ class Runner:
         self.variants_dir = evals_dir / "variants"
         self.runs_dir = evals_dir / "runs"
 
+    def _get_claude_credentials(self) -> str | None:
+        """Read Claude OAuth credentials from macOS Keychain."""
+        try:
+            result = subprocess.run(
+                ["security", "find-generic-password", "-s", "Claude Code-credentials", "-w"],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode == 0:
+                return result.stdout.strip()
+        except Exception:
+            pass
+        return None
+
     def create_run_dir(self) -> Path:
         """Create a timestamped directory for this run."""
         timestamp = datetime.now().strftime("%Y-%m-%d-%H%M")
@@ -48,8 +62,18 @@ class Runner:
         if context_dir and context_dir.exists():
             shutil.copytree(context_dir, env_dir, dirs_exist_ok=True)
 
+        # Create .claude directory
+        claude_dir = env_dir / ".claude"
+        claude_dir.mkdir(parents=True, exist_ok=True)
+
+        # Copy credentials from keychain to isolated environment
+        credentials = self._get_claude_credentials()
+        if credentials:
+            (claude_dir / ".credentials.json").write_text(credentials)
+
+        # Copy skill variants
         if skills:
-            skills_dir = env_dir / ".claude" / "skills"
+            skills_dir = claude_dir / "skills"
             skills_dir.mkdir(parents=True, exist_ok=True)
 
             for skill_path in skills:
@@ -69,7 +93,7 @@ class Runner:
         """Run Claude Code with isolated config and capture output."""
         env = os.environ.copy()
         env["CLAUDE_CONFIG_DIR"] = str(env_dir / ".claude")
-        env["HOME"] = str(env_dir)
+        env["HOME"] = str(env_dir)  # Full isolation - credentials copied to .credentials.json
 
         try:
             result = subprocess.run(
