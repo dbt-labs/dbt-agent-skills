@@ -8,3 +8,6 @@ __pycache__/
 
 # Pytest cache
 .pytest_cache/
+
+# Environment secrets (scenario-level)
+scenarios/**/.env

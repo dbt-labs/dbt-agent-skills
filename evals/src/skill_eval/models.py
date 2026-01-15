@@ -8,10 +8,12 @@ import yaml
 
 @dataclass
 class SkillSet:
-    """A combination of skills to test."""
+    """A combination of skills and MCP servers to test."""
 
     name: str
     skills: list[str] = field(default_factory=list)
+    mcp_servers: dict = field(default_factory=dict)  # MCP server config (mcpServers format)
+    allowed_tools: list[str] = field(default_factory=list)  # If empty, allows all tools
 
 
 @dataclass
@@ -40,7 +42,12 @@ def load_scenario(scenario_dir: Path) -> Scenario:
         data = yaml.safe_load(f)
 
     skill_sets = [
-        SkillSet(name=s["name"], skills=s.get("skills", []))
+        SkillSet(
+            name=s["name"],
+            skills=s.get("skills", []),
+            mcp_servers=s.get("mcp_servers", {}),
+            allowed_tools=s.get("allowed_tools", []),
+        )
         for s in data.get("sets", [])
     ]
 
