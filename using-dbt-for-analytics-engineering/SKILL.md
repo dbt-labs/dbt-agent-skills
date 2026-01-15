@@ -1,13 +1,33 @@
 ---
 name: using-dbt-for-analytics-engineering
-description: The core workflow loop when asked to interact with a dbt project. Includes best practices on developing and configuring models, adding tests, and refactoring projects. Use whenever working with dbt.
+description: Use when building, modifying, or refactoring dbt models, sources, tests, or project configuration. Use when asked to create analytics pipelines, transform warehouse data, or implement data modeling best practices.
 ---
 
-# Using dbt for analytics engineering
+# Using dbt for Analytics Engineering
 
-Analytics engineering moves data work away from one-off, ad-hoc queries and towards a software engineering mindset of reusability, composability and modularity. dbt is the best way to implement this mindset.
+**Core principle:** Apply software engineering discipline (DRY, modularity, testing) to data transformation work through dbt's abstraction layer.
 
-The user provides requirements: a model, test, group of sources, or entire project to build. They may include context about the purpose, audience, or technical constraints.
+## When to Use
+
+- Building new dbt models, sources, or tests
+- Modifying existing model logic or configurations
+- Refactoring a dbt project structure
+- Creating analytics pipelines or data transformations
+- Working with warehouse data that needs modeling
+
+**Do NOT use for:**
+- Direct SQL queries against warehouse (use dbt's abstraction)
+- One-off ad-hoc analysis (consider if it should be a model)
+
+## Quick Reference
+
+| Task | Approach |
+|------|----------|
+| New model | Use `planning-dbt-models` skill first, then `dbt show` to validate |
+| Unknown schema | Use `discovering-data` skill before writing SQL |
+| Validate output | `dbt show` with profiling (counts, nulls, min/max) |
+| Add logic | Check if existing model can be extended before creating new one |
+| Configuration | Match existing project patterns, change surgically |
 
 ## DAG building guidelines
 
@@ -22,7 +42,7 @@ The user provides requirements: a model, test, group of sources, or entire proje
 - Write dbtonic code:
   - Always use `{{ ref }}` and `{{ source }}` over hardcoded table names
   - Use CTEs over subqueries
-- Before beginning to build a model, you should plan it using the [planning-dbt-models](/dbt-commands/planning-dbt-models/SKILL.md) skill.
+- **REQUIRED:** Before building a model, use the `planning-dbt-models` skill to plan your approach.
 - When implementing a model, you should use `dbt show` regularly to:
   - preview the input data you will work with, so that you use relevant columns and values
   - preview the results of your model, so that you know your work is correct
@@ -34,10 +54,13 @@ The user provides requirements: a model, test, group of sources, or entire proje
 - You should prefer working with the dbt MCP server's tools, and help the user install and onboard the MCP when appropriate.
 - You should not circumvent the dbt abstraction layer to execute DDL directly against the warehouse.
 
-## Common misconceptions
+## Common Mistakes
 
-Working with data is different than working with code. LLMs are often good at changing multiple things in a codebase simultaneously. You should not assume that you know how to one-shot a task - use the [planning skill](/dbt-commands/planning-dbt-models/SKILL.md). You should not assume you know the schema of tables - use the [discovering-data skill](/dbt-commands/discovering-data/SKILL.md).
-
-Ensure that you are not unnecessarily creating resources in the database. Code may be cheap, but the underlying data platforms have costs associated with them. You must consider the cost of adding additional models.
-
-dbt has a low barrier to entry, but is highly configurable and configuration can be applied in many places or cascade throughout a project. When changing configurations, do so surgically and taking into account the existing patterns in the project.
+| Mistake | Why It's Wrong | Fix |
+|---------|----------------|-----|
+| One-shotting models | Data work requires validation; schemas are unknown | Use `planning-dbt-models` skill, iterate with `dbt show` |
+| Assuming schema knowledge | Column names, types, and values vary across warehouses | Use `discovering-data` skill before writing SQL |
+| Creating unnecessary models | Warehouse compute has real costs | Extend existing models when possible |
+| Hardcoding table names | Breaks dbt's dependency graph | Always use `{{ ref() }}` and `{{ source() }}` |
+| Global config changes | Configuration cascades unexpectedly | Change surgically, match existing patterns |
+| Running DDL directly | Bypasses dbt's abstraction and tracking | Use dbt commands exclusively |
