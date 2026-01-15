@@ -82,3 +82,29 @@ All skills in this repository follow the [Agent Skills specification](https://ag
 ## License
 
 See [LICENSE](LICENSE) for details.
+
+## Skill Evaluation
+
+This repo includes a tool for A/B testing skill variations.
+
+### Setup
+
+```bash
+uv sync
+```
+
+### Usage
+
+```bash
+# Run a scenario
+uv run skill-eval run <scenario-name>
+
+# Run all scenarios
+uv run skill-eval run --all
+
+# Grade outputs from a run
+uv run skill-eval grade <run-id>
+
+# Generate comparison report
+uv run skill-eval report <run-id>
+```
