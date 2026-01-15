@@ -76,7 +76,31 @@ def run(
 @app.command()
 def grade(run_id: str = typer.Argument(..., help="Run ID (timestamp directory name)")) -> None:
     """Grade outputs from a run."""
-    print("grade command - not implemented yet")
+    from skill_eval.grader import init_grades_file
+
+    evals_dir = Path.cwd() / "evals"
+    run_dir = evals_dir / "runs" / run_id
+
+    if not run_dir.exists():
+        print(f"Error: Run not found: {run_id}")
+        raise typer.Exit(1)
+
+    grades_file = init_grades_file(run_dir)
+
+    print(f"Grades file: {grades_file}")
+    print("\nOutputs to review:")
+
+    for scenario_dir in sorted(run_dir.iterdir()):
+        if not scenario_dir.is_dir():
+            continue
+        print(f"\n  {scenario_dir.name}/")
+        for skill_set_dir in sorted(scenario_dir.iterdir()):
+            if not skill_set_dir.is_dir():
+                continue
+            print(f"    {skill_set_dir.name}/output.md")
+
+    print(f"\nEdit {grades_file} to record your grades.")
+    print(f"Then run: uv run skill-eval report {run_id}")
 
 
 @app.command()
