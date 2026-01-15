@@ -35,7 +35,7 @@ def run(
     from skill_eval.models import load_scenario
     from skill_eval.runner import Runner
 
-    evals_dir = Path.cwd() / "evals"
+    evals_dir = Path.cwd()
     scenarios_dir = evals_dir / "scenarios"
 
     if all_scenarios:
@@ -78,7 +78,7 @@ def grade(run_id: str = typer.Argument(..., help="Run ID (timestamp directory na
     """Grade outputs from a run."""
     from skill_eval.grader import init_grades_file
 
-    evals_dir = Path.cwd() / "evals"
+    evals_dir = Path.cwd()
     run_dir = evals_dir / "runs" / run_id
 
     if not run_dir.exists():
@@ -108,7 +108,7 @@ def report(run_id: str = typer.Argument(..., help="Run ID (timestamp directory n
     """Generate comparison report for a run."""
     from skill_eval.reporter import generate_report, save_report
 
-    evals_dir = Path.cwd() / "evals"
+    evals_dir = Path.cwd()
     run_dir = evals_dir / "runs" / run_id
 
     if not run_dir.exists():
