@@ -61,10 +61,6 @@ If the index doesn't have results, use the script to search full page content:
 ~/.claude/skills/fetch-dbt-docs/search-dbt-docs.sh metric --fresh
 ```
 
-**Features:**
-- Caches llms-full.txt locally (24h TTL)
-- Case-insensitive search
-- Works on macOS, Linux, Git Bash (Windows), and WSL
 
 Then fetch individual pages with `.md` URLs.
 
