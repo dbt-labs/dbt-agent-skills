@@ -40,7 +40,7 @@ Check for these tools first - they provide richer lineage data:
 | `get_model_lineage_dev` | Model-level downstream dependencies |
 | `get_column_lineage` | Which downstream models reference specific columns |
 
-### CLI Fallback (Always Works)
+### CLI Fallback (Worse data but always available)
 
 **List all downstream models:**
 ```bash
