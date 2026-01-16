@@ -86,7 +86,7 @@ Query with metrics (if metrics are defined):
 mf validate-configs
 mf query --metrics <your_metric> --group-by metric_time
 
-# dbt Studio / dbt Cloud
+# dbt Studio / dbt Cloud / dbt Cloud CLI
 dbt sl query --metrics <your_metric> --group-by metric_time
 ```
 
@@ -154,10 +154,10 @@ models:
 Query with yearly granularity:
 
 ```bash
-# Local development
+# Local development (MetricFlow CLI)
 mf query --metrics orders --group-by metric_time__year
 
-# dbt Studio / dbt Cloud
+# dbt Studio / dbt Cloud / dbt Cloud CLI
 dbt sl query --metrics orders --group-by metric_time__year
 ```
 
@@ -214,10 +214,10 @@ models:
 Query with fiscal granularity:
 
 ```bash
-# Local development
+# Local development (MetricFlow CLI)
 mf query --metrics orders --group-by metric_time__fiscal_year
 
-# dbt Studio / dbt Cloud
+# dbt Studio / dbt Cloud / dbt Cloud CLI
 dbt sl query --metrics orders --group-by metric_time__fiscal_year
 ```
 
