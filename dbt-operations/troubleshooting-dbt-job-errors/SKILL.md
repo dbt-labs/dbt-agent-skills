@@ -88,9 +88,11 @@ https://<DBT_ENDPOINT>/api/v2/accounts/<ACCOUNT_ID>/runs/<RUN_ID>/artifacts/run_
 ```
 
 Where:
-- `<DBT_ENDPOINT>` - The dbt Cloud endpoint (e.g., `cloud.getdbt.com`)
+- `<DBT_ENDPOINT>` - The dbt Cloud endpoint. e.g
+  - `cloud.getdbt.com` for the US multi-tenant platform (there are other endpoints for other regions)
+  - `ACCOUNT_PREFIX.us1.dbt.com` for the cell-based platforms (there are different cell endpoints for different regions and cloud providers)
 - `<ACCOUNT_ID>` - The dbt Cloud account ID
-- `<RUN_ID>` - The failed run ID
+- `<RUN_ID>` - The failed job run ID
 - `<STEP_NUMBER>` - The step that failed (e.g., if step 4 failed, use `?step=4`)
 
 Example request:
