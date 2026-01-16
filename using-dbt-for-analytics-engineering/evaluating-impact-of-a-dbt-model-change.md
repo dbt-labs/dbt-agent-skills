@@ -1,8 +1,3 @@
----
-name: evaluating-impact-of-a-dbt-model-change
-description: Use when modifying an existing dbt model's SQL logic, schema, or columns to understand downstream effects before making changes
----
-
 # Evaluating Impact of a dbt Model Change
 
 Assess downstream dependencies before modifying a dbt model. Determines scope of impact and recommends appropriate build selectors.

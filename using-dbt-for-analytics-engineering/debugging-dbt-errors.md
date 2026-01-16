@@ -1,8 +1,3 @@
----
-name: debugging-dbt-errors
-description: Work out the root cause of a dbt project's error, e.g. parsing, compilation, or database errors. 
----
-
 # How to debug dbt error messages
 
 ## Review logs and artifacts

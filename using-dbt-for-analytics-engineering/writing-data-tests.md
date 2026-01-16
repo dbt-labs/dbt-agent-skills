@@ -1,8 +1,3 @@
----
-name: writing-data-tests
-description: Use when adding dbt tests to models, after data discovery is complete, or when reviewing test coverage for warehouse cost optimization
----
-
 # Writing Data Tests in dbt
 
 Write high-value tests that catch real data issues without burning warehouse credits on low-signal checks.

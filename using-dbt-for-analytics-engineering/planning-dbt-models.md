@@ -1,8 +1,3 @@
----
-name: planning-dbt-models
-description: Plan dbt models by working backwards from the desired output to understand required data structures and transformations
----
-
 # Planning dbt Models: The Backwards Approach
 
 This skill teaches a methodology for planning dbt models by starting with the desired output and working backwards, inspired by [Claire Carroll's article](https://discourse.getdbt.com/t/writing-models-backwards-an-unorthodox-approach-to-data-transformation/2287).

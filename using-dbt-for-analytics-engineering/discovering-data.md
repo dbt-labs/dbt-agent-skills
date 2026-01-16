@@ -1,8 +1,3 @@
----
-name: discovering-data
-description: Use when exploring unfamiliar data sources, onboarding to a new dbt project, or investigating data quality issues before building models
----
-
 # Discovering Data with dbt show
 
 Use `dbt show` to interactively explore raw data, understand table structures, and document findings for downstream model development.

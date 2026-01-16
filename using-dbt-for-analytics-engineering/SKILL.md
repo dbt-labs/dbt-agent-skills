@@ -21,12 +21,24 @@ description: Use when building, modifying, or refactoring dbt models, sources, t
 - Direct SQL queries against warehouse (use dbt's abstraction)
 - One-off ad-hoc analysis (consider if it should be a model)
 
+## Reference Guides
+
+This skill includes detailed reference guides for specific techniques. Read the relevant guide when needed:
+
+| Guide | Use When |
+|-------|----------|
+| `planning-dbt-models.md` | Building new models - work backwards from desired output |
+| `discovering-data.md` | Exploring unfamiliar sources or onboarding to a project |
+| `writing-data-tests.md` | Adding tests - prioritize high-value tests over exhaustive coverage |
+| `debugging-dbt-errors.md` | Fixing parsing, compilation, or database errors |
+| `evaluating-impact-of-a-dbt-model-change.md` | Assessing downstream effects before modifying models |
+
 ## Quick Reference
 
 | Task | Approach |
 |------|----------|
-| New model | Use `planning-dbt-models` skill first, then `dbt show` to validate |
-| Unknown schema | Use `discovering-data` skill before writing SQL |
+| New model | See `planning-dbt-models.md`, then `dbt show` to validate |
+| Unknown schema | See `discovering-data.md` before writing SQL |
 | Validate output | `dbt show` with profiling (counts, nulls, min/max) |
 | Add logic | Check if existing model can be extended before creating new one |
 | Configuration | Match existing project patterns, change surgically |
@@ -46,7 +58,7 @@ description: Use when building, modifying, or refactoring dbt models, sources, t
 - Write dbtonic code:
   - Always use `{{ ref }}` and `{{ source }}` over hardcoded table names
   - Use CTEs over subqueries
-- **REQUIRED:** Before building a model, use the `planning-dbt-models` skill to plan your approach.
+- **REQUIRED:** Before building a model, follow `planning-dbt-models.md` to plan your approach.
 - **REQUIRED:** Before modifying or building on existing models, read their YAML documentation:
   - Find the model's YAML file (can be any `.yml` file in the models directory)
   - Check the model's `description` to understand its purpose
@@ -68,8 +80,8 @@ description: Use when building, modifying, or refactoring dbt models, sources, t
 
 | Mistake | Why It's Wrong | Fix |
 |---------|----------------|-----|
-| One-shotting models | Data work requires validation; schemas are unknown | Use `planning-dbt-models` skill, iterate with `dbt show` |
-| Assuming schema knowledge | Column names, types, and values vary across warehouses | Use `discovering-data` skill before writing SQL |
+| One-shotting models | Data work requires validation; schemas are unknown | Follow `planning-dbt-models.md`, iterate with `dbt show` |
+| Assuming schema knowledge | Column names, types, and values vary across warehouses | Follow `discovering-data.md` before writing SQL |
 | Skipping model documentation | Column names don't reveal business meaning | Read YAML descriptions before modifying models |
 | Creating unnecessary models | Warehouse compute has real costs | Extend existing models when possible |
 | Hardcoding table names | Breaks dbt's dependency graph | Always use `{{ ref() }}` and `{{ source() }}` |
