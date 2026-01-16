@@ -1,6 +1,6 @@
 ---
 name: using-dbt-for-analytics-engineering
-description: Use when building, modifying, or refactoring dbt models, sources, tests, or project configuration. Use when asked to create analytics pipelines, transform warehouse data, or implement data modeling best practices.
+description: Use when doing any dbt work - building or modifying models, debugging errors, exploring unfamiliar data sources, writing tests, or evaluating impact of changes. Use for analytics pipelines, data transformations, and data modeling.
 ---
 
 # Using dbt for Analytics Engineering
