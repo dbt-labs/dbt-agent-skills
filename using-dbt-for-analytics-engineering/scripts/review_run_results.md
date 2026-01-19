@@ -4,7 +4,7 @@
 
 If a user tells you there is a problem with the project, review the `target/run_results.json` file to identify which resources failed and why.
 
-Check the completion date to ensure the information is fresh.
+Check the `metadata.generated_at` key to ensure the information is fresh.
 
 ## Python Script
 

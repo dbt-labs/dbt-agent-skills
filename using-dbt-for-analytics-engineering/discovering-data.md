@@ -11,22 +11,19 @@ Use `dbt show` to interactively explore raw data, understand table structures, a
 
 ## The Iron Rule
 
-**Complete all 6 steps for every table you will build models on. No exceptions.**
-
-Skipping steps doesn't save time - it moves the cost to debugging, rework, and incorrect business metrics. A 30-minute discovery shortcut becomes a 2-week production incident.
+**Complete all 6 steps for every table you will build models on.**
 
 ## Rationalizations That Mean STOP
 
 | You're Thinking... | Reality |
 |-------------------|---------|
 | "I don't have time for full discovery" | You don't have time for wrong models. |
-| "It's just a quick stakeholder briefing" | Quick briefings become "can you build a model from this?" You need to do full discovery before building anything." |
+| "It's just a quick stakeholder briefing" | Quick briefings become "can you build a model from this?" You need to do full discovery before building anything. |
 | "I'll do proper discovery later" | You won't. Document now or create technical debt someone else inherits. |
 | "This is technical debt I'm accepting" | You're not accepting it - you're passing it to your future self or teammates. |
 | "47 tables is too many for full methodology" | Then prioritize which tables you'll actually use and do full discovery on those. Don't half-discover everything. |
 | "I'll just do the critical tables thoroughly" | ALL tables you build on are critical. If it's not worth full discovery, don't build models on it yet. |
-| "Standard patterns, I know this data" | You know the pattern. You don't know THIS instance. Verify. |
-| "The senior engineer said skip it" | The senior engineer won't debug your models at 2am. Follow the methodology. |
+| "Standard patterns, I know this data" | You know the pattern. This instance's data might vary. Verify. |
 
 ## Red Flags - You're About to Skip Steps
 
@@ -47,134 +44,64 @@ When facing many tables (20+), the answer is NOT abbreviated discovery. The answ
 1. **Scope ruthlessly first** - Which tables will you actually build models on? Only those need discovery now.
 2. **Full methodology on scoped tables** - Every table in scope gets all 6 steps. No exceptions.
 3. **Explicit deferral for out-of-scope** - Document which tables you're NOT discovering and why. "Not needed for current project" is valid. "Too many tables" is not.
-4. **Sequential, not parallel shortcuts** - If you have 15 in-scope tables, do full discovery on each one sequentially. Don't sample all 15, then grain-check all 15. Complete each table fully before moving to the next.
 
 **Wrong approach:** "I'll do light discovery on all 47 tables"
 **Right approach:** "I'll do full discovery on the 8 tables needed for this project"
 
 ## Core Method: Iterative Discovery
 
-### Step 1: Inventory Available Sources
+### Step 1: Inventory relevant objects
 
-List all sources defined in the project:
+#### Sources
+
+When discovering new raw data, list all tables from the new source. E.g. listing all `ecom` source tables:
 
 ```bash
-dbt ls --resource-type source --output name
+# quoting is critical when selecting sources
+dbt ls --select "source:ecom.*" --output json
 ```
 
-Review `models/staging/` for existing `_sources.yml` files to understand what's already documented.
+Review the existing YAML file at `original_file_path` to understand what's already documented.
+
+#### Models
+
+When previewing existing models, use standard node selection syntax:
+
+```bash
+# quoting is critical when selecting multiple nodes
+dbt ls --select "my_first_model my_second_model" --output json
+```
+
+Review existing YAML files (normally colocated with the model's `original_file_path`) to understand what's already documented.
 
 ### Step 2: Sample Raw Data
 
 Preview rows from each source table:
 
 ```bash
-dbt show --inline "SELECT * FROM {{ source('source_name', 'table_name') }} LIMIT 20" --output json
+dbt show --inline "SELECT * FROM {{ source('source_name', 'table_name') }}" --limit 50 --output json
 ```
 
 **Document immediately:**
-- Column names and apparent data types
+
+- Column names and warehouse-native data types
 - Which columns appear to be identifiers vs attributes
-- Obvious nulls, empty strings, or placeholder values
+- Obvious nulls, low-cardinality values, and values which are not obvious from their column name
 
-### Step 3: Analyze Table Grain
+### Run standard EDA
 
-Determine what one row represents:
+Continue to use `dbt show` to run standard exploratory data analysis queries such as:
 
-```bash
-# Check total rows vs distinct keys
-dbt show --inline "
-SELECT
-  COUNT(*) as total_rows,
-  COUNT(DISTINCT id_column) as distinct_ids
-FROM {{ source('source_name', 'table_name') }}
-" --output json
-```
-
-**Grain indicators:**
-- `total_rows = distinct_ids` → One row per entity (dimension-like)
-- `total_rows > distinct_ids` → Multiple rows per entity (fact-like, needs grouping)
-- Look for date columns that suggest time-series grain
-
-### Step 4: Profile Key Columns
-
-For each important column, check distribution and quality:
-
-```bash
-# Value distribution
-dbt show --inline "
-SELECT column_name, COUNT(*) as cnt
-FROM {{ source('source_name', 'table_name') }}
-GROUP BY 1
-ORDER BY 2 DESC
-LIMIT 20
-" --output json
-
-# Null analysis
-dbt show --inline "
-SELECT
-  COUNT(*) as total,
-  COUNT(column_name) as non_null,
-  COUNT(*) - COUNT(column_name) as null_count
-FROM {{ source('source_name', 'table_name') }}
-" --output json
-```
-
-**Data nuances to document:**
-- Columns with high null rates
-- Unexpected values (e.g., "N/A", "-1", "unknown")
-- Date formats and timezone handling
-- Numeric precision issues
-
-### Step 5: Map Relationships
-
-Test suspected foreign key relationships:
-
-```bash
-# Check if FK values exist in parent table
-dbt show --inline "
-SELECT COUNT(*) as orphan_count
-FROM {{ source('source_name', 'child_table') }} c
-LEFT JOIN {{ source('source_name', 'parent_table') }} p
-  ON c.parent_id = p.id
-WHERE p.id IS NULL
-" --output json
-```
-
-**Relationship types to identify:**
-- One-to-one: Both sides have same distinct count
-- One-to-many: Parent has fewer distinct values
-- Many-to-many: Requires junction table
-
-### Step 6: Identify Structural Issues
-
-Common problems to check:
-
-```bash
-# Duplicate primary keys
-dbt show --inline "
-SELECT id_column, COUNT(*) as cnt
-FROM {{ source('source_name', 'table_name') }}
-GROUP BY 1
-HAVING COUNT(*) > 1
-LIMIT 10
-" --output json
-
-# Mixed data in columns
-dbt show --inline "
-SELECT DISTINCT
-  CASE
-    WHEN TRY_CAST(mixed_column AS INTEGER) IS NOT NULL THEN 'integer'
-    WHEN TRY_CAST(mixed_column AS DATE) IS NOT NULL THEN 'date'
-    ELSE 'string'
-  END as detected_type
-FROM {{ source('source_name', 'table_name') }}
-" --output json
-```
+- Identify the grain of the table
+- Check for duplicate/null primary keys
+- Validate data ranges make sense (e.g. event timestamps are in the past)
+- Profile key columns
+- Identify potential foreign key relationships
+- Inconsistent data types in a column
 
 ## Documenting Findings
 
-Create a discovery report that other agents can consume. Place in `docs/data_discovery/` or alongside the source YAML.
+Create a discovery report that other agents can consume. Place in a `data_discovery.md` file alongside the SQL/YAML files. Do not use Jinja in these discovery files to avoid them being mistaken for doc blocks.
 
 ### Discovery Report Template
 
@@ -209,7 +136,7 @@ Create a discovery report that other agents can consume. Place in `docs/data_dis
 
 ## Previewing Data Efficiently
 
-When using `dbt show --inline` to preview data, push `LIMIT` clauses as early as possible in CTEs to minimize data scanning. Never add a `LIMIT` at the end of the query - `dbt show --limit` handles that automatically.
+When using `dbt show --inline` to preview data, push `LIMIT` clauses as early as possible in CTEs to minimize data scanning. Never add a `LIMIT` at the end of the query - `dbt show` always adds an additional limit and you will cause a syntax error.
 
 ```sql
 -- ✅ GOOD: Limit pushed early, minimizes scanning
@@ -232,29 +159,12 @@ select ... from orders join customers ...
 limit 100  -- Too late, and redundant with --limit flag
 ```
 
-## Quick Reference
-
-| Task | Command |
-|------|---------|
-| List sources | `dbt ls --resource-type source` |
-| Preview data | `dbt show --inline "SELECT * FROM {{ source(...) }} LIMIT 20" --output json` |
-| Count rows | `dbt show --inline "SELECT COUNT(*) FROM {{ source(...) }}" --output json` |
-| Check uniqueness | `dbt show --inline "SELECT col, COUNT(*) FROM ... GROUP BY 1 HAVING COUNT(*) > 1" --output json` |
-| Test FK relationship | `dbt show --inline "SELECT COUNT(*) FROM child LEFT JOIN parent ON ... WHERE parent.id IS NULL" --output json` |
-
 ## Common Mistakes
 
-**Assuming column names reflect content**
-- Always verify with sample data; `customer_id` might contain account IDs
+**Assuming column names reflect content**. Always verify with sample data; `customer_id` might contain account IDs
 
-**Skipping null analysis**
-- High null rates affect join behavior and aggregations
+**Not documenting findings**. Discovery without documentation wastes effort; write it down immediately
 
-**Not documenting findings**
-- Discovery without documentation wastes effort; write it down immediately
+**Testing relationships on sampled data only**. Orphan records may exist outside your sample; run full counts
 
-**Testing relationships on sampled data only**
-- Orphan records may exist outside your sample; run full counts
-
-**Ignoring soft deletes**
-- Check for `deleted_at`, `is_active`, or `status` columns that filter valid records
+**Ignoring soft deletes**. Check for `deleted_at`, `is_active`, or `status` columns that filter valid records
