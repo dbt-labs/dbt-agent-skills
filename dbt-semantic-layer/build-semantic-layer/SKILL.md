@@ -7,13 +7,12 @@ description: Use when creating or modifying dbt Semantic Layer components includ
 
 This skill guides the creation and modification of dbt Semantic Layer components: semantic models, entities, dimensions, and metrics.
 
-## TODO 
-    - add new semantic layer note
-    - point to docs pages in order to reduce the length of the skill
-    - how do we validate the semantic layer? ensure that's 
-
+> [!NOE]
+This skill contains guidance for the new dbt semantic layer YAML spec, valid for dbt 1.12.0 and above. If the user is using a different version of dbt, you can use the [migration guide](https://docs.getdbt.com/docs/build/semantic-layer/yaml-reference) to help them migrate to the new spec and add new components to their semantic layer. Ask the user if they want to migrate to the new spec before proceeding.
 
 ## Entry Points
+
+Users may ask questions realtead to building metrics with teh semantic layer in a few differnet ways. Here are the common entry points to look out for:
 
 ### Business Question First
 
@@ -71,11 +70,11 @@ models:
       enabled: true # enable the semantic model
     agg_time_dimension: ordered_at # set the primary time column (this is a column in the dbt model)
     columns:
-      - name: order_id
+      - name: order_id # this is the primary key column of the model
         entity: 
           type: primary 
           name: order
-      - name: customer_id
+      - name: customer_id # this is a foreign key column of the model
         entity: 
           type: foreign 
           name: customer
@@ -170,7 +169,7 @@ models:
 After writing YAML, validate in two stages:
 
 1. **Parse Validation**: Run `dbt parse` to confirm YAML syntax and references
-2. **Semantic Layer Validation**: Run `dbt sl validate` to check all metric configurations
+2. **Semantic Layer Validation**: Run `dbt sl validate` to check all metric configurations if using dbt Cloud CLI or dbt Fusion. If using dbt Local, you can use the `mf validate-configs` command to validate the semantic layer.
 
 Do not consider work complete until both validations pass.
 
@@ -185,60 +184,7 @@ When modifying existing semantic layer config:
 
 ## YAML Format Reference
 
-### Model-level configuration
 
-```yaml
-models:
-  - name: fct_orders
-    semantic_model:
-      enabled: true
-      name: fct_orders_semantic_model  # optional override
-
-    agg_time_dimension: order_date  # required, at model level
-    columns:
-      # Shorthand
-      - name: order_id
-        entity: primary
-
-      # Full form
-      - name: order_id
-        entity:
-          type: primary
-          name: order
-          description: "Primary entity for orders"
-          label: "Order"
-
-      # Foreign entity
-      - name: customer_id
-        entity:
-          type: foreign
-          name: customer
-
-      # Unique entity
-      - name: transaction_id
-        entity: unique
-
-      # Categorical dimension - shorthand
-      - name: order_status
-        dimension: categorical
-
-      # Categorical dimension - full form
-      - name: order_status
-        description: "Order status dimension"
-        dimension:
-          type: categorical
-          name: status
-          label: "Status"
-
-      # Time dimension - granularity at column level
-      - name: ordered_at
-        granularity: day
-        dimension:
-          type: time
-          name: order_date
-          is_partition: true
-          label: "Order Date"
-```
 
 ### Derived Dimensions and Entities
 
@@ -258,18 +204,10 @@ if the user wants to create a derived dimension or entity that is not a column w
           expr: "order_id || '-' || customer_id"
 ```
 
-### Simple Metrics
+## Advanced Metric Examples
 
-```yaml
-    metrics:
-      - name: total_orders
-        description: Count of all orders
-        type: simple
-        label: Total Orders
-        agg: count
-        expr: order_id
+All simple metrics are defined at the model level under the `metrics` key. Advanced metrics that refer to simple metrics _within the same model_ are defined within a model's YAML entry the `models.metrics` key. Advanced metrics that refer to simple metrics _across different models_ are defined at the top level under the `metrics` key.
 
-```
 
 ### Derived Metrics
 
@@ -369,6 +307,25 @@ metrics:
       meta:
         owner: "@someone"
 ```
+
+### Filtering Metrics
+
+Filters can be added to simple metrics or metric inputs to advanced metrics. The format of a filters is a Jinja template that can reference entities, dimensions, and metrics, a boolean operator, and a value. Ensure the value matches the type of the column being filtered.
+
+Examples 
+
+filter: | 
+  {{ Entity('entity_name') }} = 'value'
+
+filter: |  
+  {{ Dimension('primary_entity__dimension_name') }} > 100
+
+filter: |  
+  {{ TimeDimension('time_dimension', 'granularity') }} > '2026-01-01'
+
+filter: |  
+ {{ Metric('metric_name', group_by=['entity_name']) }} > 100
+
 
 ## Key Formatting Rules
 
