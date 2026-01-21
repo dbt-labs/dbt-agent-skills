@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 
 import yaml
+from claude_code_transcripts import generate_html
 
 from skill_eval.models import Scenario, SkillSet
 
@@ -48,6 +49,24 @@ class Runner:
         except Exception:
             pass
         return None
+
+    def _generate_transcript(self, env_dir: Path, output_dir: Path) -> None:
+        """Generate HTML transcript from Claude's native session file."""
+        claude_projects = env_dir / ".claude" / "projects"
+        if not claude_projects.exists():
+            return
+
+        session_file = next(
+            (f for f in claude_projects.glob("*/*.jsonl") if not f.name.startswith("agent-")),
+            None,
+        )
+        if not session_file:
+            return
+
+        try:
+            generate_html(session_file, output_dir / "transcript")
+        except Exception as e:
+            print(f"Warning: transcript generation failed: {e}")
 
     def create_run_dir(self) -> Path:
         """Create a timestamped directory for this run."""
@@ -321,6 +340,7 @@ class Runner:
                     context_output.mkdir(parents=True, exist_ok=True)
                     shutil.copy(item, dest)
 
+        self._generate_transcript(env_dir, output_dir)
         shutil.rmtree(env_dir, ignore_errors=True)
 
         return RunResult(
