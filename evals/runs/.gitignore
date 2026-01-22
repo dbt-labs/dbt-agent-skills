@@ -1,0 +1,3 @@
+# Ignore run outputs (contain potentially large Claude responses)
+*
+!.gitignore

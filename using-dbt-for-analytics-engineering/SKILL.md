@@ -18,8 +18,9 @@ description: Use when doing any dbt work - building or modifying models, debuggi
 - Working with warehouse data that needs modeling
 
 **Do NOT use for:**
-- Direct SQL queries against warehouse (use dbt's abstraction)
-- One-off ad-hoc analysis (consider if it should be a model)
+
+- One-off ad-hoc analysis
+- Querying the semantic layer (use the [querying-dbt-semantic-layer](/dbt-semantic-layer/querying-dbt-semantic-layer/SKILL.md) skill)
 
 ## Reference Guides
 
@@ -30,8 +31,9 @@ This skill includes detailed reference guides for specific techniques. Read the 
 | `planning-dbt-models.md` | Building new models - work backwards from desired output |
 | `discovering-data.md` | Exploring unfamiliar sources or onboarding to a project |
 | `writing-data-tests.md` | Adding tests - prioritize high-value tests over exhaustive coverage |
-| `debugging-dbt-errors.md` | Fixing parsing, compilation, or database errors |
+| `debugging-dbt-errors.md` | Fixing project parsing, compilation, or database errors |
 | `evaluating-impact-of-a-dbt-model-change.md` | Assessing downstream effects before modifying models |
+| `writing-documentation.md` | Write documentation that doesn't just restate the column name |
 
 ## Quick Reference
 
@@ -58,9 +60,9 @@ This skill includes detailed reference guides for specific techniques. Read the 
 - Write dbtonic code:
   - Always use `{{ ref }}` and `{{ source }}` over hardcoded table names
   - Use CTEs over subqueries
-- **REQUIRED:** Before building a model, follow `planning-dbt-models.md` to plan your approach.
-- **REQUIRED:** Before modifying or building on existing models, read their YAML documentation:
-  - Find the model's YAML file (can be any `.yml` file in the models directory)
+- Before building a model, follow `planning-dbt-models.md` to plan your approach.
+- Before modifying or building on existing models, read their YAML documentation:
+  - Find the model's YAML file (can be any `.yml` or `.yaml` file in the models directory)
   - Check the model's `description` to understand its purpose
   - Read column-level `description` fields to understand what each column represents
   - Review any `meta` properties that document business logic or ownership
@@ -69,6 +71,13 @@ This skill includes detailed reference guides for specific techniques. Read the 
   - preview the input data you will work with, so that you use relevant columns and values
   - preview the results of your model, so that you know your work is correct
   - run basic data profiling (counts, min, max, nulls) of input and output data, to check for misconfigured joins or other logic errors
+
+## Cost management best practices
+
+- Use deferral (`--defer --state path/to/prod/artifacts`) to reuse production objects
+- Use [`dbt clone`](https://docs.getdbt.com/reference/commands/clone) to produce zero-copy clones
+- Avoid large unpartitioned table scans in BigQuery
+- Always use `--select` instead of running the entire project
 
 ## Interacting with the CLI
 

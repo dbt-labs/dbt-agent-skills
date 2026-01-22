@@ -1,32 +1,35 @@
-# Planning dbt Models: The Backwards Approach
+# Planning dbt Models
 
-This skill teaches a methodology for planning dbt models by starting with the desired output and working backwards, inspired by [Claire Carroll's article](https://discourse.getdbt.com/t/writing-models-backwards-an-unorthodox-approach-to-data-transformation/2287).
+Before writing dbt models, you must make a plan. Start with the desired output and work backwards to identify the necessary inputs.
 
 ## When to Use
 
 Use this approach when:
 
-- Building a new complex model with unclear data requirements
 - Planning multi-step transformations across multiple models
-- Unsure about the grain or structure of intermediate models
+- Preparing to restructure an existing model or series of models
 
-## The Backwards Method
+## The planning process
 
-### Step 1: Mock the Final Output
+### Step 1: Mock the final output
 
 Create a spreadsheet or markdown table with the **ideal output** you want to produce. Include:
 
+- Primary key (or surrogate key if not possible)
 - Column names that match business requirements
 - Sample data rows (numbers don't need to be accurate)
 - The grain/granularity you're targeting
+- The appropriate materialization strategy given the cost and freshness expectations
 
 **Example:** Daily inventory levels
 
-| date       | product_id | product_name | quantity_on_hand | value_on_hand |
-|------------|------------|--------------|------------------|---------------|
-| 2024-01-01 | SKU-001    | Widget A     | 100              | 2500.00       |
-| 2024-01-01 | SKU-002    | Widget B     | 50               | 1250.00       |
-| 2024-01-02 | SKU-001    | Widget A     | 95               | 2375.00       |
+_In practice, use `dbt_utils.generate_surrogate_key` for the surrogate key_
+
+| inventory_level_id       | date       | product_id | product_name | quantity_on_hand | value_on_hand |
+|--------------------------|------------|------------|--------------|------------------|---------------|
+| 2024-01-01_SKU-001       | 2024-01-01 | SKU-001    | Widget A     | 100              | 2500.00       |
+| 2024-01-01_SKU-002       | 2024-01-01 | SKU-002    | Widget B     | 50               | 1250.00       |
+| 2024-01-02_SKU-001       | 2024-01-02 | SKU-001    | Widget A     | 95               | 2375.00       |
 
 ### Step 2: Mock the SQL query for this output
 
@@ -34,6 +37,7 @@ Write pseudocode or actual SQL that would produce this table, even if you don't 
 
 ```sql
 select
+  {{ dbt_utils.generate_surrogate_key(['date', 'product_id']) }} as inventory_level_id,
   date_trunc('day', ????) as date,
   product_id,
   sum(???) as quantity_on_hand  -- Need running total, not daily sum
@@ -56,9 +60,9 @@ As you write the query, you'll discover what the **upstream model** needs to pro
 
 **Example iteration:** Realized we need a running total, not a daily sum. This means we need window functions over transaction history, not a simple GROUP BY.
 
-### Step 4: Mock the required upstream model
+### Step 4: Mock the required upstream models
 
-Based on your query needs, mock the table you're selecting from:
+Based on your query needs, mock each table you're selecting from:
 
 **Upstream model:** `product_transactions` (one record per inventory transaction)
 
@@ -115,7 +119,7 @@ This reveals we need:
 - Logic to get the last transaction of each day (running balance at EOD)
 - A product dimension table for proper product names
 
-### Step 6: Match with Source Data
+### Step 6: Match with input data
 
 Now that you know what inputs you need, look at the actual resources available in your dbt project:
 
@@ -124,15 +128,33 @@ Now that you know what inputs you need, look at the actual resources available i
 - Do multiple tables need to be unioned?
 - What joins are required?
 
-If a table with the characteristics of the mocked-up `product_transactions` table already exists, use that. Otherwise, add it as another model which needs to be built and recursively repeat the process of establishing its parents' shape and code.
+In order of preference, the possible outcomes are:
 
-### Step 7: Implement the planned models
+| Priority | Scenario | Behaviour |
+|----------|----------|-----------|
+| 1 | Exact match exists | Use it directly |
+| 2 | Partial match exists | Extend it, plan changes recursively if needed |
+| 3 | No match | Create a new model, recursively repeating the planning process |
+
+### Step 7: Consider edge cases and produce failing unit tests
+
+Don't wait to test edge cases:
+
+- What if multiple transactions occur on the same day for one product?
+- What if a product has no transactions for several days?
+- How do you handle null transaction dates or quantities?
+
+Add unit tests for the planned models with mocked inputs from your identified dependencies. These tests should fail until the model has been correctly implemented.
+
+### Step 8: Implement the planned models
 
 Once you've worked backwards to existing models or source data, you can now implement with real code. Reuse existing models wherever possible.
 
+Run the unit tests to ensure that the model matches the requirements.
+
 ## Practical Tips
 
-### Use Placeholder Columns
+### Use placeholder columns
 
 When building incrementally, use placeholders to define the interface:
 
@@ -145,7 +167,7 @@ select
 from {{ ref('stg_inventory_transactions') }}
 ```
 
-### Document Your Planning
+### Document your planning
 
 Create a markdown file alongside your models:
 
@@ -163,83 +185,23 @@ One row per transaction with running balance
 1. Combine purchase, sale, and return transaction types
 2. Add window function for cumulative quantity on hand
 3. Filter to end-of-day balance per product
+
+## Unit tests 
+- Running balance correctly accumulates across multiple transactions for same product
+- End-of-day quantity reflects the last transaction when multiple occur on the same day
+- Value on hand equals quantity on hand multiplied by unit cost
 ```
-
-### Test Your Assumptions Early
-
-Don't wait to test edge cases:
-
-- What if multiple transactions occur on the same day for one product?
-- What if a product has no transactions for several days?
-- How do you handle null transaction dates or quantities?
 
 ## Common Pitfalls
 
-❌ **Starting to code before understanding the output**
+**Starting to code before understanding the output**. Leads to multiple refactors and unclear model purposes
 
-- Leads to multiple refactors and unclear model purposes
+**Not iterating on the mockup**. If you can't write the SQL, revise your output structure
 
-❌ **Assuming upstream data has the grain you need**
-
-- Check early whether you need to change grain (aggregate or explode)
-
-❌ **Not iterating on the mockup**
-
-- If you can't write the SQL, revise your output structure
-
-❌ **Forgetting about data quality**
-
-- Consider null handling, duplicates, and edge cases in your planning
-
-## Comparison with Traditional Approach
-
-### Traditional (Left-to-Right)
-
-1. Look at source data
-2. Start writing transformations
-3. Hope it produces the right output
-4. Debug when it doesn't
-
-### Backwards (Right-to-Left)
-
-1. Define exact output needed
-2. Work backwards to understand requirements
-3. Build with clear purpose at each step
-4. Less debugging needed
-
-## Benefits
-
-✅ **Clearer model purpose** - Each model has an obvious goal  
-✅ **Better intermediate models** - You know exactly what fields and grain are needed  
-✅ **Fewer refactors** - Understanding requirements upfront prevents rework  
-✅ **Easier debugging** - When you know what you expect, issues are obvious  
-✅ **Better tests** - You can define expected output before building  
+**Forgetting about data quality**. Consider null handling, duplicates, and edge cases in your planning
 
 ## Related Concepts
 
 - **Test-Driven Development (TDD)**: Similar philosophy of defining expected output first
 - **Kimball Methodology**: Start with business questions, work back to data requirements
 - **Dimensional Modeling**: Understanding fact/dimension grain before implementation
-
-## Example Workflow
-
-```bash
-# 1. Create a planning doc
-touch models/marts/inventory/PLANNING.md
-
-# 2. Mock output in the doc
-# (add your table mockups)
-
-# 3. Create placeholder models
-touch models/marts/inventory/daily_inventory_levels.sql
-touch models/intermediate/inventory/int_transactions_with_running_balance.sql
-
-# 4. Add placeholder columns
-# (null::type as column_name)
-
-# 5. Write the actual SQL based on your planning
-# Fill in the real logic for each model, working left to right
-
-# 7. Run new models once code complete to validate correctness
-dbt run --select +daily_inventory_levels
-```

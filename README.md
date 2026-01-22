@@ -82,3 +82,7 @@ All skills in this repository follow the [Agent Skills specification](https://ag
 ## License
 
 See [LICENSE](LICENSE) for details.
+
+## Skill Evaluation
+
+See [evals/README.md](evals/README.md) for the A/B testing tool to compare skill variations.

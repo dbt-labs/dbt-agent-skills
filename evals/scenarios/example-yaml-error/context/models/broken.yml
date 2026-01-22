@@ -1,0 +1,11 @@
+version: 2
+
+models:
+  - name: my_model
+    description: A test model
+    columns:
+      - name: id
+        description: Primary key
+   tests:
+          - unique
+          - not_null

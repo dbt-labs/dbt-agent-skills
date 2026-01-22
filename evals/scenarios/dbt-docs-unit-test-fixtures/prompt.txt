@@ -1,0 +1,1 @@
+How do I use fixtures in dbt unit tests? Show me an example of how to define fixture data for testing a model.

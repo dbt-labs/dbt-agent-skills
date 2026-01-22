@@ -1,0 +1,1 @@
+What is the `arguments:` config when using tests in dbt? Is it required?

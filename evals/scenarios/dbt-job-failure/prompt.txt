@@ -1,0 +1,1 @@
+A dbt Cloud job failed on January 14th. Can you help me debug the issue and find the root cause?

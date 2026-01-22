@@ -1,0 +1,24 @@
+sets:
+  - name: no-skills-but-tools
+    skills: []
+    allowed_tools:
+        - Read
+        - Glob
+        - Grep
+        - Edit
+        - Bash(dbt:*)
+
+  - name: no-skills-just-edit-tool
+    skills: []
+    allowed_tools:
+        - Read
+
+  # - name: debug-baseline-with-skill-tool
+  #   skills:
+  #     - dbt-commands/debugging-dbt-errors/SKILL.md
+  #   allowed_tools:
+  #       - Read
+  #       - Glob
+  #       - Grep
+  #       - Edit
+  #       - Bash(dbt:*)
