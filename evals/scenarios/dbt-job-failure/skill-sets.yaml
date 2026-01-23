@@ -26,14 +26,17 @@ sets:
   # Full setup: skill + MCP server
   - name: with-skill-and-mcp
     skills:
-      - dbt-operations/troubleshooting-dbt-job-errors/SKILL.md
+      # - dbt-operations/troubleshooting-dbt-job-errors/SKILL.md
     mcp_servers:
       dbt:
-        command: uvx
+        command: uv
         args:
+          - run
+          - --project 
+          - ~/dev/dbt-mcp
           - --env-file
           - .env
-          - dbt-mcp@latest
+          - dbt-mcp
     allowed_tools:
       - Read
       - Glob
@@ -41,20 +44,20 @@ sets:
       - Bash(git:*)
       - mcp__dbt__*
 
-  - name: with-skill-and-mcp-and-skills-tool
-    skills:
-      - dbt-operations/troubleshooting-dbt-job-errors/SKILL.md
-    mcp_servers:
-      dbt:
-        command: uvx
-        args:
-          - --env-file
-          - .env
-          - dbt-mcp@latest
-    allowed_tools:
-      - Read
-      - Glob
-      - Grep
-      - Bash(git:*)
-      - mcp__dbt__*
-      - Skill
+  # - name: with-skill-and-mcp-and-skills-tool
+  #   skills:
+  #     - dbt-operations/troubleshooting-dbt-job-errors/SKILL.md
+  #   mcp_servers:
+  #     dbt:
+  #       command: uvx
+  #       args:
+  #         - --env-file
+  #         - .env
+  #         - dbt-mcp@latest
+  #   allowed_tools:
+  #     - Read
+  #     - Glob
+  #     - Grep
+  #     - Bash(git:*)
+  #     - mcp__dbt__*
+  #     - Skill
