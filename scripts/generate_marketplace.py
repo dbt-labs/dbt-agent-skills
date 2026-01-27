@@ -19,7 +19,7 @@ DEFAULT_CATEGORY = "analytics"
 MARKETPLACE_METADATA = {
     "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
     "name": "dbt-skills",
-    "description": "Skills for working with dbt (data build tool) - analytics engineering, data modeling, semantic layer, and dbt Cloud operations",
+    "description": "Skills for working with dbt Core and the dbt Fusion engine - analytics engineering, data modeling, semantic layer, and dbt Cloud operations",
     "owner": {
         "name": "dbt Labs",
         "email": "support@getdbt.com"
