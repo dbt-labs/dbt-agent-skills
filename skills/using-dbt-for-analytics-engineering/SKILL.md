@@ -19,7 +19,7 @@ description: Use when doing any dbt work - building or modifying models, debuggi
 
 **Do NOT use for:**
 
-- Querying the semantic layer (use the [querying-dbt-semantic-layer](/dbt-semantic-layer/querying-dbt-semantic-layer/SKILL.md) skill)
+- Querying the semantic layer (use the `querying-dbt-semantic-layer` skill)
 
 ## Reference Guides
 

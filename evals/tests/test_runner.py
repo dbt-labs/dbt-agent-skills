@@ -192,7 +192,7 @@ def test_runner_is_url_detection(tmp_path: Path) -> None:
     assert runner._is_url("https://github.com/org/repo/blob/main/skills/SKILL.md")
 
     # Should NOT be detected as URLs
-    assert not runner._is_url("dbt-docs/fetching-dbt-docs/SKILL.md")
+    assert not runner._is_url("skills/fetching-dbt-docs")
     assert not runner._is_url("skills/debug")
     assert not runner._is_url("/absolute/path/SKILL.md")
     assert not runner._is_url("")

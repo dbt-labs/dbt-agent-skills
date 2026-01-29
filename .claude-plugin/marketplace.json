@@ -8,39 +8,21 @@
   },
   "plugins": [
     {
-      "name": "fetching-dbt-docs",
-      "description": "Use when fetching dbt documentation, looking up dbt features, or answering questions about dbt Cloud, dbt Core, or the dbt Semantic Layer",
+      "name": "adding-dbt-unit-test",
+      "description": "Use when adding unit tests for a dbt model",
       "author": {
         "name": "dbt Labs"
       },
-      "source": "./dbt-docs/fetching-dbt-docs",
-      "category": "documentation"
-    },
-    {
-      "name": "configuring-dbt-mcp-server",
-      "description": "Use when user wants to set up, configure, or troubleshoot the dbt MCP server for AI tools like Claude Desktop, Claude Code, Cursor, or VS Code",
-      "author": {
-        "name": "dbt Labs"
-      },
-      "source": "./dbt-mcp-server/configuring-dbt-mcp-server",
-      "category": "integration"
-    },
-    {
-      "name": "troubleshooting-dbt-job-errors",
-      "description": "Use when a dbt Cloud job fails and you need to diagnose the root cause, especially when error messages are unclear or when intermittent failures occur",
-      "author": {
-        "name": "dbt Labs"
-      },
-      "source": "./dbt-operations/troubleshooting-dbt-job-errors",
-      "category": "operations"
+      "source": "./skills/add-unit-test",
+      "category": "analytics"
     },
     {
       "name": "answering-natural-language-questions-with-dbt",
-      "description": "Use when answering business questions that require querying data in a dbt project, whether via semantic layer, model discovery, or manifest analysis",
+      "description": "Use when a user asks a business question that requires querying data (e.g., \"What were total sales last quarter?\"). NOT for validating, testing, or building dbt models during development.",
       "author": {
         "name": "dbt Labs"
       },
-      "source": "./dbt-semantic-layer/answering-natural-language-questions-with-dbt",
+      "source": "./skills/answering-natural-language-questions-with-dbt",
       "category": "semantic-layer"
     },
     {
@@ -49,8 +31,35 @@
       "author": {
         "name": "dbt Labs"
       },
-      "source": "./dbt-semantic-layer/build-semantic-layer",
-      "category": "semantic-layer"
+      "source": "./skills/build-semantic-layer",
+      "category": "analytics"
+    },
+    {
+      "name": "configuring-dbt-mcp-server",
+      "description": "Use when user wants to set up, configure, or troubleshoot the dbt MCP server for AI tools like Claude Desktop, Claude Code, Cursor, or VS Code",
+      "author": {
+        "name": "dbt Labs"
+      },
+      "source": "./skills/configuring-dbt-mcp-server",
+      "category": "integration"
+    },
+    {
+      "name": "migrate-core-to-fusion",
+      "description": "This skill migrates a project running on dbt Core or Mantle to run successfully on Fusion.",
+      "author": {
+        "name": "dbt Labs"
+      },
+      "source": "./skills/dbt-fusion-migration",
+      "category": "analytics"
+    },
+    {
+      "name": "fetching-dbt-docs",
+      "description": "Use when fetching dbt documentation, looking up dbt features, or answering questions about dbt Cloud, dbt Core, or the dbt Semantic Layer",
+      "author": {
+        "name": "dbt Labs"
+      },
+      "source": "./skills/fetching-dbt-docs",
+      "category": "documentation"
     },
     {
       "name": "querying-dbt-semantic-layer",
@@ -58,8 +67,17 @@
       "author": {
         "name": "dbt Labs"
       },
-      "source": "./dbt-semantic-layer/querying-dbt-semantic-layer",
+      "source": "./skills/querying-dbt-semantic-layer",
       "category": "semantic-layer"
+    },
+    {
+      "name": "troubleshooting-dbt-job-errors",
+      "description": "Use when a dbt Cloud/platform job fails and you need to diagnose the root cause, especially when error messages are unclear or when intermittent failures occur. Do not use for local dbt development errors.",
+      "author": {
+        "name": "dbt Labs"
+      },
+      "source": "./skills/troubleshooting-dbt-job-errors",
+      "category": "operations"
     },
     {
       "name": "using-dbt-for-analytics-engineering",
@@ -67,7 +85,7 @@
       "author": {
         "name": "dbt Labs"
       },
-      "source": "./using-dbt-for-analytics-engineering",
+      "source": "./skills/using-dbt-for-analytics-engineering",
       "category": "analytics"
     }
   ]

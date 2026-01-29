@@ -5,13 +5,14 @@ import json
 import re
 from pathlib import Path
 
-# Category mapping based on top-level directory names
+# Category mapping based on skill name patterns
 CATEGORY_MAP = {
-    "dbt-commands": "analytics",
-    "dbt-docs": "documentation",
-    "dbt-mcp-server": "integration",
-    "dbt-operations": "operations",
-    "dbt-semantic-layer": "semantic-layer",
+    "fetching-dbt-docs": "documentation",
+    "configuring-dbt-mcp-server": "integration",
+    "troubleshooting-dbt-job-errors": "operations",
+    "querying-dbt-semantic-layer": "semantic-layer",
+    "build-semantic-layer": "semantic-layer",
+    "answering-natural-language-questions-with-dbt": "semantic-layer",
 }
 
 DEFAULT_CATEGORY = "analytics"
@@ -51,18 +52,9 @@ def parse_frontmatter(content: str) -> dict | None:
     return frontmatter
 
 
-def get_category(skill_path: Path, repo_root: Path) -> str:
-    """Determine category based on the skill's directory location."""
-    relative_path = skill_path.relative_to(repo_root)
-    parts = relative_path.parts
-
-    # If skill is at root level (e.g., using-dbt-for-analytics-engineering/SKILL.md)
-    if len(parts) == 2:
-        return DEFAULT_CATEGORY
-
-    # Otherwise, use the top-level directory for category mapping
-    top_level_dir = parts[0]
-    return CATEGORY_MAP.get(top_level_dir, DEFAULT_CATEGORY)
+def get_category(skill_name: str) -> str:
+    """Determine category based on the skill name."""
+    return CATEGORY_MAP.get(skill_name, DEFAULT_CATEGORY)
 
 
 def get_source_path(skill_path: Path, repo_root: Path) -> str:
@@ -108,7 +100,7 @@ def generate_marketplace(repo_root: Path) -> dict:
             "description": description,
             "author": AUTHOR,
             "source": get_source_path(skill_path, repo_root),
-            "category": get_category(skill_path, repo_root)
+            "category": get_category(name)
         }
         plugins.append(plugin)
 

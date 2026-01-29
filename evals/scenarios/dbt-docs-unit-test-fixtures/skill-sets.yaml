@@ -4,4 +4,4 @@ sets:
 
   - name: dbt-docs-baseline
     skills:
-      - dbt-docs/fetching-dbt-docs/SKILL.md
+      - skills/fetching-dbt-docs

@@ -71,7 +71,7 @@ Before submitting a skill, validate it follows the specification:
 skills-ref validate path/to/your-skill
 
 # Example:
-skills-ref validate dbt-commands/run-models
+skills-ref validate skills/using-dbt-for-analytics-engineering
 ```
 
 The validator checks:
@@ -108,7 +108,7 @@ deactivate
 Create a new folder with a descriptive name using kebab-case:
 
 ```bash
-mkdir -p dbt-commands/run-incremental-models
+mkdir -p skills/run-incremental-models
 ```
 
 ### 2. Create SKILL.md
@@ -212,7 +212,7 @@ run-incremental-models/
 
 ```bash
 source .venv/bin/activate
-skills-ref validate dbt-commands/your-skill-name
+skills-ref validate skills/your-skill-name
 ```
 
 ## Style Guide

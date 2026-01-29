@@ -64,7 +64,7 @@ sets:
   # With specific allowed tools (safer than allowing all)
   - name: restricted-tools
     skills:
-      - dbt-commands/debugging-dbt-errors/SKILL.md
+      - skills/debugging-dbt-errors
     allowed_tools:
       - Read
       - Glob
@@ -76,7 +76,7 @@ sets:
   # With MCP server
   - name: with-mcp
     skills:
-      - dbt-operations/troubleshooting-dbt-job-errors/SKILL.md
+      - skills/troubleshooting-dbt-job-errors
     mcp_servers:
       dbt:
         command: uvx
@@ -93,7 +93,7 @@ sets:
   # Allow all tools (uses --dangerously-skip-permissions)
   - name: all-tools
     skills:
-      - dbt-docs/fetching-dbt-docs/SKILL.md
+      - skills/fetching-dbt-docs
     # No allowed_tools = allows everything
 ```
 
@@ -104,13 +104,13 @@ Skills can be referenced in three ways:
 1. **Local file path** (relative to repo root):
    ```yaml
    skills:
-     - dbt-commands/debugging-dbt-errors/SKILL.md
+     - skills/debugging-dbt-errors
    ```
 
 2. **Local folder path** (copies entire folder including supporting files):
    ```yaml
    skills:
-     - dbt-unit-tests/skills/add-unit-test
+     - skills/add-unit-test
    ```
 
 3. **HTTP URL** (downloads skill from remote server):
@@ -129,7 +129,7 @@ You can mix local and remote skills in the same skill set:
 
 ```yaml
 skills:
-  - dbt-commands/debugging-dbt-errors/SKILL.md
+  - skills/debugging-dbt-errors
   - https://github.com/org/repo/blob/main/skills/external-skill/SKILL.md
 ```
 
@@ -238,7 +238,7 @@ sets:
 
   - name: with-skill
     skills:
-      - dbt-commands/debugging-dbt-errors/SKILL.md
+      - skills/debugging-dbt-errors
     allowed_tools: [Read, Glob, Grep, Edit, Bash(dbt:*), Skill]
 ```
 
@@ -249,12 +249,12 @@ sets:
 sets:
   - name: skill-only
     skills:
-      - dbt-operations/troubleshooting-dbt-job-errors/SKILL.md
+      - skills/troubleshooting-dbt-job-errors
     allowed_tools: [Read, Glob, Grep, Skill]
 
   - name: skill-plus-mcp
     skills:
-      - dbt-operations/troubleshooting-dbt-job-errors/SKILL.md
+      - skills/troubleshooting-dbt-job-errors
     mcp_servers:
       dbt:
         command: uvx
@@ -269,7 +269,7 @@ sets:
 sets:
   - name: local-skill
     skills:
-      - dbt-commands/debugging-dbt-errors/SKILL.md
+      - skills/debugging-dbt-errors
     allowed_tools: [Read, Glob, Grep, Edit, Skill]
 
   - name: remote-skill
