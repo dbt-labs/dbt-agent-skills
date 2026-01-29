@@ -1,22 +1,17 @@
-# dbt Skills
+# dbt Agent Skills
 
 A curated collection of [Agent Skills](https://agentskills.io/home) for working with dbt. These skills help AI agents understand and execute dbt workflows more effectively.
 
 ## What are Agent Skills?
 
-Agent Skills are folders of instructions, scripts, and resources that agents can discover and use to do things more accurately and efficiently. This repository focuses specifically on dbt CLI operations and workflows.
+Agent Skills are folders of instructions, scripts, and resources that agents can discover and use to do things more accurately and efficiently.
 
-## About dbt CLI Skills
+## What's Included
 
-This repository contains skills that enable AI agents to:
-
-- **Execute dbt commands**: Run models, tests, snapshots, and seeds with proper syntax and options
-- **Understand dbt workflows**: Navigate common dbt development patterns and best practices
-- **Debug dbt issues**: Troubleshoot compilation errors, test failures, and performance problems
-- **Manage dbt projects**: Handle dependencies, configuration, and project structure
-- **Optimize dbt operations**: Use selectors, incremental models, and efficient testing strategies
-
-## Repository Structure
+- **Analytics engineering**: Build and modify dbt models, write tests, explore data sources
+- **Semantic layer**: Create metrics, dimensions, and semantic models with MetricFlow
+- **Platform operations**: Troubleshoot job failures, configure the dbt MCP server
+- **Migration**: Move projects from dbt Core to the Fusion engine
 
 ## Installation
 
