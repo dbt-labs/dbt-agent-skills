@@ -1,6 +1,6 @@
-# Contributing to dbt CLI Skills
+# Contributing to dbt Agent Skills
 
-Thank you for your interest in contributing dbt CLI skills! This guide will help you create, improve, and submit skills that help AI agents work effectively with dbt.
+Thank you for your interest in contributing to dbt Agent Skills! This guide will help you create, improve, and submit skills that help AI agents work effectively with dbt.
 
 ## Table of Contents
 
@@ -17,7 +17,7 @@ Thank you for your interest in contributing dbt CLI skills! This guide will help
 
 ## About this Repository
 
-This repository contains Agent Skills specifically for dbt CLI operations. Skills follow the [Agent Skills specification](https://agentskills.io/specification) and help AI agents execute dbt commands, understand workflows, and troubleshoot issues.
+This repository contains Agent Skills for working with dbt. Skills follow the [Agent Skills specification](https://agentskills.io/specification) and help AI agents build models, create semantic layers, troubleshoot platform issues, and more.
 
 ## How to Contribute
 
@@ -105,10 +105,10 @@ deactivate
 
 ### 1. Create the Skill Folder
 
-Create a new folder with a descriptive name using kebab-case:
+Create a new folder with a descriptive name using **gerund form** (verb + -ing):
 
 ```bash
-mkdir -p skills/run-incremental-models
+mkdir -p skills/running-incremental-models
 ```
 
 ### 2. Create SKILL.md
@@ -117,28 +117,23 @@ Every skill must have a `SKILL.md` file following the Agent Skills specification
 
 ```markdown
 ---
-name: run-incremental-models
-description: Execute dbt incremental models with proper refresh strategies
+name: running-incremental-models
+description: Use when running incremental dbt models or deciding between incremental and full refresh strategies
+user-invocable: false
+metadata:
+  author: dbt-labs
 ---
 
-# Run Incremental Models
+# Running Incremental Models
 
 This skill helps agents execute incremental dbt models effectively, understanding when to use full refresh and how to handle incremental logic.
 
 ## When to Use
 
-Use this skill when:
 - Running specific incremental models
 - Forcing a full refresh of incremental models
 - Testing incremental logic after changes
 - Rebuilding corrupted incremental tables
-
-## Prerequisites
-
-- dbt Core or dbt Cloud CLI installed
-- Active dbt project with `dbt_project.yml`
-- Configured database connection in `profiles.yml`
-- At least one incremental model in the project
 
 ## Commands
 
@@ -152,48 +147,12 @@ dbt run --select config.materialized:incremental
 dbt run --select config.materialized:incremental --full-refresh
 \`\`\`
 
-### Run Specific Incremental Model
-\`\`\`bash
-dbt run --select model_name --full-refresh
-\`\`\`
+## Common Mistakes
 
-## Examples
-
-### Scenario 1: Daily Incremental Run
-\`\`\`bash
-# Run only incremental models for daily refresh
-dbt run --select config.materialized:incremental
-\`\`\`
-
-### Scenario 2: Fix Corrupted Incremental Table
-\`\`\`bash
-# Full refresh a specific model to rebuild from scratch
-dbt run --select my_incremental_model --full-refresh
-\`\`\`
-
-### Scenario 3: Test Incremental Logic
-\`\`\`bash
-# Run with full refresh on a subset
-dbt run --select my_incremental_model+ --full-refresh
-\`\`\`
-
-## Common Issues
-
-- **Incremental logic not working**: Use `--full-refresh` to rebuild
-- **Performance issues**: Check incremental predicates and unique keys
-- **Missing records**: Verify the incremental strategy matches your use case
-
-## Related Commands
-
-- `dbt build --select config.materialized:incremental` - Build with tests
-- `dbt run --select state:modified+ --state ./target` - Run changed incrementals
-- `dbt compile --select model_name` - Check compiled SQL
-
-## Notes
-
-- Full refresh can be expensive on large tables
-- Always test incremental logic in development first
-- Consider using `--full-refresh` when data quality issues are detected
+| Mistake | Fix |
+|---------|-----|
+| Running full refresh on large tables without need | Only use `--full-refresh` when data issues require it |
+| Not testing incremental logic in dev first | Always validate in development before production |
 ```
 
 ### 3. Add Supporting Resources (Optional)
@@ -201,7 +160,7 @@ dbt run --select my_incremental_model+ --full-refresh
 Include examples or helper content if needed:
 
 ```
-run-incremental-models/
+running-incremental-models/
 ├── SKILL.md
 └── examples/
     ├── incremental_model_example.sql
@@ -219,9 +178,9 @@ skills-ref validate skills/your-skill-name
 
 ### Naming Conventions
 
-- **Folders**: Use kebab-case with dbt context (e.g., `dbt-run-models`, `dbt-test-selection`)
+- **Folders**: Use gerund form (verb + -ing) with kebab-case (e.g., `adding-dbt-unit-test`, `building-dbt-semantic-layer`)
 - **Files**: `SKILL.md` (uppercase), supporting files lowercase
-- **Skill names**: Must match folder name exactly - lowercase with hyphens (e.g., `run-models-with-selectors`)
+- **Skill names**: Must match folder name exactly - lowercase with hyphens
 
 ### Command Examples
 
@@ -260,8 +219,11 @@ Required frontmatter in `SKILL.md`:
 
 ```yaml
 ---
-name: skill-name-in-lowercase-with-hyphens
-description: One-sentence summary of functionality
+name: adding-something-useful
+description: Use when [specific trigger or use case]
+user-invocable: false
+metadata:
+  author: dbt-labs
 ---
 ```
 
@@ -269,7 +231,10 @@ description: One-sentence summary of functionality
 
 - The `name` field must be lowercase and use only letters, digits, and hyphens
 - The `name` must match the directory name exactly
-- Only these fields are allowed: `name`, `description`, `allowed-tools`, `compatibility`, `license`, `metadata`
+- Use gerund form for names (e.g., `adding-`, `building-`, `configuring-`)
+- Start descriptions with "Use when..." to help agents know when to trigger the skill
+- Set `user-invocable: false` unless the skill should appear as a slash command
+- Only these fields are allowed: `name`, `description`, `user-invocable`, `allowed-tools`, `compatibility`, `license`, `metadata`
 
 ## Troubleshooting
 
@@ -286,15 +251,11 @@ source .venv/bin/activate
 
 Need inspiration? Consider creating skills for:
 
-- **Commands**: run, test, build, seed, snapshot, compile, parse, docs, source
-- **Selectors**: tag:, config:, source:, exposure:, path:, package:
-- **Graph operators**: +model, model+, +model+, @model
-- **State comparison**: state:modified, state:new
-- **Testing strategies**: schema tests, data tests, unit tests
-- **Debugging**: Compilation errors, adapter issues, macro problems
-- **Performance**: Optimization, profiling, troubleshooting slow models
-- **CI/CD**: Slim CI patterns, deployment workflows
-- **dbt Cloud**: CLI-specific commands and features
+- **Adapters**: Warehouse-specific patterns for Snowflake, BigQuery, Databricks, Redshift
+- **CI/CD**: Slim CI patterns, deployment workflows, PR automation
+- **Performance**: Query optimization, profiling slow models, warehouse cost management
+- **Packages**: Working with popular dbt packages (dbt-utils, dbt-expectations, etc.)
+- **Advanced patterns**: Incremental models, snapshots, custom materializations
 
 ## Resources
 
