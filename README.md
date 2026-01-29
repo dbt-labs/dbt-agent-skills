@@ -53,14 +53,26 @@ These skills work with AI agents that support the [Agent Skills](https://agentsk
 
 ## Available Skills
 
+| Skill | Description |
+|-------|-------------|
+| `using-dbt-for-analytics-engineering` | Build and modify dbt models, debug errors, explore data sources, write tests |
+| `adding-dbt-unit-test` | Add unit tests for dbt models, practice test-driven development |
+| `building-dbt-semantic-layer` | Create semantic models, metrics, and dimensions with MetricFlow |
+| `answering-natural-language-questions-with-dbt` | Answer business questions by querying the semantic layer |
+| `troubleshooting-dbt-job-errors` | Diagnose and resolve dbt platform job failures |
+| `configuring-dbt-mcp-server` | Set up the dbt MCP server for Claude, Cursor, or VS Code |
+| `fetching-dbt-docs` | Look up dbt documentation efficiently |
+| `migrating-dbt-core-to-fusion` | Migrate dbt projects to the Fusion engine |
+
 ## Prerequisites
 
-These skills assume:
+Most skills assume:
 
 - dbt is installed and configured
 - A dbt project with `dbt_project.yml` exists
-- Database connections are properly set up in `profiles.yml`
 - Basic familiarity with dbt concepts (models, tests, sources)
+
+Some skills like `fetching-dbt-docs` and `configuring-dbt-mcp-server` can be used without an existing project.
 
 ## Contributing
 
@@ -70,13 +82,9 @@ We welcome contributions! Whether you want to add a new dbt skill, improve exist
 
 This repository uses the [skills-ref](https://github.com/agentskills/agentskills/tree/main/skills-ref) library (installed from GitHub) for validating and testing skills. Requires Python 3.11+. See the [Contributing Guide](CONTRIBUTING.md) for setup and usage instructions.
 
-Common skill additions needed:
-
 ## Format Specification
 
 All skills in this repository follow the [Agent Skills specification](https://agentskills.io/specification) to ensure compatibility across different agent products.
-
-## Examples
 
 ## Resources
 
