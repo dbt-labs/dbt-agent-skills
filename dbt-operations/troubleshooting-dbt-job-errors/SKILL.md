@@ -1,6 +1,6 @@
 ---
 name: troubleshooting-dbt-job-errors
-description: Use when a dbt Cloud job fails and you need to diagnose the root cause, especially when error messages are unclear or when intermittent failures occur
+description: Use when a dbt Cloud/platform job fails and you need to diagnose the root cause, especially when error messages are unclear or when intermittent failures occur. Do not use for local dbt development errors.
 ---
 
 # Troubleshooting dbt Job Errors
@@ -14,7 +14,7 @@ Systematically diagnose and resolve dbt Cloud job failures using available MCP t
 - Error messages that don't clearly indicate the problem
 - Post-merge failures where a recent change may have caused the issue
 
-**Not for:** Local dbt development errors - use `debugging-dbt-errors` skill instead
+**Not for:** Local dbt development errors - use the skill `using-dbt-for-analytics-engineering` instead
 
 ## The Iron Rule
 
