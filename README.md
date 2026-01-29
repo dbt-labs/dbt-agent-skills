@@ -37,7 +37,7 @@ npx skills add dbt-labs/dbt-agent-skills
 # Install a specific skill
 npx skills add dbt-labs/dbt-agent-skills --skill using-dbt-for-analytics-engineering
 
-# Install globally (across all projects)
+# Install globally (available in all projects, stored in ~/.<agent>/skills/)
 npx skills add dbt-labs/dbt-agent-skills --global
 
 # Check for updates
