@@ -15,7 +15,7 @@
       "author": {
         "name": "dbt Labs"
       },
-      "source": "./plugins/dbt"
+      "source": "./"
     }
   ]
 }
