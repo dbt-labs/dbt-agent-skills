@@ -6,6 +6,10 @@ A curated collection of [Agent Skills](https://agentskills.io/home) for working 
 
 Agent Skills are folders of instructions, scripts, and resources that agents can discover and use to do things more accurately and efficiently.
 
+## How They Work
+
+These skills are **not** slash commands or user-invoked actions. Once installed, the agent automatically loads the relevant skill when your prompt matches its use case. Just describe what you need in natural language and the agent handles the rest. See [skill invocation control](https://code.claude.com/docs/en/skills#control-who-invokes-a-skill) for more details.
+
 ## What's Included
 
 - **Analytics engineering**: Build and modify dbt models, write tests, explore data sources
