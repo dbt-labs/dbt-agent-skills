@@ -30,10 +30,12 @@ def main(
 def run(
     scenario: Optional[str] = typer.Argument(None, help="Scenario name to run"),
     all_scenarios: bool = typer.Option(False, "--all", help="Run all scenarios"),
+    parallel: bool = typer.Option(False, "--parallel", "-p", help="Run tasks in parallel"),
+    workers: int = typer.Option(4, "--workers", "-w", help="Number of parallel workers"),
 ) -> None:
     """Run scenarios against skill variants."""
     from skill_eval.models import load_scenario
-    from skill_eval.runner import Runner
+    from skill_eval.runner import Runner, RunTask
 
     evals_dir = Path.cwd()
     scenarios_dir = evals_dir / "scenarios"
@@ -57,19 +59,53 @@ def run(
 
     print(f"Run directory: {run_dir}")
 
-    for scenario_dir in scenario_dirs:
-        scenario_obj = load_scenario(scenario_dir)
-        print(f"\nScenario: {scenario_obj.name}")
+    # Load all scenarios
+    scenarios = [load_scenario(d) for d in sorted(scenario_dirs)]
 
-        for skill_set in scenario_obj.skill_sets:
-            print(f"  Running: {skill_set.name}...", end="", flush=True)
-            result = runner.run_scenario(scenario_obj, skill_set, run_dir)
+    if parallel:
+        # Build task list for all scenario/skill-set combinations
+        tasks = [
+            RunTask(scenario=s, skill_set=ss, run_dir=run_dir)
+            for s in scenarios
+            for ss in s.skill_sets
+        ]
+
+        total = len(tasks)
+        print(f"\nRunning {total} tasks with {workers} workers...\n")
+
+        completed = 0
+        passed = 0
+        failed = 0
+
+        def on_complete(task: RunTask, result) -> None:
+            nonlocal completed, passed, failed
+            completed += 1
             if result.success:
-                print(" done")
+                passed += 1
+                icon = "✓"
             else:
-                print(f" FAILED: {result.error}")
+                failed += 1
+                icon = "✗"
+            print(f"  [{completed}/{total}] {task.scenario.name}/{task.skill_set.name} {icon}")
 
-    print(f"\nRun complete: {run_dir}")
+        runner.run_parallel(tasks, max_workers=workers, progress_callback=on_complete)
+
+        print(f"\nRun complete: {passed} passed, {failed} failed")
+    else:
+        # Sequential execution (original behavior)
+        for scenario_obj in scenarios:
+            print(f"\nScenario: {scenario_obj.name}")
+
+            for skill_set in scenario_obj.skill_sets:
+                print(f"  Running: {skill_set.name}...", end="", flush=True)
+                result = runner.run_scenario(scenario_obj, skill_set, run_dir)
+                if result.success:
+                    print(" done")
+                else:
+                    print(f" FAILED: {result.error}")
+
+        print(f"\nRun complete: {run_dir}")
+
     print(f"Next: uv run skill-eval grade {run_dir.name}")
 
 

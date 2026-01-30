@@ -6,9 +6,11 @@ import shutil
 import subprocess
 import tempfile
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import Callable
 from urllib.error import URLError
 from urllib.parse import urlparse
 
@@ -29,6 +31,15 @@ class RunResult:
     error: str | None = None
     skills_invoked: list[str] = field(default_factory=list)
     tools_used: list[str] = field(default_factory=list)
+
+
+@dataclass
+class RunTask:
+    """A single scenario + skill-set combination to run."""
+
+    scenario: Scenario
+    skill_set: SkillSet
+    run_dir: Path
 
 
 class Runner:
@@ -460,3 +471,54 @@ class Runner:
             skills_invoked=parsed.get("skills_invoked", []),
             tools_used=parsed.get("tools_used", []),
         )
+
+    def run_parallel(
+        self,
+        tasks: list[RunTask],
+        max_workers: int = 4,
+        progress_callback: Callable[[RunTask, RunResult], None] | None = None,
+    ) -> list[RunResult]:
+        """Run multiple tasks in parallel.
+
+        Args:
+            tasks: List of RunTask objects to execute
+            max_workers: Maximum number of concurrent workers
+            progress_callback: Optional callback called after each task completes
+
+        Returns:
+            List of RunResult objects (order may differ from input)
+        """
+        results: list[RunResult] = []
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all tasks
+            future_to_task = {
+                executor.submit(self._run_task, task): task for task in tasks
+            }
+
+            # Collect results as they complete
+            for future in as_completed(future_to_task):
+                task = future_to_task[future]
+                try:
+                    result = future.result()
+                    results.append(result)
+                    if progress_callback:
+                        progress_callback(task, result)
+                except Exception as e:
+                    # Create failure result for unexpected errors
+                    result = RunResult(
+                        scenario_name=task.scenario.name,
+                        skill_set_name=task.skill_set.name,
+                        output="",
+                        success=False,
+                        error=f"Unexpected error: {e}",
+                    )
+                    results.append(result)
+                    if progress_callback:
+                        progress_callback(task, result)
+
+        return results
+
+    def _run_task(self, task: RunTask) -> RunResult:
+        """Run a single task (used by run_parallel)."""
+        return self.run_scenario(task.scenario, task.skill_set, task.run_dir)

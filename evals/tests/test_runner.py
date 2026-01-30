@@ -521,3 +521,213 @@ def test_generate_transcript_handles_empty_projects_dir(tmp_path: Path) -> None:
 
     # No transcript directory created
     assert not (output_dir / "transcript").exists()
+
+
+def test_run_parallel_executes_all_tasks(tmp_path: Path) -> None:
+    """Parallel runner executes all tasks and returns results."""
+    from skill_eval.models import Scenario, SkillSet
+    from skill_eval.runner import RunTask
+
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    (evals_dir / "runs").mkdir()
+
+    runner = Runner(evals_dir=evals_dir)
+    run_dir = runner.create_run_dir()
+
+    # Create mock scenarios and skill sets
+    scenario1 = Scenario(
+        name="scenario-1",
+        path=tmp_path / "scenarios" / "scenario-1",
+        prompt="Test prompt 1",
+        skill_sets=[],
+    )
+    scenario2 = Scenario(
+        name="scenario-2",
+        path=tmp_path / "scenarios" / "scenario-2",
+        prompt="Test prompt 2",
+        skill_sets=[],
+    )
+
+    skill_set1 = SkillSet(name="skill-set-1", skills=[])
+    skill_set2 = SkillSet(name="skill-set-2", skills=[])
+
+    tasks = [
+        RunTask(scenario=scenario1, skill_set=skill_set1, run_dir=run_dir),
+        RunTask(scenario=scenario1, skill_set=skill_set2, run_dir=run_dir),
+        RunTask(scenario=scenario2, skill_set=skill_set1, run_dir=run_dir),
+    ]
+
+    # Mock run_scenario to return success
+    def mock_run_scenario(scenario, skill_set, run_dir):
+        from skill_eval.runner import RunResult
+        return RunResult(
+            scenario_name=scenario.name,
+            skill_set_name=skill_set.name,
+            output="Test output",
+            success=True,
+        )
+
+    with patch.object(runner, "run_scenario", side_effect=mock_run_scenario):
+        results = runner.run_parallel(tasks, max_workers=2)
+
+    assert len(results) == 3
+    assert all(r.success for r in results)
+    # Check all scenario/skill-set combinations are present
+    result_keys = {(r.scenario_name, r.skill_set_name) for r in results}
+    assert result_keys == {
+        ("scenario-1", "skill-set-1"),
+        ("scenario-1", "skill-set-2"),
+        ("scenario-2", "skill-set-1"),
+    }
+
+
+def test_run_parallel_calls_progress_callback(tmp_path: Path) -> None:
+    """Parallel runner calls progress callback for each completed task."""
+    from skill_eval.models import Scenario, SkillSet
+    from skill_eval.runner import RunTask
+
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    (evals_dir / "runs").mkdir()
+
+    runner = Runner(evals_dir=evals_dir)
+    run_dir = runner.create_run_dir()
+
+    scenario = Scenario(
+        name="test-scenario",
+        path=tmp_path / "scenarios" / "test",
+        prompt="Test",
+        skill_sets=[],
+    )
+
+    tasks = [
+        RunTask(scenario=scenario, skill_set=SkillSet(name=f"set-{i}", skills=[]), run_dir=run_dir)
+        for i in range(3)
+    ]
+
+    callback_calls = []
+
+    def on_complete(task, result):
+        callback_calls.append((task.skill_set.name, result.success))
+
+    def mock_run_scenario(scenario, skill_set, run_dir):
+        from skill_eval.runner import RunResult
+        return RunResult(
+            scenario_name=scenario.name,
+            skill_set_name=skill_set.name,
+            output="",
+            success=True,
+        )
+
+    with patch.object(runner, "run_scenario", side_effect=mock_run_scenario):
+        runner.run_parallel(tasks, max_workers=2, progress_callback=on_complete)
+
+    assert len(callback_calls) == 3
+    assert all(success for _, success in callback_calls)
+
+
+def test_run_parallel_handles_task_failure(tmp_path: Path) -> None:
+    """Parallel runner continues after task failure and captures error."""
+    from skill_eval.models import Scenario, SkillSet
+    from skill_eval.runner import RunTask
+
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    (evals_dir / "runs").mkdir()
+
+    runner = Runner(evals_dir=evals_dir)
+    run_dir = runner.create_run_dir()
+
+    scenario = Scenario(
+        name="test-scenario",
+        path=tmp_path / "scenarios" / "test",
+        prompt="Test",
+        skill_sets=[],
+    )
+
+    tasks = [
+        RunTask(scenario=scenario, skill_set=SkillSet(name="success", skills=[]), run_dir=run_dir),
+        RunTask(scenario=scenario, skill_set=SkillSet(name="failure", skills=[]), run_dir=run_dir),
+    ]
+
+    def mock_run_scenario(scenario, skill_set, run_dir):
+        from skill_eval.runner import RunResult
+        if skill_set.name == "failure":
+            raise RuntimeError("Simulated failure")
+        return RunResult(
+            scenario_name=scenario.name,
+            skill_set_name=skill_set.name,
+            output="",
+            success=True,
+        )
+
+    with patch.object(runner, "run_scenario", side_effect=mock_run_scenario):
+        results = runner.run_parallel(tasks, max_workers=2)
+
+    assert len(results) == 2
+
+    # Find results by skill set name
+    success_result = next(r for r in results if r.skill_set_name == "success")
+    failure_result = next(r for r in results if r.skill_set_name == "failure")
+
+    assert success_result.success is True
+    assert failure_result.success is False
+    assert "Simulated failure" in failure_result.error
+
+
+def test_run_parallel_respects_max_workers(tmp_path: Path) -> None:
+    """Parallel runner respects max_workers limit."""
+    import threading
+    import time
+    from skill_eval.models import Scenario, SkillSet
+    from skill_eval.runner import RunTask
+
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    (evals_dir / "runs").mkdir()
+
+    runner = Runner(evals_dir=evals_dir)
+    run_dir = runner.create_run_dir()
+
+    scenario = Scenario(
+        name="test",
+        path=tmp_path / "scenarios" / "test",
+        prompt="Test",
+        skill_sets=[],
+    )
+
+    tasks = [
+        RunTask(scenario=scenario, skill_set=SkillSet(name=f"set-{i}", skills=[]), run_dir=run_dir)
+        for i in range(6)
+    ]
+
+    max_concurrent = 0
+    current_concurrent = 0
+    lock = threading.Lock()
+
+    def mock_run_scenario(scenario, skill_set, run_dir):
+        nonlocal max_concurrent, current_concurrent
+        from skill_eval.runner import RunResult
+
+        with lock:
+            current_concurrent += 1
+            max_concurrent = max(max_concurrent, current_concurrent)
+
+        time.sleep(0.05)  # Simulate work
+
+        with lock:
+            current_concurrent -= 1
+
+        return RunResult(
+            scenario_name=scenario.name,
+            skill_set_name=skill_set.name,
+            output="",
+            success=True,
+        )
+
+    with patch.object(runner, "run_scenario", side_effect=mock_run_scenario):
+        runner.run_parallel(tasks, max_workers=2)
+
+    # Should never exceed max_workers
+    assert max_concurrent <= 2

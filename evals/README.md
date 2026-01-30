@@ -18,6 +18,11 @@ uv run skill-eval run <scenario-name>
 # Run all scenarios
 uv run skill-eval run --all
 
+# Run in parallel (runs all skill-sets concurrently)
+uv run skill-eval run <scenario-name> --parallel      # single scenario, parallel skill-sets
+uv run skill-eval run --all --parallel                # all scenarios, all skill-sets in parallel
+uv run skill-eval run --all --parallel --workers 8    # custom worker count (default: 4)
+
 # Review transcripts in browser (opens HTML files)
 uv run skill-eval review              # latest run
 uv run skill-eval review <run-id>     # specific run
