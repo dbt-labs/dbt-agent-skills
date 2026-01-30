@@ -1,0 +1,527 @@
+#!/usr/bin/env bash
+#
+# dbt-skills-install - Install agent skills from dbt_packages to Claude Code
+#
+# Scans ./dbt_packages for SKILL.md files and installs them to Claude Code
+# using the vercel-labs/skills CLI with interactive selection.
+#
+# Usage: dbt-skills-install [--help]
+#
+# Requirements: bash, node/npx
+# Optional: gum (https://github.com/charmbracelet/gum) for prettier prompts
+#
+
+set -euo pipefail
+
+# Colors (fallback when gum not available)
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+DIM='\033[2m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+# Check if gum is available
+HAS_GUM=false
+if command -v gum &> /dev/null; then
+    HAS_GUM=true
+fi
+
+# ============================================================================
+# Utility functions
+# ============================================================================
+
+print_header() {
+    if $HAS_GUM; then
+        gum style --border rounded --padding "0 2" --border-foreground 240 \
+            "$(gum style --bold 'dbt-skills-install')" \
+            "$(gum style --faint 'Install agent skills from dbt_packages')"
+    else
+        echo ""
+        echo -e "${BOLD}dbt-skills-install${NC}"
+        echo -e "${DIM}Install agent skills from dbt_packages${NC}"
+        echo ""
+    fi
+}
+
+print_info() {
+    if $HAS_GUM; then
+        gum style --faint "$1"
+    else
+        echo -e "${DIM}$1${NC}"
+    fi
+}
+
+print_success() {
+    if $HAS_GUM; then
+        gum style --foreground 2 "✓ $1"
+    else
+        echo -e "${GREEN}✓ $1${NC}"
+    fi
+}
+
+print_error() {
+    if $HAS_GUM; then
+        gum style --foreground 1 "✗ $1"
+    else
+        echo -e "${RED}✗ $1${NC}" >&2
+    fi
+}
+
+print_warning() {
+    if $HAS_GUM; then
+        gum style --foreground 3 "! $1"
+    else
+        echo -e "${YELLOW}! $1${NC}"
+    fi
+}
+
+suggest_gum() {
+    if ! $HAS_GUM; then
+        echo ""
+        echo "┌─────────────────────────────────────────────────────────────┐"
+        echo "│ Tip: Install gum for a prettier experience!                 │"
+        echo "│                                                             │"
+        echo "│   brew install gum          # macOS                         │"
+        echo "│   sudo apt install gum      # Debian/Ubuntu                 │"
+        echo "│   https://github.com/charmbracelet/gum                      │"
+        echo "└─────────────────────────────────────────────────────────────┘"
+        echo ""
+    fi
+}
+
+# ============================================================================
+# Prompt functions (with gum/fallback)
+# ============================================================================
+
+# Single choice selection
+# Usage: choice=$(prompt_choice "message" "option1" "option2" ...)
+prompt_choice() {
+    local message="$1"
+    shift
+    local options=("$@")
+
+    if $HAS_GUM; then
+        gum choose --header "$message" "${options[@]}"
+    else
+        echo -e "${BLUE}$message${NC}" >&2
+        local i=1
+        for opt in "${options[@]}"; do
+            echo "  $i) $opt" >&2
+            ((i++))
+        done
+
+        local selection
+        while true; do
+            read -rp "Enter choice [1-${#options[@]}]: " selection
+            if [[ "$selection" =~ ^[0-9]+$ ]] && [ "$selection" -ge 1 ] && [ "$selection" -le "${#options[@]}" ]; then
+                echo "${options[$((selection-1))]}"
+                return 0
+            fi
+            echo "Invalid selection. Please try again." >&2
+        done
+    fi
+}
+
+# Multi-select (returns newline-separated list)
+# Usage: selected=$(prompt_multiselect "message" "option1" "option2" ...)
+prompt_multiselect() {
+    local message="$1"
+    shift
+    local options=("$@")
+
+    if $HAS_GUM; then
+        gum choose --no-limit --header "$message" "${options[@]}"
+    else
+        echo -e "${BLUE}$message${NC}" >&2
+        echo -e "${DIM}(Enter numbers separated by spaces, e.g., '1 3 4')${NC}" >&2
+        local i=1
+        for opt in "${options[@]}"; do
+            echo "  $i) $opt" >&2
+            ((i++))
+        done
+
+        local selection
+        read -rp "Enter choices: " selection
+
+        local result=""
+        for num in $selection; do
+            if [[ "$num" =~ ^[0-9]+$ ]] && [ "$num" -ge 1 ] && [ "$num" -le "${#options[@]}" ]; then
+                if [ -n "$result" ]; then
+                    result+=$'\n'
+                fi
+                result+="${options[$((num-1))]}"
+            fi
+        done
+        echo "$result"
+    fi
+}
+
+# Confirmation prompt
+# Usage: if prompt_confirm "Are you sure?"; then ...
+prompt_confirm() {
+    local message="$1"
+
+    if $HAS_GUM; then
+        gum confirm "$message"
+    else
+        local response
+        read -rp "$message [y/N] " response
+        [[ "$response" =~ ^[Yy]$ ]]
+    fi
+}
+
+# ============================================================================
+# Skill discovery
+# ============================================================================
+
+# Extract skill name from a skill file's frontmatter
+# Usage: extract_skill_name "/path/to/skill.md"
+extract_skill_name() {
+    local skill_file="$1"
+    local skill_name=""
+    local in_frontmatter=false
+
+    while IFS= read -r line; do
+        if [[ "$line" == "---" ]]; then
+            if $in_frontmatter; then
+                break  # End of frontmatter
+            else
+                in_frontmatter=true
+                continue
+            fi
+        fi
+
+        if $in_frontmatter && [[ "$line" =~ ^name:[[:space:]]*(.+)$ ]]; then
+            skill_name="${BASH_REMATCH[1]}"
+            # Remove quotes if present
+            skill_name="${skill_name#\"}"
+            skill_name="${skill_name%\"}"
+            skill_name="${skill_name#\'}"
+            skill_name="${skill_name%\'}"
+            break
+        fi
+    done < "$skill_file"
+
+    echo "$skill_name"
+}
+
+# Process a skill file and output "skill_name|package_path"
+# package_path is the path to the package directory (e.g., ./dbt_packages/dbt_utils)
+process_skill_file() {
+    local skill_file="$1"
+    local base_dir="$2"
+
+    local skill_dir
+    skill_dir=$(dirname "$skill_file")
+    local relative_path="${skill_dir#"$base_dir"/}"
+
+    local skill_name
+    skill_name=$(extract_skill_name "$skill_file")
+
+    if [ -n "$skill_name" ]; then
+        # Extract the package name (first component of the relative path)
+        local package_name
+        package_name=$(echo "$relative_path" | cut -d'/' -f1)
+        local package_path="${base_dir}/${package_name}"
+        echo "${skill_name}|${package_path}"
+    fi
+}
+
+# Find all skill files and extract skill info
+# Returns: "skill_name|relative_path" per line
+discover_skills() {
+    local base_dir="$1"
+
+    if [ ! -d "$base_dir" ]; then
+        return 1
+    fi
+
+    # Iterate over each package directory (follow symlinks with -L)
+    for package_dir in "$base_dir"/*/; do
+        [ -d "$package_dir" ] || continue
+
+        # Check for SKILL.md in package root (legacy format)
+        if [ -f "${package_dir}SKILL.md" ]; then
+            process_skill_file "${package_dir}SKILL.md" "$base_dir"
+        fi
+
+        # Check for skills/ directory - both direct .md files and subdirs with SKILL.md
+        if [ -d "${package_dir}skills" ]; then
+            # Direct .md files in skills/
+            for skill_file in "${package_dir}skills"/*.md; do
+                [ -f "$skill_file" ] || continue
+                process_skill_file "$skill_file" "$base_dir"
+            done
+            # Subdirectories with SKILL.md (skills/<skill-name>/SKILL.md)
+            for skill_file in "${package_dir}skills"/*/SKILL.md; do
+                [ -f "$skill_file" ] || continue
+                process_skill_file "$skill_file" "$base_dir"
+            done
+        fi
+
+        # Check for .claude/skills/ directory - both direct .md files and subdirs with SKILL.md
+        if [ -d "${package_dir}.claude/skills" ]; then
+            # Direct .md files in .claude/skills/
+            for skill_file in "${package_dir}.claude/skills"/*.md; do
+                [ -f "$skill_file" ] || continue
+                process_skill_file "$skill_file" "$base_dir"
+            done
+            # Subdirectories with SKILL.md (.claude/skills/<skill-name>/SKILL.md)
+            for skill_file in "${package_dir}.claude/skills"/*/SKILL.md; do
+                [ -f "$skill_file" ] || continue
+                process_skill_file "$skill_file" "$base_dir"
+            done
+        fi
+    done
+}
+
+# ============================================================================
+# Main
+# ============================================================================
+
+show_help() {
+    cat << 'EOF'
+dbt-skills-install - Install agent skills from dbt_packages to Claude Code
+
+USAGE:
+    dbt-skills-install [OPTIONS]
+
+OPTIONS:
+    -h, --help      Show this help message
+    -d, --dir DIR   Look for skills in DIR instead of ./dbt_packages
+    -l, --list      List available skills without installing
+    -g, --global    Install skills globally (default: project)
+    -a, --all       Install all skills without prompting (non-interactive)
+
+EXAMPLES:
+    dbt-skills-install                    # Interactive install from ./dbt_packages
+    dbt-skills-install --all              # Install all skills (no prompts)
+    dbt-skills-install -g                 # Install globally
+    dbt-skills-install -d ./packages      # Use custom directory
+    dbt-skills-install --list             # Just list available skills
+
+REQUIREMENTS:
+    - bash
+    - node/npx (for the skills CLI)
+
+OPTIONAL:
+    - gum (https://github.com/charmbracelet/gum) for prettier prompts
+
+NOTE:
+    Skills are installed only to Claude Code (not other agents).
+
+EOF
+}
+
+main() {
+    local skills_dir="./dbt_packages"
+    local list_only=false
+    local global_flag=""
+    local install_all=false
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            -d|--dir)
+                skills_dir="$2"
+                shift 2
+                ;;
+            -l|--list)
+                list_only=true
+                shift
+                ;;
+            -g|--global)
+                global_flag="-g"
+                shift
+                ;;
+            -a|--all)
+                install_all=true
+                shift
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                echo "Use --help for usage information."
+                exit 1
+                ;;
+        esac
+    done
+
+    # Check requirements before showing UI
+    if ! command -v npx &> /dev/null; then
+        print_error "npx not found. Please install Node.js first."
+        exit 1
+    fi
+
+    if [ ! -d "$skills_dir" ]; then
+        print_error "Directory not found: $skills_dir"
+        echo ""
+        echo "Make sure you're in a dbt project with packages installed,"
+        echo "or specify a different directory with --dir"
+        exit 1
+    fi
+
+    print_header
+    suggest_gum
+
+    # Discover skills
+    print_info "Scanning $skills_dir for skills..."
+    echo ""
+
+    local skills_data
+    skills_data=$(discover_skills "$skills_dir")
+
+    if [ -z "$skills_data" ]; then
+        print_error "No skills found in $skills_dir"
+        echo ""
+        echo "Skills are directories containing a SKILL.md file with"
+        echo "a 'name' field in the YAML frontmatter."
+        exit 1
+    fi
+
+    # Parse into arrays
+    local skill_names=()
+    local skill_paths=()
+
+    while IFS='|' read -r name path; do
+        skill_names+=("$name")
+        skill_paths+=("$path")
+    done <<< "$skills_data"
+
+    local count=${#skill_names[@]}
+    print_success "Found $count skill(s):"
+    echo ""
+
+    for i in "${!skill_names[@]}"; do
+        local display_path
+        display_path=$(basename "${skill_paths[$i]}")
+        if $HAS_GUM; then
+            echo "  • ${skill_names[$i]}  $(gum style --faint "(${display_path})")"
+        else
+            echo -e "  • ${skill_names[$i]}  ${DIM}(${display_path})${NC}"
+        fi
+    done
+    echo ""
+
+    # If list only, stop here
+    if $list_only; then
+        exit 0
+    fi
+
+    local selected_skills=()
+
+    # If --all flag, skip prompts
+    if $install_all; then
+        selected_skills=("${skill_names[@]}")
+    else
+        # Ask: Which skills to install
+        local install_choice
+        install_choice=$(prompt_choice "Which skills to install:" "All skills" "Select specific skills" "Cancel")
+
+        if [[ "$install_choice" == "Cancel" ]]; then
+            print_info "Cancelled."
+            exit 0
+        fi
+
+        if [[ "$install_choice" == "All skills" ]]; then
+            selected_skills=("${skill_names[@]}")
+        else
+            echo ""
+            local selected
+            selected=$(prompt_multiselect "Select skills to install:" "${skill_names[@]}")
+
+            if [ -z "$selected" ]; then
+                print_warning "No skills selected."
+                exit 0
+            fi
+
+            while IFS= read -r skill; do
+                selected_skills+=("$skill")
+            done <<< "$selected"
+        fi
+    fi
+
+    echo ""
+    print_info "Installing ${#selected_skills[@]} skill(s)..."
+    echo ""
+
+    # Group selected skills by their package path
+    declare -A package_skills
+    for skill in "${selected_skills[@]}"; do
+        # Find the package path for this skill
+        for i in "${!skill_names[@]}"; do
+            if [ "${skill_names[$i]}" = "$skill" ]; then
+                local pkg_path="${skill_paths[$i]}"
+                if [ -z "${package_skills[$pkg_path]:-}" ]; then
+                    package_skills[$pkg_path]="$skill"
+                else
+                    package_skills[$pkg_path]="${package_skills[$pkg_path]}|$skill"
+                fi
+                break
+            fi
+        done
+    done
+
+    # Install skills from each package
+    local failed=false
+    local installed_count=0
+
+    for pkg_path in "${!package_skills[@]}"; do
+        local skills_str="${package_skills[$pkg_path]}"
+        local pkg_name
+        pkg_name=$(basename "$pkg_path")
+
+        # Build command for this package
+        local cmd=(npx skills add "$pkg_path" --agent claude-code)
+
+        # Add each skill
+        IFS='|' read -ra skills_array <<< "$skills_str"
+        for skill in "${skills_array[@]}"; do
+            cmd+=(--skill "$skill")
+        done
+
+        if [ -n "$global_flag" ]; then
+            cmd+=("$global_flag")
+        fi
+
+        cmd+=(-y)
+
+        print_info "Installing from $pkg_name..."
+
+        local output
+        local exit_code
+        if $HAS_GUM; then
+            output=$(gum spin --spinner dot --title "Installing from $pkg_name..." -- "${cmd[@]}" 2>&1) || exit_code=$?
+        else
+            echo -e "${DIM}Running: ${cmd[*]}${NC}"
+            output=$("${cmd[@]}" 2>&1) || exit_code=$?
+        fi
+
+        exit_code=${exit_code:-0}
+
+        if [ $exit_code -ne 0 ]; then
+            print_error "Failed to install skills from $pkg_name"
+            echo "$output" | grep -i "error\|fail" | head -5
+            failed=true
+        else
+            installed_count=$((installed_count + ${#skills_array[@]}))
+            print_success "Installed ${#skills_array[@]} skill(s) from $pkg_name"
+        fi
+    done
+
+    echo ""
+
+    if $failed; then
+        print_error "Some installations failed. Check the errors above."
+        exit 1
+    else
+        print_success "Done! Installed $installed_count skill(s) to Claude Code."
+    fi
+}
+
+main "$@"
