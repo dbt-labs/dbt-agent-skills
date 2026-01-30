@@ -74,33 +74,86 @@ def run(
 
 
 @app.command()
-def grade(run_id: str = typer.Argument(..., help="Run ID (timestamp directory name)")) -> None:
+def grade(
+    run_id: str = typer.Argument(..., help="Run ID (timestamp directory name)"),
+    auto: bool = typer.Option(False, "--auto", help="Auto-grade using Claude"),
+) -> None:
     """Grade outputs from a run."""
-    from skill_eval.grader import init_grades_file
+    from skill_eval.grader import auto_grade_run, init_grades_file, save_grades
 
     evals_dir = Path.cwd()
     run_dir = evals_dir / "runs" / run_id
+    scenarios_dir = evals_dir / "scenarios"
 
     if not run_dir.exists():
         print(f"Error: Run not found: {run_id}")
         raise typer.Exit(1)
 
-    grades_file = init_grades_file(run_dir)
+    if auto:
+        print(f"Auto-grading run: {run_id}")
+        print()
 
-    print(f"Grades file: {grades_file}")
-    print("\nOutputs to review:")
+        # Count scenarios and skill sets for progress
+        total = sum(
+            1
+            for scenario_dir in run_dir.iterdir()
+            if scenario_dir.is_dir() and not scenario_dir.name.startswith(".")
+            for skill_set_dir in scenario_dir.iterdir()
+            if skill_set_dir.is_dir()
+        )
 
-    for scenario_dir in sorted(run_dir.iterdir()):
-        if not scenario_dir.is_dir():
-            continue
-        print(f"\n  {scenario_dir.name}/")
-        for skill_set_dir in sorted(scenario_dir.iterdir()):
-            if not skill_set_dir.is_dir():
+        current = 0
+        grades = {"graded_at": None, "grader": "claude-auto", "results": {}}
+
+        for scenario_dir in sorted(run_dir.iterdir()):
+            if not scenario_dir.is_dir() or scenario_dir.name.startswith("."):
                 continue
-            print(f"    {skill_set_dir.name}/output.md")
 
-    print(f"\nEdit {grades_file} to record your grades.")
-    print(f"Then run: uv run skill-eval report {run_id}")
+            scenario_name = scenario_dir.name
+            grades["results"][scenario_name] = {}
+
+            for skill_set_dir in sorted(scenario_dir.iterdir()):
+                if not skill_set_dir.is_dir():
+                    continue
+
+                skill_set_name = skill_set_dir.name
+                current += 1
+                print(f"  [{current}/{total}] Grading {scenario_name}/{skill_set_name}...", end="", flush=True)
+
+                from skill_eval.grader import build_grading_prompt, call_claude_grader, parse_grade_response
+
+                grading_prompt = build_grading_prompt(scenarios_dir / scenario_name, skill_set_dir)
+                response = call_claude_grader(grading_prompt)
+                grade = parse_grade_response(response)
+
+                grades["results"][scenario_name][skill_set_name] = grade
+
+                # Show result
+                success_icon = "✓" if grade.get("success") else "✗" if grade.get("success") is False else "?"
+                score = grade.get("score", "?")
+                print(f" {success_icon} (score: {score})")
+
+        save_grades(run_dir, grades)
+        grades_file = run_dir / "grades.yaml"
+        print(f"\nGrades saved to: {grades_file}")
+        print(f"Run: uv run skill-eval report {run_id}")
+    else:
+        grades_file = init_grades_file(run_dir)
+
+        print(f"Grades file: {grades_file}")
+        print("\nOutputs to review:")
+
+        for scenario_dir in sorted(run_dir.iterdir()):
+            if not scenario_dir.is_dir():
+                continue
+            print(f"\n  {scenario_dir.name}/")
+            for skill_set_dir in sorted(scenario_dir.iterdir()):
+                if not skill_set_dir.is_dir():
+                    continue
+                print(f"    {skill_set_dir.name}/output.md")
+
+        print(f"\nEdit {grades_file} to record your grades.")
+        print(f"Then run: uv run skill-eval report {run_id}")
 
 
 @app.command()
@@ -123,6 +176,54 @@ def report(run_id: str = typer.Argument(..., help="Run ID (timestamp directory n
 
     print(report_content)
     print(f"\nSaved to: {report_file}")
+
+
+@app.command()
+def review(
+    run_id: Optional[str] = typer.Argument(None, help="Run ID (timestamp directory name). Defaults to latest run."),
+) -> None:
+    """Open HTML transcripts in browser for review."""
+    import webbrowser
+
+    evals_dir = Path.cwd()
+    runs_dir = evals_dir / "runs"
+
+    if not runs_dir.exists():
+        print("Error: No runs directory found")
+        raise typer.Exit(1)
+
+    # Find the run directory
+    if run_id:
+        run_dir = runs_dir / run_id
+        if not run_dir.exists():
+            print(f"Error: Run not found: {run_id}")
+            raise typer.Exit(1)
+    else:
+        # Find the most recent run (sorted by name, which is timestamp)
+        run_dirs = sorted(
+            [d for d in runs_dir.iterdir() if d.is_dir() and not d.name.startswith(".")],
+            reverse=True,
+        )
+        if not run_dirs:
+            print("Error: No runs found")
+            raise typer.Exit(1)
+        run_dir = run_dirs[0]
+        print(f"Using latest run: {run_dir.name}")
+
+    # Find all transcript index.html files
+    transcripts = list(run_dir.glob("**/transcript/index.html"))
+
+    if not transcripts:
+        print(f"Error: No transcripts found in {run_dir}")
+        raise typer.Exit(1)
+
+    print(f"Opening {len(transcripts)} transcript(s)...")
+
+    for transcript in sorted(transcripts):
+        # Show which transcript we're opening
+        rel_path = transcript.relative_to(run_dir)
+        print(f"  {rel_path}")
+        webbrowser.open(f"file://{transcript}")
 
 
 if __name__ == "__main__":

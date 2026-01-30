@@ -29,14 +29,11 @@ sets:
       # - skills/troubleshooting-dbt-job-errors
     mcp_servers:
       dbt:
-        command: uv
+        command: uvx
         args:
-          - run
-          - --project 
-          - ~/dev/dbt-mcp
           - --env-file
           - .env
-          - dbt-mcp
+          - dbt-mcp@latest
     allowed_tools:
       - Read
       - Glob

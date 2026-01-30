@@ -142,7 +142,9 @@ class Runner:
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(src, dest)
 
-    def _generate_transcript(self, env_dir: Path, output_dir: Path) -> None:
+    def _generate_transcript(
+        self, env_dir: Path, output_dir: Path, scenario_name: str, skill_set_name: str
+    ) -> None:
         """Generate HTML transcript from Claude's native session file."""
         claude_projects = env_dir / ".claude" / "projects"
         if not claude_projects.exists():
@@ -156,7 +158,25 @@ class Runner:
             return
 
         try:
-            generate_html(session_file, output_dir / "transcript")
+            transcript_dir = output_dir / "transcript"
+            generate_html(session_file, transcript_dir)
+
+            # Update HTML titles to include scenario and skill set info
+            custom_title = f"{scenario_name} / {skill_set_name}"
+            for html_file in transcript_dir.glob("*.html"):
+                content = html_file.read_text()
+                # Replace in <title> tags
+                content = content.replace(
+                    "<title>Claude Code transcript",
+                    f"<title>{custom_title}",
+                )
+                # Replace in <h1> tags - handles both index.html (direct h1)
+                # and page-xxx.html (h1 with anchor wrapper)
+                content = content.replace(
+                    ">Claude Code transcript<",
+                    f">{custom_title}<",
+                )
+                html_file.write_text(content)
         except Exception as e:
             print(f"Warning: transcript generation failed: {e}")
 
@@ -428,7 +448,7 @@ class Runner:
                     context_output.mkdir(parents=True, exist_ok=True)
                     shutil.copy(item, dest)
 
-        self._generate_transcript(env_dir, output_dir)
+        self._generate_transcript(env_dir, output_dir, scenario.name, skill_set.name)
         shutil.rmtree(env_dir, ignore_errors=True)
 
         return RunResult(

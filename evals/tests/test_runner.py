@@ -429,3 +429,95 @@ def test_runner_mixes_local_and_url_skills(tmp_path: Path) -> None:
         assert "Local Skill" in local_file.read_text()
         assert remote_file.exists()
         assert "Remote Skill" in remote_file.read_text()
+
+
+def test_generate_transcript_replaces_titles(tmp_path: Path) -> None:
+    """Transcript generation replaces default titles with scenario/skill set info."""
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+
+    # Create mock environment directory with session file
+    env_dir = tmp_path / "env"
+    env_dir.mkdir()
+    claude_projects = env_dir / ".claude" / "projects" / "abc123"
+    claude_projects.mkdir(parents=True)
+    session_file = claude_projects / "session.jsonl"
+    session_file.write_text('{"type":"user","message":{"content":"test"}}\n')
+
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+
+    runner = Runner(evals_dir=evals_dir)
+
+    # Mock generate_html to create fake transcript files matching real library output
+    def mock_generate_html(json_path: Path, transcript_dir: Path) -> None:
+        transcript_dir.mkdir(parents=True, exist_ok=True)
+        # Create index.html with default title (matches claude_code_transcripts output)
+        (transcript_dir / "index.html").write_text(
+            "<html><head><title>Claude Code transcript - Index</title></head>"
+            "<body><h1>Claude Code transcript</h1></body></html>"
+        )
+        # Create page-001.html with page title and anchor in h1
+        (transcript_dir / "page-001.html").write_text(
+            "<html><head><title>Claude Code transcript - page 1</title></head>"
+            '<body><h1><a href="index.html">Claude Code transcript</a> - page 1/1</h1></body></html>'
+        )
+
+    with patch("skill_eval.runner.generate_html", side_effect=mock_generate_html):
+        runner._generate_transcript(env_dir, output_dir, "my-scenario", "test-skill-set")
+
+    transcript_dir = output_dir / "transcript"
+
+    # Check index.html - title and h1 should be replaced
+    index_content = (transcript_dir / "index.html").read_text()
+    assert "<title>my-scenario / test-skill-set - Index</title>" in index_content
+    assert "<h1>my-scenario / test-skill-set</h1>" in index_content
+
+    # Check page-001.html - title and h1 (with anchor) should be replaced
+    page_content = (transcript_dir / "page-001.html").read_text()
+    assert "<title>my-scenario / test-skill-set - page 1</title>" in page_content
+    assert ">my-scenario / test-skill-set</a>" in page_content
+
+
+def test_generate_transcript_handles_missing_session(tmp_path: Path) -> None:
+    """Transcript generation handles missing session file gracefully."""
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+
+    env_dir = tmp_path / "env"
+    env_dir.mkdir()
+    # No .claude/projects directory
+
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+
+    runner = Runner(evals_dir=evals_dir)
+
+    # Should not raise, just return early
+    runner._generate_transcript(env_dir, output_dir, "scenario", "skill-set")
+
+    # No transcript directory created
+    assert not (output_dir / "transcript").exists()
+
+
+def test_generate_transcript_handles_empty_projects_dir(tmp_path: Path) -> None:
+    """Transcript generation handles empty projects directory."""
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+
+    env_dir = tmp_path / "env"
+    env_dir.mkdir()
+    claude_projects = env_dir / ".claude" / "projects"
+    claude_projects.mkdir(parents=True)
+    # Empty projects directory (no session files)
+
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+
+    runner = Runner(evals_dir=evals_dir)
+
+    # Should not raise, just return early
+    runner._generate_transcript(env_dir, output_dir, "scenario", "skill-set")
+
+    # No transcript directory created
+    assert not (output_dir / "transcript").exists()

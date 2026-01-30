@@ -18,8 +18,15 @@ uv run skill-eval run <scenario-name>
 # Run all scenarios
 uv run skill-eval run --all
 
-# Grade outputs from a run
+# Review transcripts in browser (opens HTML files)
+uv run skill-eval review              # latest run
+uv run skill-eval review <run-id>     # specific run
+
+# Grade outputs from a run (creates grades.yaml for manual review)
 uv run skill-eval grade <run-id>
+
+# Auto-grade using Claude (calls Claude CLI to evaluate each output)
+uv run skill-eval grade <run-id> --auto
 
 # Generate comparison report
 uv run skill-eval report <run-id>
@@ -221,9 +228,36 @@ HTML files for viewing the conversation in a browser. Open `index.html` to view,
 1. **Create a scenario** - Define prompt, context files, and expected behavior
 2. **Configure skill sets** - Specify skills, MCP servers, and tool permissions
 3. **Run evaluation** - `skill-eval run <scenario>` executes Claude with each configuration
-4. **Compare outputs** - Review output.md, metadata.yaml, and modified context
-5. **Grade outputs** - `skill-eval grade <run-id>` creates grades.yaml for human review
+4. **Review transcripts** - `skill-eval review` opens HTML transcripts in browser
+5. **Grade outputs** - `skill-eval grade <run-id>` (manual) or `--auto` (Claude-graded)
 6. **Generate report** - `skill-eval report <run-id>` shows comparison summary
+
+## Auto-Grading
+
+Use `--auto` to have Claude grade the outputs:
+
+```bash
+uv run skill-eval grade <run-id> --auto
+```
+
+Auto-grading evaluates each output on three dimensions:
+
+1. **Task Completion** - Did it accomplish the main task?
+2. **Tool Usage** - Did it use appropriate tools? Were MCP servers/skills leveraged when available?
+3. **Solution Quality** - Correctness, completeness, and clarity
+
+The grader receives:
+- Original prompt (`prompt.txt`)
+- Grading criteria (`scenario.md`)
+- Assistant's response (`output.md`)
+- Tools used, skills available/invoked, MCP servers (`metadata.yaml`)
+- Modified files (`context/`)
+
+Output grades include:
+- `success`: true/false
+- `score`: 1-5
+- `tool_usage`: appropriate/partial/inappropriate
+- `notes`: explanation
 
 ## Examples
 
