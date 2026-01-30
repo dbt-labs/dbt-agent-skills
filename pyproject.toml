@@ -1,0 +1,11 @@
+[project]
+name = "dbt-skills"
+version = "0.1.0"
+description = "Agent Skills for working with dbt"
+readme = "README.md"
+requires-python = ">=3.11"
+
+[dependency-groups]
+dev = [
+    "skills-ref @ git+https://github.com/agentskills/agentskills.git#subdirectory=skills-ref",
+]

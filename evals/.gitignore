@@ -1,0 +1,13 @@
+# Virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Pytest cache
+.pytest_cache/
+
+# Environment secrets (scenario-level)
+scenarios/**/.env

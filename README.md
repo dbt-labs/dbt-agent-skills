@@ -1,24 +1,116 @@
-** replace `dbt-oss-template` with your repository name in all docs
+# dbt Agent Skills
 
-## Understanding dbt-oss-template
+A curated collection of [Agent Skills](https://agentskills.io/home) for working with dbt. These skills help AI agents understand and execute dbt workflows more effectively.
 
-A short description of the purpose of this repository.  Include relevant images.
+## What are Agent Skills?
 
-## Getting started
+Agent Skills are folders of instructions, scripts, and resources that agents can discover and use to do things more accurately and efficiently.
 
-- [Install dbt](https://docs.getdbt.com/docs/get-started/installation)
-- Read the [introduction](https://docs.getdbt.com/docs/introduction/) and [viewpoint](https://docs.getdbt.com/docs/about/viewpoint/)
+## How They Work
 
-## Join the dbt Community
+These skills are **not** slash commands or user-invoked actions. Once installed, the agent automatically loads the relevant skill when your prompt matches its use case. Just describe what you need in natural language and the agent handles the rest. See [skill invocation control](https://code.claude.com/docs/en/skills#control-who-invokes-a-skill) for more details.
 
-- Be part of the conversation in the [dbt Community Slack](http://community.getdbt.com/)
-- Read more on the [dbt Community Discourse](https://discourse.getdbt.com)
+## What's Included
 
-## Reporting bugs and contributing code
+- **Analytics engineering**: Build and modify dbt models, write tests, explore data sources
+- **Semantic layer**: Create metrics, dimensions, and semantic models with MetricFlow
+- **Platform operations**: Troubleshoot job failures, configure the dbt MCP server
+- **Migration**: Move projects from dbt Core to the Fusion engine
 
-- Want to report a bug or request a feature? Let us know on [Slack](http://community.getdbt.com/), or open [an issue](https://github.com/dbt-labs/dbt-oss-template/issues/new)
-- Want to help us build dbt? Check out the [Contributing Guide](https://github.com/dbt-labs/dbt-oss-template/blob/HEAD/CONTRIBUTING.md)
+## Installation
 
-## Code of Conduct
+### Claude Code
 
-Everyone interacting in the dbt project's codebases, issue trackers, chat rooms, and mailing lists is expected to follow the [dbt Code of Conduct](https://community.getdbt.com/code-of-conduct).
+Add the dbt skills marketplace and install the skills:
+
+```bash
+/plugin marketplace add dbt-labs/dbt-agent-skills
+/plugin install dbt@dbt-agent-marketplace
+```
+
+### Other AI Clients
+
+Use the [Vercel Skills CLI](https://github.com/vercel-labs/skills) to install skills from this repository.
+
+```bash
+# Preview available skills
+npx skills add dbt-labs/dbt-agent-skills --list
+
+# Install all skills
+npx skills add dbt-labs/dbt-agent-skills
+
+# Install a specific skill
+npx skills add dbt-labs/dbt-agent-skills --skill using-dbt-for-analytics-engineering
+
+# Install globally (available in all projects, stored in ~/.<agent>/skills/)
+npx skills add dbt-labs/dbt-agent-skills --global
+
+# Check for updates
+npx skills check
+
+# Update installed skills
+npx skills update
+```
+
+The Vercel Skills CLI supports 30+ AI agents including Cursor, Cline, GitHub Copilot, and others.
+
+### Compatible Agents
+
+These skills work with AI agents that support the [Agent Skills](https://agentskills.io/home) format.
+
+## Available Skills
+
+| Skill | Description |
+|-------|-------------|
+| `using-dbt-for-analytics-engineering` | Build and modify dbt models, debug errors, explore data sources, write tests |
+| `adding-dbt-unit-test` | Add unit tests for dbt models, practice test-driven development |
+| `building-dbt-semantic-layer` | Create semantic models, metrics, and dimensions with MetricFlow |
+| `answering-natural-language-questions-with-dbt` | Answer business questions by querying the semantic layer |
+| `troubleshooting-dbt-job-errors` | Diagnose and resolve dbt platform job failures |
+| `configuring-dbt-mcp-server` | Set up the dbt MCP server for Claude, Cursor, or VS Code |
+| `fetching-dbt-docs` | Look up dbt documentation efficiently |
+| `migrating-dbt-core-to-fusion` | Migrate dbt projects to the Fusion engine |
+
+## Prerequisites
+
+Most skills assume:
+
+- dbt is installed and configured
+- A dbt project with `dbt_project.yml` exists
+- Basic familiarity with dbt concepts (models, tests, sources)
+
+Some skills like `fetching-dbt-docs` and `configuring-dbt-mcp-server` can be used without an existing project.
+
+## Contributing
+
+We welcome contributions! Whether you want to add a new dbt skill, improve existing ones, or fix issues, please see our [Contributing Guide](CONTRIBUTING.md).
+
+### Development Tools
+
+This repository uses the [skills-ref](https://github.com/agentskills/agentskills/tree/main/skills-ref) library (installed from GitHub) for validating and testing skills. Requires Python 3.11+. See the [Contributing Guide](CONTRIBUTING.md) for setup and usage instructions.
+
+## Format Specification
+
+All skills in this repository follow the [Agent Skills specification](https://agentskills.io/specification) to ensure compatibility across different agent products.
+
+## Resources
+
+- [dbt Documentation](https://docs.getdbt.com/)
+- [dbt CLI Reference](https://docs.getdbt.com/reference/dbt-commands)
+- [Agent Skills Documentation](https://agentskills.io/home)
+- [Agent Skills Specification](https://agentskills.io/specification)
+
+## Community
+
+- **Issues**: Report problems or suggest new skills
+- **Discussions**: Share use cases and patterns
+- **Pull Requests**: Contribute new skills or improvements
+- **Star** this repository if you find it useful!
+
+## License
+
+See [LICENSE](LICENSE) for details.
+
+## Skill Evaluation
+
+See [evals/README.md](evals/README.md) for the A/B testing tool to compare skill variations.

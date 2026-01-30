@@ -1,8 +1,1 @@
-blank_issues_enabled: false
-contact_links:
-  - name: Ask the community for help
-    url: https://github.com/dbt-labs/docs.getdbt.com/discussions
-    about: Need help troubleshooting? Check out our guide on how to ask
-  - name: Participate in Discussions
-    url: https://github.com/dbt-labs/dbt-oss-template/discussions
-    about: Do you have a Big Idea for dbt-oss-template? Read open discussions, or start a new one
+blank_issues_enabled: true

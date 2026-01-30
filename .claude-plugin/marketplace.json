@@ -1,0 +1,21 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "dbt-agent-marketplace",
+  "description": "Skills for working with dbt Core and the dbt Fusion engine - analytics engineering, data modeling, semantic layer, and dbt platform (fka dbt Cloud) operations",
+  "owner": {
+    "name": "dbt Labs",
+    "email": "support@getdbt.com"
+  },
+  "plugins": [
+    {
+      "name": "dbt",
+      "description": "A curated collection of Agent Skills for working with dbt. These skills help AI agents understand and execute dbt workflows more effectively.",
+      "version": "1.0.0",
+      "license": "Apache-2.0",
+      "author": {
+        "name": "dbt Labs"
+      },
+      "source": "./"
+    }
+  ]
+}

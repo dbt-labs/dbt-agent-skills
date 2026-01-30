@@ -1,0 +1,1 @@
+When should I use the `sql` format vs the `csv` or the default format for dbt unit tests?
