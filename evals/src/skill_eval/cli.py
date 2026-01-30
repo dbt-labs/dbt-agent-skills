@@ -10,6 +10,52 @@ from skill_eval import __version__
 app = typer.Typer(help="A/B test skill variations against recorded scenarios.")
 
 
+def find_run(runs_dir: Path, run_id: str) -> Path:
+    """Find a run by exact or partial ID match.
+
+    Args:
+        runs_dir: Directory containing runs
+        run_id: Full or partial run ID
+
+    Returns:
+        Path to the matching run directory
+
+    Raises:
+        typer.Exit: If no match or multiple matches found
+    """
+    # Try exact match first
+    exact_match = runs_dir / run_id
+    if exact_match.exists() and exact_match.is_dir():
+        return exact_match
+
+    # Get all run directories
+    all_runs = [
+        d for d in runs_dir.iterdir() if d.is_dir() and not d.name.startswith(".")
+    ]
+
+    # Try partial match (contains)
+    matches = [d for d in all_runs if run_id in d.name]
+
+    if len(matches) == 1:
+        typer.echo(f"Matched run: {matches[0].name}")
+        return matches[0]
+    elif len(matches) > 1:
+        typer.echo(f"Error: '{run_id}' matches multiple runs:", err=True)
+        for m in sorted(matches, key=lambda d: d.name, reverse=True)[:10]:
+            typer.echo(f"  - {m.name}", err=True)
+        if len(matches) > 10:
+            typer.echo(f"  ... and {len(matches) - 10} more", err=True)
+        raise typer.Exit(1)
+    else:
+        typer.echo(f"Error: No run matching '{run_id}'", err=True)
+        recent = sorted(all_runs, key=lambda d: d.name, reverse=True)[:5]
+        if recent:
+            typer.echo("Recent runs:", err=True)
+            for r in recent:
+                typer.echo(f"  - {r.name}", err=True)
+        raise typer.Exit(1)
+
+
 def version_callback(value: bool) -> None:
     if value:
         typer.echo(f"skill-eval {__version__}")
@@ -111,19 +157,17 @@ def run(
 
 @app.command()
 def grade(
-    run_id: str = typer.Argument(..., help="Run ID (timestamp directory name)"),
+    run_id: str = typer.Argument(..., help="Run ID (full or partial)"),
     auto: bool = typer.Option(False, "--auto", help="Auto-grade using Claude"),
 ) -> None:
     """Grade outputs from a run."""
     from skill_eval.grader import auto_grade_run, init_grades_file, save_grades
 
     evals_dir = Path.cwd()
-    run_dir = evals_dir / "runs" / run_id
+    runs_dir = evals_dir / "runs"
     scenarios_dir = evals_dir / "scenarios"
 
-    if not run_dir.exists():
-        typer.echo(f"Error: Run not found: {run_id}", err=True)
-        raise typer.Exit(1)
+    run_dir = find_run(runs_dir, run_id)
 
     if auto:
         typer.echo(f"Auto-grading run: {run_id}")
@@ -194,16 +238,14 @@ def grade(
 
 
 @app.command()
-def report(run_id: str = typer.Argument(..., help="Run ID (timestamp directory name)")) -> None:
+def report(run_id: str = typer.Argument(..., help="Run ID (full or partial)")) -> None:
     """Generate comparison report for a run."""
     from skill_eval.reporter import generate_report, save_report
 
     evals_dir = Path.cwd()
-    run_dir = evals_dir / "runs" / run_id
+    runs_dir = evals_dir / "runs"
 
-    if not run_dir.exists():
-        typer.echo(f"Error: Run not found: {run_id}", err=True)
-        raise typer.Exit(1)
+    run_dir = find_run(runs_dir, run_id)
 
     reports_dir = evals_dir / "reports"
     reports_dir.mkdir(exist_ok=True)
@@ -217,7 +259,7 @@ def report(run_id: str = typer.Argument(..., help="Run ID (timestamp directory n
 
 @app.command()
 def review(
-    run_id: Optional[str] = typer.Argument(None, help="Run ID (timestamp directory name). Defaults to latest run."),
+    run_id: Optional[str] = typer.Argument(None, help="Run ID (full or partial). Defaults to latest run."),
 ) -> None:
     """Open HTML transcripts in browser for review."""
     import webbrowser
@@ -231,10 +273,7 @@ def review(
 
     # Find the run directory
     if run_id:
-        run_dir = runs_dir / run_id
-        if not run_dir.exists():
-            typer.echo(f"Error: Run not found: {run_id}", err=True)
-            raise typer.Exit(1)
+        run_dir = find_run(runs_dir, run_id)
     else:
         # Find the most recent run (sorted by name, which is timestamp)
         run_dirs = sorted(
