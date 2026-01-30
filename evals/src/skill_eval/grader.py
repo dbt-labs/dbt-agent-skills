@@ -2,10 +2,13 @@
 
 import re
 import subprocess
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 
 import yaml
+
+from skill_eval.models import Grade
 
 GRADING_PROMPT_TEMPLATE = """You are grading an AI assistant's response to a task.
 
@@ -126,7 +129,7 @@ def build_grading_prompt(
     )
 
 
-def parse_grade_response(response: str) -> dict:
+def parse_grade_response(response: str) -> Grade:
     """Parse the YAML grade response from Claude."""
     # Try to extract YAML from the response (handle markdown fences if present)
     yaml_match = re.search(r"```ya?ml?\s*(.*?)\s*```", response, re.DOTALL)
@@ -139,18 +142,18 @@ def parse_grade_response(response: str) -> dict:
     try:
         parsed = yaml.safe_load(yaml_content)
         if not isinstance(parsed, dict):
-            return {"success": None, "score": None, "notes": f"Failed to parse: {response[:100]}"}
+            return Grade(notes=f"Failed to parse: {response[:100]}")
 
-        return {
-            "success": parsed.get("success"),
-            "score": parsed.get("score"),
-            "tool_usage": parsed.get("tool_usage"),
-            "criteria": parsed.get("criteria", {}),
-            "notes": parsed.get("notes", ""),
-            "observations": parsed.get("observations", ""),
-        }
+        return Grade(
+            success=parsed.get("success"),
+            score=parsed.get("score"),
+            tool_usage=parsed.get("tool_usage"),
+            criteria=parsed.get("criteria", {}),
+            notes=parsed.get("notes", ""),
+            observations=parsed.get("observations", ""),
+        )
     except yaml.YAMLError as e:
-        return {"success": None, "score": None, "notes": f"YAML parse error: {e}"}
+        return Grade(notes=f"YAML parse error: {e}")
 
 
 def call_claude_grader(prompt: str) -> str:
@@ -199,7 +202,7 @@ def auto_grade_run(run_dir: Path, scenarios_dir: Path) -> dict:
             response = call_claude_grader(grading_prompt)
             grade = parse_grade_response(response)
 
-            results[scenario_name][skill_set_name] = grade
+            results[scenario_name][skill_set_name] = asdict(grade)
 
     grades = {
         "graded_at": datetime.now().isoformat(),
@@ -228,13 +231,7 @@ def init_grades_file(run_dir: Path) -> Path:
             if not skill_set_dir.is_dir():
                 continue
             skill_set_name = skill_set_dir.name
-            results[scenario_name][skill_set_name] = {
-                "success": None,
-                "score": None,
-                "criteria": {},
-                "notes": "",
-                "observations": "",
-            }
+            results[scenario_name][skill_set_name] = asdict(Grade())
 
     grades = {
         "graded_at": None,

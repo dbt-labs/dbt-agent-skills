@@ -200,17 +200,19 @@ def grade(
                 current += 1
                 typer.echo(f"  [{current}/{total}] Grading {scenario_name}/{skill_set_name}...", nl=False)
 
+                from dataclasses import asdict
+
                 from skill_eval.grader import build_grading_prompt, call_claude_grader, parse_grade_response
 
                 grading_prompt = build_grading_prompt(scenarios_dir / scenario_name, skill_set_dir)
                 response = call_claude_grader(grading_prompt)
                 grade = parse_grade_response(response)
 
-                results[scenario_name][skill_set_name] = grade
+                results[scenario_name][skill_set_name] = asdict(grade)
 
                 # Show result
-                success_icon = "✓" if grade.get("success") else "✗" if grade.get("success") is False else "?"
-                score = grade.get("score", "?")
+                success_icon = "✓" if grade.success else "✗" if grade.success is False else "?"
+                score = grade.score if grade.score is not None else "?"
                 typer.echo(f" {success_icon} (score: {score})")
 
         grades = {"graded_at": None, "grader": "claude-auto", "results": results}

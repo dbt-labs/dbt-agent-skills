@@ -7,6 +7,18 @@ import yaml
 
 
 @dataclass
+class Grade:
+    """Result of grading a scenario run."""
+
+    success: bool | None = None
+    score: int | None = None
+    tool_usage: str | None = None  # "appropriate", "partial", or "inappropriate"
+    criteria: dict = field(default_factory=dict)
+    notes: str = ""
+    observations: str = ""
+
+
+@dataclass
 class SkillSet:
     """A combination of skills and MCP servers to test."""
 

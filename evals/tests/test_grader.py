@@ -11,6 +11,7 @@ from skill_eval.grader import (
     call_claude_grader,
     parse_grade_response,
 )
+from skill_eval.models import Grade
 
 
 def test_build_grading_prompt_includes_all_sections(tmp_path: Path) -> None:
@@ -102,10 +103,11 @@ notes: Good solution that used the right tools."""
 
     result = parse_grade_response(response)
 
-    assert result["success"] is True
-    assert result["score"] == 4
-    assert result["tool_usage"] == "appropriate"
-    assert "Good solution" in result["notes"]
+    assert isinstance(result, Grade)
+    assert result.success is True
+    assert result.score == 4
+    assert result.tool_usage == "appropriate"
+    assert "Good solution" in result.notes
 
 
 def test_parse_grade_response_handles_markdown_fences(tmp_path: Path) -> None:
@@ -123,9 +125,9 @@ That's my assessment."""
 
     result = parse_grade_response(response)
 
-    assert result["success"] is False
-    assert result["score"] == 2
-    assert result["tool_usage"] == "partial"
+    assert result.success is False
+    assert result.score == 2
+    assert result.tool_usage == "partial"
 
 
 def test_parse_grade_response_handles_yml_fence(tmp_path: Path) -> None:
@@ -139,8 +141,8 @@ notes: Perfect.
 
     result = parse_grade_response(response)
 
-    assert result["success"] is True
-    assert result["score"] == 5
+    assert result.success is True
+    assert result.score == 5
 
 
 def test_parse_grade_response_handles_invalid_yaml(tmp_path: Path) -> None:
@@ -149,9 +151,9 @@ def test_parse_grade_response_handles_invalid_yaml(tmp_path: Path) -> None:
 
     result = parse_grade_response(response)
 
-    assert result["success"] is None
-    assert result["score"] is None
-    assert "parse" in result["notes"].lower() or "error" in result["notes"].lower()
+    assert result.success is None
+    assert result.score is None
+    assert "parse" in result.notes.lower() or "error" in result.notes.lower()
 
 
 def test_parse_grade_response_handles_non_dict_yaml(tmp_path: Path) -> None:
@@ -160,8 +162,8 @@ def test_parse_grade_response_handles_non_dict_yaml(tmp_path: Path) -> None:
 
     result = parse_grade_response(response)
 
-    assert result["success"] is None
-    assert "Failed to parse" in result["notes"]
+    assert result.success is None
+    assert "Failed to parse" in result.notes
 
 
 def test_call_claude_grader_builds_correct_command(tmp_path: Path) -> None:
