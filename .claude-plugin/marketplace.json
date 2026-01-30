@@ -15,10 +15,7 @@
       "author": {
         "name": "dbt Labs"
       },
-      "source": {
-        "source": "github",
-        "repo": "dbt-labs/dbt-agent-skills"
-      }
+      "source": "./plugins/dbt"
     }
   ]
 }
