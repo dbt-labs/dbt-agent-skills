@@ -22,4 +22,5 @@ where = ["src"]
 [dependency-groups]
 dev = [
     "pytest>=8.0",
+    "ty>=0.0.1a6",
 ]

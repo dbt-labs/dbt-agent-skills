@@ -139,14 +139,14 @@ def grade(
         )
 
         current = 0
-        grades = {"graded_at": None, "grader": "claude-auto", "results": {}}
+        results: dict[str, dict[str, dict]] = {}
 
         for scenario_dir in sorted(run_dir.iterdir()):
             if not scenario_dir.is_dir() or scenario_dir.name.startswith("."):
                 continue
 
             scenario_name = scenario_dir.name
-            grades["results"][scenario_name] = {}
+            results[scenario_name] = {}
 
             for skill_set_dir in sorted(scenario_dir.iterdir()):
                 if not skill_set_dir.is_dir():
@@ -162,13 +162,14 @@ def grade(
                 response = call_claude_grader(grading_prompt)
                 grade = parse_grade_response(response)
 
-                grades["results"][scenario_name][skill_set_name] = grade
+                results[scenario_name][skill_set_name] = grade
 
                 # Show result
                 success_icon = "✓" if grade.get("success") else "✗" if grade.get("success") is False else "?"
                 score = grade.get("score", "?")
                 typer.echo(f" {success_icon} (score: {score})")
 
+        grades = {"graded_at": None, "grader": "claude-auto", "results": results}
         save_grades(run_dir, grades)
         grades_file = run_dir / "grades.yaml"
         typer.echo(f"\nGrades saved to: {grades_file}")
