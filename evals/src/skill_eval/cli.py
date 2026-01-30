@@ -10,12 +10,40 @@ from skill_eval import __version__
 app = typer.Typer(help="A/B test skill variations against recorded scenarios.")
 
 
-def find_run(runs_dir: Path, run_id: str) -> Path:
-    """Find a run by exact or partial ID match.
+def get_latest_run(runs_dir: Path) -> Path:
+    """Get the most recent run directory.
 
     Args:
         runs_dir: Directory containing runs
-        run_id: Full or partial run ID
+
+    Returns:
+        Path to the most recent run directory
+
+    Raises:
+        typer.Exit: If no runs found
+    """
+    if not runs_dir.exists():
+        typer.echo("Error: No runs directory found", err=True)
+        raise typer.Exit(1)
+
+    run_dirs = sorted(
+        [d for d in runs_dir.iterdir() if d.is_dir() and not d.name.startswith(".")],
+        reverse=True,
+    )
+    if not run_dirs:
+        typer.echo("Error: No runs found", err=True)
+        raise typer.Exit(1)
+
+    typer.echo(f"Using latest run: {run_dirs[0].name}")
+    return run_dirs[0]
+
+
+def find_run(runs_dir: Path, run_id: Optional[str]) -> Path:
+    """Find a run by exact or partial ID match, or get latest if no ID provided.
+
+    Args:
+        runs_dir: Directory containing runs
+        run_id: Full or partial run ID, or None for latest
 
     Returns:
         Path to the matching run directory
@@ -23,6 +51,9 @@ def find_run(runs_dir: Path, run_id: str) -> Path:
     Raises:
         typer.Exit: If no match or multiple matches found
     """
+    if run_id is None:
+        return get_latest_run(runs_dir)
+
     # Try exact match first
     exact_match = runs_dir / run_id
     if exact_match.exists() and exact_match.is_dir():
@@ -157,11 +188,21 @@ def run(
 
 @app.command()
 def grade(
-    run_id: str = typer.Argument(..., help="Run ID (full or partial)"),
+    run_id: Optional[str] = typer.Argument(None, help="Run ID (full or partial). Defaults to latest run."),
     auto: bool = typer.Option(False, "--auto", help="Auto-grade using Claude"),
 ) -> None:
     """Grade outputs from a run."""
-    from skill_eval.grader import auto_grade_run, init_grades_file, save_grades
+    import yaml
+
+    from skill_eval.grader import (
+        auto_grade_run,
+        build_grading_prompt,
+        call_claude_grader,
+        compute_skill_usage,
+        init_grades_file,
+        parse_grade_response,
+        save_grades,
+    )
 
     evals_dir = Path.cwd()
     runs_dir = evals_dir / "runs"
@@ -202,11 +243,22 @@ def grade(
 
                 from dataclasses import asdict
 
-                from skill_eval.grader import build_grading_prompt, call_claude_grader, parse_grade_response
+                # Load metadata for skill usage computation
+                metadata_file = skill_set_dir / "metadata.yaml"
+                metadata = {}
+                if metadata_file.exists():
+                    with metadata_file.open() as f:
+                        metadata = yaml.safe_load(f) or {}
 
                 grading_prompt = build_grading_prompt(scenarios_dir / scenario_name, skill_set_dir)
                 response = call_claude_grader(grading_prompt)
                 grade = parse_grade_response(response)
+
+                # Add skill usage data (computed from metadata, not from Claude)
+                available, invoked, pct = compute_skill_usage(metadata)
+                grade.skills_available = available
+                grade.skills_invoked = invoked
+                grade.skill_usage_pct = pct
 
                 results[scenario_name][skill_set_name] = asdict(grade)
 
@@ -240,9 +292,9 @@ def grade(
 
 
 @app.command()
-def report(run_id: str = typer.Argument(..., help="Run ID (full or partial)")) -> None:
+def report(run_id: Optional[str] = typer.Argument(None, help="Run ID (full or partial). Defaults to latest run.")) -> None:
     """Generate comparison report for a run."""
-    from skill_eval.reporter import generate_report, save_report
+    from skill_eval.reporter import print_rich_report, save_report
 
     evals_dir = Path.cwd()
     runs_dir = evals_dir / "runs"
@@ -253,9 +305,8 @@ def report(run_id: str = typer.Argument(..., help="Run ID (full or partial)")) -
     reports_dir.mkdir(exist_ok=True)
 
     report_file = save_report(run_dir, reports_dir)
-    report_content = generate_report(run_dir)
+    print_rich_report(run_dir)
 
-    typer.echo(report_content)
     typer.echo(f"\nSaved to: {report_file}")
 
 
@@ -269,24 +320,7 @@ def review(
     evals_dir = Path.cwd()
     runs_dir = evals_dir / "runs"
 
-    if not runs_dir.exists():
-        typer.echo("Error: No runs directory found", err=True)
-        raise typer.Exit(1)
-
-    # Find the run directory
-    if run_id:
-        run_dir = find_run(runs_dir, run_id)
-    else:
-        # Find the most recent run (sorted by name, which is timestamp)
-        run_dirs = sorted(
-            [d for d in runs_dir.iterdir() if d.is_dir() and not d.name.startswith(".")],
-            reverse=True,
-        )
-        if not run_dirs:
-            typer.echo("Error: No runs found", err=True)
-            raise typer.Exit(1)
-        run_dir = run_dirs[0]
-        typer.echo(f"Using latest run: {run_dir.name}")
+    run_dir = find_run(runs_dir, run_id)
 
     # Find all transcript index.html files
     transcripts = list(run_dir.glob("**/transcript/index.html"))
