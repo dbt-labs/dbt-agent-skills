@@ -12,7 +12,7 @@ app = typer.Typer(help="A/B test skill variations against recorded scenarios.")
 
 def version_callback(value: bool) -> None:
     if value:
-        print(f"skill-eval {__version__}")
+        typer.echo(f"skill-eval {__version__}")
         raise typer.Exit()
 
 
@@ -47,17 +47,17 @@ def run(
     elif scenario:
         scenario_path = scenarios_dir / scenario
         if not scenario_path.exists():
-            print(f"Error: Scenario not found: {scenario}")
+            typer.echo(f"Error: Scenario not found: {scenario}", err=True)
             raise typer.Exit(1)
         scenario_dirs = [scenario_path]
     else:
-        print("Error: Specify a scenario name or use --all")
+        typer.echo("Error: Specify a scenario name or use --all", err=True)
         raise typer.Exit(1)
 
     runner = Runner(evals_dir=evals_dir)
     run_dir = runner.create_run_dir()
 
-    print(f"Run directory: {run_dir}")
+    typer.echo(f"Run directory: {run_dir}")
 
     # Load all scenarios
     scenarios = [load_scenario(d) for d in sorted(scenario_dirs)]
@@ -71,7 +71,7 @@ def run(
         ]
 
         total = len(tasks)
-        print(f"\nRunning {total} tasks with {workers} workers...\n")
+        typer.echo(f"\nRunning {total} tasks with {workers} workers...\n")
 
         completed = 0
         passed = 0
@@ -86,27 +86,27 @@ def run(
             else:
                 failed += 1
                 icon = "✗"
-            print(f"  [{completed}/{total}] {task.scenario.name}/{task.skill_set.name} {icon}")
+            typer.echo(f"  [{completed}/{total}] {task.scenario.name}/{task.skill_set.name} {icon}")
 
         runner.run_parallel(tasks, max_workers=workers, progress_callback=on_complete)
 
-        print(f"\nRun complete: {passed} passed, {failed} failed")
+        typer.echo(f"\nRun complete: {passed} passed, {failed} failed")
     else:
         # Sequential execution (original behavior)
         for scenario_obj in scenarios:
-            print(f"\nScenario: {scenario_obj.name}")
+            typer.echo(f"\nScenario: {scenario_obj.name}")
 
             for skill_set in scenario_obj.skill_sets:
-                print(f"  Running: {skill_set.name}...", end="", flush=True)
+                typer.echo(f"  Running: {skill_set.name}...", nl=False)
                 result = runner.run_scenario(scenario_obj, skill_set, run_dir)
                 if result.success:
-                    print(" done")
+                    typer.echo(" done")
                 else:
-                    print(f" FAILED: {result.error}")
+                    typer.echo(f" FAILED: {result.error}")
 
-        print(f"\nRun complete: {run_dir}")
+        typer.echo(f"\nRun complete: {run_dir}")
 
-    print(f"Next: uv run skill-eval grade {run_dir.name}")
+    typer.echo(f"Next: uv run skill-eval grade {run_dir.name}")
 
 
 @app.command()
@@ -122,12 +122,12 @@ def grade(
     scenarios_dir = evals_dir / "scenarios"
 
     if not run_dir.exists():
-        print(f"Error: Run not found: {run_id}")
+        typer.echo(f"Error: Run not found: {run_id}", err=True)
         raise typer.Exit(1)
 
     if auto:
-        print(f"Auto-grading run: {run_id}")
-        print()
+        typer.echo(f"Auto-grading run: {run_id}")
+        typer.echo()
 
         # Count scenarios and skill sets for progress
         total = sum(
@@ -154,7 +154,7 @@ def grade(
 
                 skill_set_name = skill_set_dir.name
                 current += 1
-                print(f"  [{current}/{total}] Grading {scenario_name}/{skill_set_name}...", end="", flush=True)
+                typer.echo(f"  [{current}/{total}] Grading {scenario_name}/{skill_set_name}...", nl=False)
 
                 from skill_eval.grader import build_grading_prompt, call_claude_grader, parse_grade_response
 
@@ -167,29 +167,29 @@ def grade(
                 # Show result
                 success_icon = "✓" if grade.get("success") else "✗" if grade.get("success") is False else "?"
                 score = grade.get("score", "?")
-                print(f" {success_icon} (score: {score})")
+                typer.echo(f" {success_icon} (score: {score})")
 
         save_grades(run_dir, grades)
         grades_file = run_dir / "grades.yaml"
-        print(f"\nGrades saved to: {grades_file}")
-        print(f"Run: uv run skill-eval report {run_id}")
+        typer.echo(f"\nGrades saved to: {grades_file}")
+        typer.echo(f"Run: uv run skill-eval report {run_id}")
     else:
         grades_file = init_grades_file(run_dir)
 
-        print(f"Grades file: {grades_file}")
-        print("\nOutputs to review:")
+        typer.echo(f"Grades file: {grades_file}")
+        typer.echo("\nOutputs to review:")
 
         for scenario_dir in sorted(run_dir.iterdir()):
             if not scenario_dir.is_dir():
                 continue
-            print(f"\n  {scenario_dir.name}/")
+            typer.echo(f"\n  {scenario_dir.name}/")
             for skill_set_dir in sorted(scenario_dir.iterdir()):
                 if not skill_set_dir.is_dir():
                     continue
-                print(f"    {skill_set_dir.name}/output.md")
+                typer.echo(f"    {skill_set_dir.name}/output.md")
 
-        print(f"\nEdit {grades_file} to record your grades.")
-        print(f"Then run: uv run skill-eval report {run_id}")
+        typer.echo(f"\nEdit {grades_file} to record your grades.")
+        typer.echo(f"Then run: uv run skill-eval report {run_id}")
 
 
 @app.command()
@@ -201,7 +201,7 @@ def report(run_id: str = typer.Argument(..., help="Run ID (timestamp directory n
     run_dir = evals_dir / "runs" / run_id
 
     if not run_dir.exists():
-        print(f"Error: Run not found: {run_id}")
+        typer.echo(f"Error: Run not found: {run_id}", err=True)
         raise typer.Exit(1)
 
     reports_dir = evals_dir / "reports"
@@ -210,8 +210,8 @@ def report(run_id: str = typer.Argument(..., help="Run ID (timestamp directory n
     report_file = save_report(run_dir, reports_dir)
     report_content = generate_report(run_dir)
 
-    print(report_content)
-    print(f"\nSaved to: {report_file}")
+    typer.echo(report_content)
+    typer.echo(f"\nSaved to: {report_file}")
 
 
 @app.command()
@@ -225,14 +225,14 @@ def review(
     runs_dir = evals_dir / "runs"
 
     if not runs_dir.exists():
-        print("Error: No runs directory found")
+        typer.echo("Error: No runs directory found", err=True)
         raise typer.Exit(1)
 
     # Find the run directory
     if run_id:
         run_dir = runs_dir / run_id
         if not run_dir.exists():
-            print(f"Error: Run not found: {run_id}")
+            typer.echo(f"Error: Run not found: {run_id}", err=True)
             raise typer.Exit(1)
     else:
         # Find the most recent run (sorted by name, which is timestamp)
@@ -241,24 +241,24 @@ def review(
             reverse=True,
         )
         if not run_dirs:
-            print("Error: No runs found")
+            typer.echo("Error: No runs found", err=True)
             raise typer.Exit(1)
         run_dir = run_dirs[0]
-        print(f"Using latest run: {run_dir.name}")
+        typer.echo(f"Using latest run: {run_dir.name}")
 
     # Find all transcript index.html files
     transcripts = list(run_dir.glob("**/transcript/index.html"))
 
     if not transcripts:
-        print(f"Error: No transcripts found in {run_dir}")
+        typer.echo(f"Error: No transcripts found in {run_dir}", err=True)
         raise typer.Exit(1)
 
-    print(f"Opening {len(transcripts)} transcript(s)...")
+    typer.echo(f"Opening {len(transcripts)} transcript(s)...")
 
     for transcript in sorted(transcripts):
         # Show which transcript we're opening
         rel_path = transcript.relative_to(run_dir)
-        print(f"  {rel_path}")
+        typer.echo(f"  {rel_path}")
         webbrowser.open(f"file://{transcript}")
 
 
