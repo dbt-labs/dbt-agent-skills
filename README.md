@@ -17,10 +17,11 @@ Agent Skills are folders of instructions, scripts, and resources that agents can
 
 ### Claude Code
 
-Add the dbt skills marketplace:
+Add the dbt skills marketplace and install the skills:
 
 ```bash
 /plugin marketplace add dbt-labs/dbt-agent-skills
+/plugin install dbt@dbt-agent-marketplace
 ```
 
 ### Other AI Clients
