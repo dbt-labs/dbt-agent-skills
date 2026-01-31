@@ -8,10 +8,8 @@ from pathlib import Path
 
 import yaml
 from textual.app import App, ComposeResult
-from textual.containers import Vertical
-from textual.widgets import Footer, Header, Input, OptionList, SelectionList
+from textual.widgets import Footer, Header, Input, OptionList
 from textual.widgets.option_list import Option
-from textual.widgets.selection_list import Selection
 
 
 @dataclass
@@ -208,11 +206,12 @@ class RunSelectorApp(App[Path | None]):
 
 
 class ScenarioSelectorApp(App[list[Path]]):
-    """Multi-selection app for choosing scenarios."""
+    """Multi-selection app for choosing scenarios using OptionList with manual tracking."""
 
     BINDINGS = [
         ("escape", "quit", "Cancel"),
         ("enter", "confirm", "Confirm selection"),
+        ("space", "toggle_selection", "Toggle selection"),
         ("a", "select_all", "Select all"),
         ("/", "focus_search", "Search"),
     ]
@@ -223,50 +222,67 @@ class ScenarioSelectorApp(App[list[Path]]):
         super().__init__()
         self.scenarios = scenarios
         self.title_text = title
-        # Track selections across filtering
         self._selected_names: set[str] = set()
+        self._filtered_scenarios: list[ScenarioInfo] = list(scenarios)
 
     def compose(self) -> ComposeResult:
         yield Header()
-        yield Input(placeholder="Type to filter...", id="search")
-        yield SelectionList[str](
-            *[
-                Selection(scenario.display_text(), scenario.name, initial_state=False)
-                for scenario in self.scenarios
-            ],
-            id="selections",
-        )
+        yield Input(placeholder="Type to filter... (Space to toggle, Enter to confirm)", id="search")
+        yield OptionList(*self._build_options(), id="options")
         yield Footer()
+
+    def _build_options(self) -> list[Option]:
+        """Build option list with checkmarks for selected items."""
+        options = []
+        for scenario in self._filtered_scenarios:
+            prefix = "[green]✓[/] " if scenario.name in self._selected_names else "  "
+            options.append(Option(f"{prefix}{scenario.display_text()}", id=scenario.name))
+        return options
+
+    def _refresh_options(self) -> None:
+        """Refresh the option list to reflect current selections."""
+        option_list = self.query_one("#options", OptionList)
+        highlighted = option_list.highlighted
+        option_list.clear_options()
+        for opt in self._build_options():
+            option_list.add_option(opt)
+        if highlighted is not None and highlighted < len(self._filtered_scenarios):
+            option_list.highlighted = highlighted
 
     def on_mount(self) -> None:
         self.theme = "tokyo-night"
         self.title = "skill-eval"
         self.sub_title = self.title_text
-        # Focus the selection list by default
-        self.query_one("#selections", SelectionList).focus()
+        self.query_one("#options", OptionList).focus()
 
     def on_input_changed(self, event: Input.Changed) -> None:
-        """Filter options as user types, preserving selections."""
+        """Filter options as user types."""
         query = event.value.lower()
-        selection_list = self.query_one("#selections", SelectionList)
-
-        # Save current selections before clearing
-        self._selected_names.update(selection_list.selected)
-
-        selection_list.clear_options()
-
-        for scenario in self.scenarios:
-            if query in scenario.display_text().lower():
-                is_selected = scenario.name in self._selected_names
-                selection_list.add_option(
-                    Selection(
-                        scenario.display_text(), scenario.name, initial_state=is_selected
-                    )
-                )
+        self._filtered_scenarios = [
+            s for s in self.scenarios if query in s.display_text().lower()
+        ]
+        self._refresh_options()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """When Enter is pressed in search, focus the list."""
-        self.query_one("#selections", SelectionList).focus()
+        self.query_one("#options", OptionList).focus()
+
+    def action_toggle_selection(self) -> None:
+        """Toggle selection of highlighted item."""
+        option_list = self.query_one("#options", OptionList)
+        if option_list.highlighted is not None:
+            idx = option_list.highlighted
+            if idx < len(self._filtered_scenarios):
+                name = self._filtered_scenarios[idx].name
+                if name in self._selected_names:
+                    self._selected_names.discard(name)
+                else:
+                    self._selected_names.add(name)
+                self._refresh_options()
+
+    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
+        """Toggle on Enter/click as well."""
+        self.action_toggle_selection()
 
     async def action_quit(self) -> None:
         self.exit([])
@@ -275,15 +291,14 @@ class ScenarioSelectorApp(App[list[Path]]):
         self.query_one("#search", Input).focus()
 
     def action_confirm(self) -> None:
-        selection_list = self.query_one("#selections", SelectionList)
-        # Combine currently visible selections with previously saved ones
-        all_selected = self._selected_names.union(selection_list.selected)
-        selected_paths = [s.path for s in self.scenarios if s.name in all_selected]
+        selected_paths = [s.path for s in self.scenarios if s.name in self._selected_names]
         self.exit(selected_paths)
 
     def action_select_all(self) -> None:
-        selection_list = self.query_one("#selections", SelectionList)
-        selection_list.select_all()
+        """Select all currently visible scenarios."""
+        for scenario in self._filtered_scenarios:
+            self._selected_names.add(scenario.name)
+        self._refresh_options()
 
 
 def select_run(runs: list[Path], title: str = "Select a run") -> Path | None:
