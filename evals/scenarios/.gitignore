@@ -1,0 +1,2 @@
+# Ignore scenario folders starting with underscore (typically large/private test scenarios)
+_*/

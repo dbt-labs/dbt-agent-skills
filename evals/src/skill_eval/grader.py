@@ -161,6 +161,7 @@ def call_claude_grader(prompt: str) -> str:
     cmd = [
         "claude",
         "--print",
+        "--no-session-persistence",
         "-p",
         prompt,
     ]
