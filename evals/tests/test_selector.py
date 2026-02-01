@@ -3,7 +3,6 @@
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 import yaml
 
 from skill_eval.selector import (
@@ -31,7 +30,6 @@ class TestRunInfo:
         assert info.name == "2024-01-15-120000"
         assert info.scenario_count == 2
         assert info.graded is False
-        assert info.total_cost is None
 
     def test_from_path_with_grades(self, tmp_path: Path) -> None:
         """RunInfo detects graded status from grades.yaml."""
@@ -42,32 +40,6 @@ class TestRunInfo:
         info = RunInfo.from_path(run_dir)
 
         assert info.graded is True
-
-    def test_from_path_with_cost(self, tmp_path: Path) -> None:
-        """RunInfo calculates total cost from metadata files."""
-        run_dir = tmp_path / "2024-01-15-120000"
-        scenario_dir = run_dir / "scenario1" / "skill-set-a"
-        scenario_dir.mkdir(parents=True)
-
-        metadata = {"total_cost_usd": 0.50}
-        (scenario_dir / "metadata.yaml").write_text(yaml.dump(metadata))
-
-        info = RunInfo.from_path(run_dir)
-
-        assert info.total_cost == pytest.approx(0.50)
-
-    def test_from_path_sums_multiple_costs(self, tmp_path: Path) -> None:
-        """RunInfo sums costs from multiple skill sets."""
-        run_dir = tmp_path / "2024-01-15-120000"
-
-        for i, cost in enumerate([0.25, 0.75]):
-            ss_dir = run_dir / "scenario1" / f"skill-set-{i}"
-            ss_dir.mkdir(parents=True)
-            (ss_dir / "metadata.yaml").write_text(yaml.dump({"total_cost_usd": cost}))
-
-        info = RunInfo.from_path(run_dir)
-
-        assert info.total_cost == pytest.approx(1.00)
 
     def test_from_path_ignores_hidden_dirs(self, tmp_path: Path) -> None:
         """RunInfo ignores hidden directories in scenario count."""
@@ -87,17 +59,12 @@ class TestRunInfo:
         (run_dir / "scenario1").mkdir()
         (run_dir / "grades.yaml").write_text("graded_at: 2024-01-15")
 
-        ss_dir = run_dir / "scenario1" / "skill-set-a"
-        ss_dir.mkdir()
-        (ss_dir / "metadata.yaml").write_text(yaml.dump({"total_cost_usd": 0.75}))
-
         info = RunInfo.from_path(run_dir)
         display = info.display_text()
 
         assert "2024-01-15-120000" in display
         assert "1 scenario(s)" in display
         assert "graded" in display
-        assert "$0.75" in display
 
     def test_display_text_minimal(self, tmp_path: Path) -> None:
         """display_text works with minimal information."""

@@ -16,14 +16,13 @@ from textual.widgets.option_list import Option
 class RunInfo:
     """Information about a run for display in selector.
 
-    Display format: '2026-01-30-120000 | 3 scenarios | graded | $0.75'
+    Display format: '2026-01-30-120000 | 3 scenarios | graded'
     """
 
     path: Path
     name: str
     scenario_count: int
     graded: bool
-    total_cost: float | None
 
     @classmethod
     def from_path(cls, path: Path) -> RunInfo:
@@ -36,28 +35,11 @@ class RunInfo:
         grades_file = path / "grades.yaml"
         graded = grades_file.exists()
 
-        # Calculate total cost from metadata files
-        total_cost: float | None = None
-        cost_sum = 0.0
-        has_cost = False
-        for metadata_file in path.glob("**/metadata.yaml"):
-            try:
-                with metadata_file.open() as f:
-                    metadata = yaml.safe_load(f)
-                    if metadata and metadata.get("total_cost_usd"):
-                        cost_sum += float(metadata["total_cost_usd"])
-                        has_cost = True
-            except (yaml.YAMLError, ValueError, TypeError):
-                pass
-        if has_cost:
-            total_cost = cost_sum
-
         return cls(
             path=path,
             name=name,
             scenario_count=scenario_count,
             graded=graded,
-            total_cost=total_cost,
         )
 
     def display_text(self) -> str:
@@ -65,8 +47,6 @@ class RunInfo:
         parts = [self.name, f"{self.scenario_count} scenario(s)"]
         if self.graded:
             parts.append("graded")
-        if self.total_cost is not None:
-            parts.append(f"${self.total_cost:.2f}")
         return " | ".join(parts)
 
 
