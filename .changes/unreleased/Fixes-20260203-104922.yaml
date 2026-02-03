@@ -1,0 +1,6 @@
+kind: Fixes
+body: Clarify MCP config skill setup (token use, authorization header, Claude setup)
+time: 2026-02-03T10:49:22.972474-08:00
+custom:
+    Author: jairus-m
+    Issue: ''
