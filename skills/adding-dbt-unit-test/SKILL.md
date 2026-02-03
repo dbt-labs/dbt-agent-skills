@@ -196,7 +196,7 @@ For more examples of unit tests, see [examples.md](examples.md)
 - If you want to unit test a model that depends on an ephemeral model, you must use `format: sql` for the ephemeral model input.
 - Table names within the model must be aliased in order to unit test `join` logic
 
-## YAML for specifying unit tets
+## YAML for specifying unit tests
 
 - For all the required and optional keys in the YAML definition of unit tests, see [spec.md](spec.md)
 
@@ -265,16 +265,16 @@ The `dict` format only supports inline YAML mock data, but you can also use `csv
 
 When using the `dict` or `csv` format, you only have to define the mock data for the columns relevant to you. This enables you to write succinct and _specific_ unit tests. For the `sql` format _all_ columns need to be defined.
 
-# Special cases
+## Special cases
 
 - Unit testing incremental models. See `special_cases/incremental_model.md`.
 - Unit testing a model that depends on ephemeral model(s). See `special_cases/ephemeral_dependency.md`.
 - Unit test a model that depends on any introspective macros, project variables, or environment variables. See `special_cases/special_case_overrides.md`.
 - Unit testing versioned SQL models. See `special_cases/versioned_model.md`.
 
-#### Platform/adapter-specific caveats
+### Platform/adapter-specific caveats
 
-There are platform specific details required if implementing on (Redshift, BigQuery, etc). Read the `warehouses/{platform_name}/caveats.md` file for the database you are on (if it exists).
+There are platform-specific details required if implementing on (Redshift, BigQuery, etc). Read the `warehouses/{platform_name}/caveats.md` file for the database you are on (if it exists).
 
 # Platform/adapter-specific data types
 

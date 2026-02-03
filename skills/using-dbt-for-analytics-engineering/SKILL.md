@@ -8,8 +8,6 @@ metadata:
 
 # Using dbt for Analytics Engineering
 
-**When you use this skill, announce:** "Using dbt analytics engineering skill to [brief purpose]."
-
 **Core principle:** Apply software engineering discipline (DRY, modularity, testing) to data transformation work through dbt's abstraction layer.
 
 ## When to Use
@@ -49,7 +47,7 @@ This skill includes detailed reference guides for specific techniques. Read the 
 ## Model building guidelines
 
 - Always use data modelling best practices when working in a project
-- Write dbtonic code:
+- Follow dbt best practices in code:
   - Always use `{{ ref }}` and `{{ source }}` over hardcoded table names
   - Use CTEs over subqueries
 - Before building a model, follow `planning-dbt-models.md` to plan your approach.

@@ -365,7 +365,7 @@ filter: |
 |---------|-----|
 | Missing `agg_time_dimension` | Every semantic model needs a default time dimension |
 | `granularity` inside `dimension:` block | Must be at column level |
-| Both `entity` and `dimension` on same column | A column can only be one or the other |
+| Defining a column as both an entity and a dimension | A column can only be one or the other |
 | Simple metrics in top-level `metrics:` | Top-level is only for cross-model metrics |
 | Using `window` and `grain_to_date` together | Cumulative metrics can only have one |
 | Missing `input_metrics` on derived metrics | Must list metrics used in `expr` |

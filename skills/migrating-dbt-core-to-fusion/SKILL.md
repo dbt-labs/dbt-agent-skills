@@ -6,6 +6,10 @@ metadata:
   author: dbt-labs
 ---
 
+# Migrating a dbt Core Project to Fusion
+
+dbt Fusion is dbt Labs' next-generation engine for parsing, compiling, and running dbt projects. This skill guides you through migrating an existing dbt Core project to be compatible with the Fusion engine.
+
 ## Goals
 
 1. Make a pre-existing dbt project compatible with dbt Fusion, so it can parse and compile successfully on the Fusion engine.  
@@ -17,7 +21,7 @@ metadata:
 
 if a user says "migrate my dbt project to the new authoring layer" or "make my dbt project compatible with the Fusion engine" do the following steps and the migration is only successfully completed once `dbtf compile` finishes with 0 errors. Create a changes_made.md file documenting and summarizing all of the code changes made in the user's dbt project, including what the error was, the fix applied, and a summary of why the fix was chosen.
 
-Before you begin, please read and understand the resources section below. You should strictly use the resources below to update the project.
+Before you begin, please read and understand the resources section below. Only apply fixes that are described in the provided Resources. Do not attempt undocumented fixes—if a solution isn't in these resources, inform the user and stop.
 
 1. Run `dbtf debug` in the terminal to check their data platform connections. Proceed to step 2 if there are no errors. If there are errors, please summarize the error succinctly so the user knows how to debug on their own.
 2. Run `dbtf parse --show-all-deprecations` in the terminal to check for compatibility errors in their current project. Summarize the log output by specifying how many errors were found and group the errors in a way that's easily understandable.
