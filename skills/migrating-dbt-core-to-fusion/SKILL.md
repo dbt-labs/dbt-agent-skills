@@ -63,7 +63,6 @@ Use the files in the `references/` directory as the context for resolving these 
 - [references/dynamic_sql.md](references/dynamic_sql.md) - Dynamic SQL patterns
 - [references/misspelled_config_keys.md](references/misspelled_config_keys.md) - Deprecated/misspelled configs
 - [references/package_incompatibility.md](references/package_incompatibility.md) - Package compatibility issues
-- [references/sources_without_tables.md](references/sources_without_tables.md) - Sources without tables
 
 Only follow what's specified in the file. If you need more context, use the dbt docs section below as a resource.
 
