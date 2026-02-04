@@ -48,6 +48,12 @@ For example, it's easy enough to move these cold storage keys into `meta:` like 
 ```
 
 In these instances, not only do the unsupported config keys need to be moved under a new `meta:` key, but also any macro, or materialization that references those configs in jinja, need to be updated.
+
+there are new wrapper functions that make this convenient:
+
+- [`config.meta_get()`](https://docs.getdbt.com/reference/dbt-jinja-functions/config#configmeta_get)
+- [`config.meta_require()`](https://docs.getdbt.com/reference/dbt-jinja-functions/config#configmeta_require)
+
 for example:
 
 this code
@@ -56,6 +62,11 @@ this code
 ```
 
 needs to be changed to be this
+```sql
+{% if config.get_meta('cold_storage_date_type') == 'date' %}
+```
+
+the above just wraps the below behavior
 ```sql
 {% if config.get('meta').cold_storage_date_type == 'date' %}
 ```
