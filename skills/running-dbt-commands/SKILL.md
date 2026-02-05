@@ -11,7 +11,7 @@ metadata:
 ## Preferences
 
 1. **Use MCP tools if available** (`dbt_build`, `dbt_run`, `dbt_show`, etc.) - they handle paths, timeouts, and formatting automatically
-2. **Use `build` instead of `run` or `test`** - `test` doesn't refresh the model, so testing a model change requires `build`
+2. **Use `build` instead of `run` or `test`** - `test` doesn't refresh the model, so testing a model change requires `build`. `build` does a `run` and a `test` of each node (model, seed, snapshot) in the order of the DAG
 3. **Always use `--quiet`** with `--warn-error-options '{"error": ["NoNodesForSelectionCriteria"]}'` to reduce output while catching selector typos
 4. **Always use `--select`** - never run the entire project without explicit user approval
 
