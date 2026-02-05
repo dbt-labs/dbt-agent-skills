@@ -1,6 +1,6 @@
 {
   "name": "dbt",
   "description": "A curated collection of Agent Skills and Agents for working with dbt. These help AI agents understand and execute dbt workflows more effectively.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "agents": "./agents/"
 }
