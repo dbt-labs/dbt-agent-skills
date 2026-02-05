@@ -1,6 +1,6 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "dbt-agent-marketplace",
+  "name": "dbt-agent-skills",
   "description": "Skills for working with dbt Core and the dbt Fusion engine - analytics engineering, data modeling, semantic layer, and dbt platform (fka dbt Cloud) operations",
   "owner": {
     "name": "dbt Labs",
@@ -8,14 +8,67 @@
   },
   "plugins": [
     {
-      "name": "dbt",
-      "description": "A curated collection of Agent Skills for working with dbt. These skills help AI agents understand and execute dbt workflows more effectively.",
-      "version": "1.0.0",
-      "license": "Apache-2.0",
+      "name": "adding-dbt-unit-test",
+      "description": "Use when adding unit tests for a dbt model or practicing test-driven development (TDD) in dbt",
       "author": {
         "name": "dbt Labs"
       },
-      "source": "./"
+      "source": "./skills/adding-dbt-unit-test",
+      "category": "testing"
+    },
+    {
+      "name": "answering-natural-language-questions-with-dbt",
+      "description": "Use when a user asks a business question that requires querying data (e.g., \"What were total sales last quarter?\"). NOT for validating, testing, or building dbt models during development.",
+      "author": {
+        "name": "dbt Labs"
+      },
+      "source": "./skills/answering-natural-language-questions-with-dbt",
+      "category": "semantic-layer"
+    },
+    {
+      "name": "building-dbt-semantic-layer",
+      "description": "Use when creating or modifying dbt Semantic Layer components including semantic models, metrics, and dimensions leveraging MetricFlow.",
+      "author": {
+        "name": "dbt Labs"
+      },
+      "source": "./skills/building-dbt-semantic-layer",
+      "category": "semantic-layer"
+    },
+    {
+      "name": "configuring-dbt-mcp-server",
+      "description": "Use when setting up, configuring, or troubleshooting the dbt MCP server for AI tools like Claude Desktop, Claude Code, Cursor, or VS Code.",
+      "author": {
+        "name": "dbt Labs"
+      },
+      "source": "./skills/configuring-dbt-mcp-server",
+      "category": "integration"
+    },
+    {
+      "name": "migrating-dbt-core-to-fusion",
+      "description": "Guides migration of dbt projects from dbt Core to the Fusion engine. Use when making a project compatible with Fusion, addressing deprecations, or running dbtf commands.",
+      "author": {
+        "name": "dbt Labs"
+      },
+      "source": "./skills/migrating-dbt-core-to-fusion",
+      "category": "migration"
+    },
+    {
+      "name": "troubleshooting-dbt-job-errors",
+      "description": "Use when a dbt Cloud/platform job fails and you need to diagnose the root cause, especially when error messages are unclear or when intermittent failures occur. Do not use for local dbt development errors.",
+      "author": {
+        "name": "dbt Labs"
+      },
+      "source": "./skills/troubleshooting-dbt-job-errors",
+      "category": "operations"
+    },
+    {
+      "name": "using-dbt-for-analytics-engineering",
+      "description": "Use when doing any dbt work - building or modifying models, debugging errors, exploring unfamiliar data sources, writing tests, or evaluating impact of changes. Use for analytics pipelines, data transformations, and data modeling.",
+      "author": {
+        "name": "dbt Labs"
+      },
+      "source": "./skills/using-dbt-for-analytics-engineering",
+      "category": "analytics"
     }
   ]
 }
