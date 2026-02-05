@@ -7,7 +7,6 @@ from pathlib import Path
 
 # Category mapping based on skill name patterns
 CATEGORY_MAP = {
-    "fetching-dbt-docs": "documentation",
     "configuring-dbt-mcp-server": "integration",
     "troubleshooting-dbt-job-errors": "operations",
     "building-dbt-semantic-layer": "semantic-layer",
