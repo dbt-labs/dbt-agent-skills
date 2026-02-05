@@ -22,7 +22,7 @@ Copy this checklist to track migration progress:
 Migration Progress:
 - [ ] Step 1: Run dbtf debug (verify connection)
 - [ ] Step 2: Run dbtf parse --show-all-deprecations (identify errors)
-- [ ] Step 3: Install and run dbt-autofix
+- [ ] Step 3: Install and run dbt-autofix for package updates and deprecations
 - [ ] Step 4: Fix remaining errors manually using resources
 - [ ] Step 5: Run dbtf compile (0 errors = success)
 ```
@@ -35,7 +35,7 @@ If a user says "migrate my dbt project to the new authoring layer" or "make my d
 
 1. Run `dbtf debug` in the terminal to check their data platform connections. Proceed to step 2 if there are no errors. If there are errors, please summarize the error succinctly so the user knows how to debug on their own.
 2. Run `dbtf parse --show-all-deprecations` in the terminal to check for compatibility errors in their current project. Summarize the log output by specifying how many errors were found and group the errors in a way that's easily understandable.
-3. Install [dbt-autofix](https://github.com/dbt-labs/dbt-autofix) and run autofix to try to fix errors. Prefer uv/uvx to install (`uv tool install dbt-autofix`) and run the package (`uvx dbt-autofix deprecations`), but fall back to pip and other methods if needed. Summarize the results of the autofix run and include how many errors were resolved. Run `dbtf parse` again to check for remaining errors and summarize with how many errors were found and a brief summary of the types of errors.
+3. Install [dbt-autofix](https://github.com/dbt-labs/dbt-autofix) and run autofix in two parts to try to fix errors. Prefer uv/uvx to install (`uv tool install dbt-autofix`) and run but fall back to pip and other methods if needed. First, run autofix to update packages (`uvx dbt-autofix packages`) which updates all package versions to the next lowest Fusion compatible version. Then, run autofix to fix deprecations (`uvx dbt-autofix deprecations`). Summarize the results of the autofix run and include how many errors were resolved. Run `dbtf parse` again to check for remaining errors and summarize with how many errors were found and a brief summary of the types of errors.
 4. For remaining errors, please ONLY use the resources below to attempt to resolve them. If you can't figure out a fix from the resources below, notify the user and break out of the flow. Attempt the fixes error by error, grouping similar errors based on the error code and message. You should also summarize which error you're working on in the chat to give users context. 
 
    **Special handling for common unsupported features:**
@@ -147,7 +147,6 @@ Use the files in the `references/` directory as the context for resolving these 
 - [references/custom_configuration.md](references/custom_configuration.md) - Custom config handling
 - [references/dynamic_sql.md](references/dynamic_sql.md) - Dynamic SQL patterns
 - [references/misspelled_config_keys.md](references/misspelled_config_keys.md) - Deprecated/misspelled configs
-- [references/package_incompatibility.md](references/package_incompatibility.md) - Package compatibility issues
 
 Only follow what's specified in the file. If you need more context, use the dbt docs section below as a resource.
 
