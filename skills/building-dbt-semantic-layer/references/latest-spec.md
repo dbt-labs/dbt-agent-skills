@@ -133,6 +133,9 @@ models:
 Use the `derived_semantics` block for dimensions or entities that are not a direct 1:1 mapping to a physical column. The `expr` field is required.
 
 ```yaml
+models: 
+  - name: orders
+    [...]
     derived_semantics:
       dimensions:
         - name: order_size_bucket
@@ -151,6 +154,9 @@ Use the `derived_semantics` block for dimensions or entities that are not a dire
 Simple metrics support these additional properties:
 
 ```yaml
+models: 
+  - name: orders
+    [...]
     metrics:
       - name: customers
         type: simple
@@ -166,6 +172,9 @@ Simple metrics support these additional properties:
 For percentile aggregation:
 
 ```yaml
+models: 
+  - name: orders
+    [...]
     metrics:
       - name: revenue_p95
         type: simple
@@ -185,6 +194,9 @@ Simple metrics defined within a model serve as building blocks. Advanced metrics
 Combine multiple metrics using an expression.
 
 ```yaml
+models: 
+  - name: orders
+    [...]
     metrics:
       - name: order_gross_profit
         description: "Gross profit from each order."
@@ -201,6 +213,9 @@ Combine multiple metrics using an expression.
 With offset window (period-over-period):
 
 ```yaml
+models: 
+  - name: orders
+    [...]
     metrics:
       - name: order_total_growth_mom
         description: "Percentage growth of orders compared to 1 month ago"
@@ -217,6 +232,9 @@ With offset window (period-over-period):
 With filter on input metric:
 
 ```yaml
+models: 
+  - name: orders
+    [...]
     metrics:
       - name: food_order_gross_profit
         label: Food order gross profit

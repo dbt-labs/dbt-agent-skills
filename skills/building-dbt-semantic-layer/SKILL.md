@@ -19,14 +19,12 @@ This skill guides the creation and modification of dbt Semantic Layer components
 
 - [Time Spine Setup](references/time-spine.md) - Required for time-based metrics and aggregations
 - [Best Practices](references/best-practices.md) - Design patterns and recommendations for semantic models and metrics
-- [Latest Spec Authoring Guide](references/latest-spec.md) - Full YAML reference for dbt Core 1.12+ and Fusion
-- [Legacy Spec Authoring Guide](references/legacy-spec.md) - Full YAML reference for dbt Core 1.6-1.11
 
 ## Determine Which Spec to Use
 
 There are two versions of the Semantic Layer YAML spec:
 
-- **Latest spec** - Semantic models are configured as metadata on dbt models. Simpler authoring. Supported by dbt Core 1.12+ and Fusion (always).
+- **Latest spec** - Semantic models are configured as metadata on dbt models. Simpler authoring. Supported by dbt Core 1.12+ and Fusion.
 - **Legacy spec** - Semantic models are defined as separate top-level resources. Uses measures as building blocks for metrics. Supported by dbt Core 1.6 through 1.11. Also supported by Core 1.12+ for backwards compatibility.
 
 ### Step 1: Check for Existing Semantic Layer Config
@@ -77,7 +75,7 @@ When the user specifies a model to expose (e.g., "Add semantic layer to `custome
 3. Suggest dimensions based on column types and names
 4. Ask what metrics the user wants to define
 
-Both paths converge on the spec-specific implementation workflow.
+Both paths converge on the same implementation workflow.
 
 ### Open Ended
 
@@ -120,8 +118,6 @@ Measure how often one event leads to another for a specific entity within a time
 
 Filters can be added to simple metrics or metric inputs to advanced metrics. Use Jinja template syntax:
 
-> [!NOTE]
-> Open question for code review: Confirm that the Jinja filter syntax is identical across both specs.
 
 ```
 filter: |
@@ -146,8 +142,6 @@ After writing YAML, validate in two stages:
    - `dbt sl validate` (dbt Cloud CLI)
    - `mf validate-configs` (MetricFlow CLI)
 
-> [!NOTE]
-> Open question for code review: Confirm these validation commands are correct for both specs.
 
 Do not consider work complete until both validations pass.
 

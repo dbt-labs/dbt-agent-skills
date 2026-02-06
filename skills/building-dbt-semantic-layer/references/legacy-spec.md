@@ -83,6 +83,9 @@ semantic_models:
 Computed dimensions use `expr`:
 
 ```yaml
+semantic_models: 
+  - name: orders
+    [...]
     dimensions:
       - name: is_bulk_transaction
         type: categorical
@@ -185,6 +188,9 @@ semantic_models:
 ### Percentile Measures
 
 ```yaml
+semantic_models: 
+  - name: orders
+    [...]
     measures:
       - name: p99_transaction_value
         description: The 99th percentile transaction value
@@ -200,6 +206,9 @@ semantic_models:
 For measures like account balances or MRR that shouldn't be summed across time:
 
 ```yaml
+semantic_models: 
+  - name: orders
+    [...]
     measures:
       - name: mrr
         description: Sum of all active subscription plans
@@ -475,7 +484,7 @@ SCD Type II semantic models cannot contain measures.
 ## Key Formatting Rules
 
 - Top-level `semantic_models:` key (not nested under `models:`)
-- `model: ref('...')` required on each semantic model
+- `model: ref('...')` required on each semantic model without curly braces
 - `defaults.agg_time_dimension` for default time dimension
 - Entities, dimensions, and measures are separate arrays under the semantic model
 - All metrics at the top-level `metrics:` key, referencing measures via `type_params`

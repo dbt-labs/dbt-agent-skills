@@ -29,7 +29,7 @@ Synthesized from the [dbt Semantic Layer best practices guide](https://docs.getd
 - Define components consistently: **entities -> dimensions -> measures**
 
 **Latest spec** (dbt Core 1.12+ / Fusion):
-- Define simple metrics directly on the semantic model for quantitative aggregations
+- Define simple metrics directly on the model for quantitative aggregations
 - Use `expr: 1` with `agg: count` or `agg: sum` for counting records
 - Simple metrics are the building blocks for advanced metric types
 - Define components consistently: **entities (on columns) -> dimensions (on columns) -> simple metrics**
@@ -68,7 +68,7 @@ mf query --metrics <metric_name> --group-by <dimension>       # MetricFlow CLI
 
 | Anti-pattern | Better approach |
 |--------------|-----------------|
-| Building semantic models on dimension-only tables without metrics | Only add primary entity for pure dimensional tables |
+| Building full semantic models on dimension-only tables | Pure dimensional tables only need a primary entity defined |
 | Refactoring production code directly | Build in parallel, deprecate gradually |
 | Pre-computing rollups in dbt models | Define calculations in metrics |
 | Creating multiple time dimension buckets | Set minimum granularity, let MetricFlow handle the rest |
