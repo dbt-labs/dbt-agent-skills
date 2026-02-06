@@ -12,6 +12,12 @@ dbt Fusion is dbt Labs' next-generation engine for parsing, compiling, and runni
 
 **Success criteria**: Migration is complete when `dbtf compile` finishes with 0 errors.
 
+## Additional Resources
+
+- [Custom Configuration](references/custom_configuration.md) - Moving custom config keys to `meta` block
+- [Dynamic SQL Patterns](references/dynamic_sql.md) - Resolving dynamic SQL compatibility issues
+- [Misspelled Config Keys](references/misspelled_config_keys.md) - Fixing misspelled config keys
+
 ## Migration Workflow
 
 ### Progress Checklist

@@ -8,6 +8,22 @@ metadata:
 
 # Add unit test for a dbt model
 
+## Additional Resources
+
+- [Spec Reference](references/spec.md) - All required and optional YAML keys for unit tests
+- [Examples](references/examples.md) - Unit test examples across formats (dict, csv, sql)
+- [Incremental Models](references/special-cases-incremental-model.md) - Unit testing incremental models
+- [Ephemeral Dependencies](references/special-cases-ephemeral-dependency.md) - Unit testing models depending on ephemeral models
+- [Special Case Overrides](references/special-cases-special-case-overrides.md) - Introspective macros, project variables, environment variables
+- [Versioned Models](references/special-cases-versioned-model.md) - Unit testing versioned SQL models
+- [BigQuery Caveats](references/warehouse-bigquery-caveats.md) - BigQuery-specific caveats
+- [BigQuery Data Types](references/warehouse-bigquery-data-types.md) - BigQuery data type handling
+- [Postgres Data Types](references/warehouse-postgres-data-types.md) - Postgres data type handling
+- [Redshift Caveats](references/warehouse-redshift-caveats.md) - Redshift-specific caveats
+- [Redshift Data Types](references/warehouse-redshift-data-types.md) - Redshift data type handling
+- [Snowflake Data Types](references/warehouse-snowflake-data-types.md) - Snowflake data type handling
+- [Spark Data Types](references/warehouse-spark-data-types.md) - Spark data type handling
+
 ## What are unit tests in dbt
 
 In software programming, unit tests validate small portions of your functional code, and they work much the same way in dbt. dbt unit tests allow you to validate your SQL modeling logic on a small set of static inputs _before_ you materialize your full model in production. dbt unit tests enable test-driven development, benefiting developer efficiency and code reliability.
