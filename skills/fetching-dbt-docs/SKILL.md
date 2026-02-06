@@ -52,17 +52,21 @@ This is fast and usually sufficient.
 
 If the index doesn't have results, use the script to search full page content:
 
+The search script is located at `scripts/search-dbt-docs.sh` relative to this skill's base directory.
+
 ```bash
-~/.claude/skills/fetch-dbt-docs/search-dbt-docs.sh <keyword>
+<SKILL_BASE_DIR>/scripts/search-dbt-docs.sh <keyword>
 
 # Examples
-~/.claude/skills/fetch-dbt-docs/search-dbt-docs.sh semantic_model
-~/.claude/skills/fetch-dbt-docs/search-dbt-docs.sh "incremental strategy"
-~/.claude/skills/fetch-dbt-docs/search-dbt-docs.sh metric dimension  # OR search
+<SKILL_BASE_DIR>/scripts/search-dbt-docs.sh semantic_model
+<SKILL_BASE_DIR>/scripts/search-dbt-docs.sh "incremental strategy"
+<SKILL_BASE_DIR>/scripts/search-dbt-docs.sh metric dimension  # OR search
 
 # Force fresh download (bypass 24h cache)
-~/.claude/skills/fetch-dbt-docs/search-dbt-docs.sh metric --fresh
+<SKILL_BASE_DIR>/scripts/search-dbt-docs.sh metric --fresh
 ```
+
+**Important:** Replace `<SKILL_BASE_DIR>` with the actual base directory path provided when this skill is loaded.
 
 
 Then fetch individual pages with `.md` URLs.
