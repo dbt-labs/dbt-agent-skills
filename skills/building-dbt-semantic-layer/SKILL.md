@@ -19,9 +19,41 @@ This skill guides the creation and modification of dbt Semantic Layer components
 
 - [Time Spine Setup](references/time-spine.md) - Required for time-based metrics and aggregations
 - [Best Practices](references/best-practices.md) - Design patterns and recommendations for semantic models and metrics
+- [Latest Spec Authoring Guide](references/latest-spec.md) - Full YAML reference for dbt Core 1.12+ and Fusion
+- [Legacy Spec Authoring Guide](references/legacy-spec.md) - Full YAML reference for dbt Core 1.6-1.11
 
-> [!NOTE]
-> This skill contains guidance for the new dbt semantic layer YAML spec, which requires **dbt Core v1.12 or above** or the **dbt Fusion engine**. If the user is using a different version of dbt, this guide will not help. Ask the user if they want to upgrade their dbt version and migrate to the new spec. If they do, you can use the [semantic layer spec migration guide](https://docs.getdbt.com/docs/build/latest-metrics-spec) and [dbt Fusion engine migration skill](../migrating-dbt-core-to-fusion/SKILL.md) to assist.
+## Determine Which Spec to Use
+
+There are two versions of the Semantic Layer YAML spec:
+
+- **Latest spec** - Semantic models are configured as metadata on dbt models. Simpler authoring. Supported by dbt Core 1.12+ and Fusion (always).
+- **Legacy spec** - Semantic models are defined as separate top-level resources. Uses measures as building blocks for metrics. Supported by dbt Core 1.6 through 1.11. Also supported by Core 1.12+ for backwards compatibility.
+
+### Step 1: Check for Existing Semantic Layer Config
+
+Look for existing semantic layer configuration in the project:
+- Top-level `semantic_models:` key in YAML files → **legacy spec**
+- `semantic_model:` block nested under a model → **latest spec**
+
+### Step 2: Route Based on What You Found
+
+**If semantic layer already exists:**
+
+1. Determine which spec is currently in use (legacy or latest)
+2. Check dbt version for compatibility:
+   - **Legacy spec + Core 1.6-1.11** → Compatible. Use [legacy spec guide](references/legacy-spec.md).
+   - **Legacy spec + Core 1.12+ or Fusion** → Compatible, but offer to upgrade first using `uvx dbt-autofix deprecations --semantic-layer` or the [migration guide](https://docs.getdbt.com/docs/build/latest-metrics-spec). They don't have to upgrade; continuing with legacy is fine.
+   - **Latest spec + Core 1.12+ or Fusion** → Compatible. Use [latest spec guide](references/latest-spec.md).
+   - **Latest spec + Core <1.12** → Incompatible. Help them upgrade to dbt Core 1.12+.
+
+**If no semantic layer exists:**
+
+1. **Core 1.12+ or Fusion** → Use [latest spec guide](references/latest-spec.md) (no need to ask).
+2. **Core 1.6-1.11** → Ask if they want to upgrade to Core 1.12+ for the easier authoring experience. If yes, help upgrade. If no, use [legacy spec guide](references/legacy-spec.md).
+
+### Step 3: Follow the Spec-Specific Guide
+
+Once you know which spec to use, follow the corresponding guide's implementation workflow (Steps 1-4) for all YAML authoring. The guides are self-contained with full examples.
 
 ## Entry Points
 
@@ -45,7 +77,7 @@ When the user specifies a model to expose (e.g., "Add semantic layer to `custome
 3. Suggest dimensions based on column types and names
 4. Ask what metrics the user wants to define
 
-Both paths converge on the same implementation workflow.
+Both paths converge on the spec-specific implementation workflow.
 
 ### Open Ended
 
@@ -55,126 +87,54 @@ User asks to build the semantic layer for a project or models that are not speci
 2. Suggest some metrics and dimensions for those models
 3. Ask the user if they want to create more metrics and dimensions or if there are any other models they want to build the semantic layer on
 
+## Metric Types
 
-## Implementation Workflow
+Both specs support these metric types. For YAML syntax, see the spec-specific guides.
 
-### Step 1: Enable Semantic Model
+### Simple Metrics
 
-Decide which dbt model to build the semantic model on. Add `semantic_model:` block to the model's YAML with `enabled: true`. Set `agg_time_dimension` to the primary time column. If the model does not have a time column, warn user that the model cannot contain metrics that are time-based. Ask the user if they want to create a derived time dimension.
+Directly aggregate a single column expression. The most common metric type and the building block for all others.
 
-Example YAML:
+- **Latest spec**: Defined under `metrics:` on the model with `type: simple`, `agg`, and `expr`
+- **Legacy spec**: Defined as top-level `metrics:` referencing a measure via `type_params.measure`
 
-```yaml
-models:
-  - name: orders
-    semantic_model:
-      enabled: true # enable the semantic model
-    agg_time_dimension: ordered_at # set the primary time column (this is a column in the dbt model)
+### Derived Metrics
+
+Combine multiple metrics using a mathematical expression. Use for calculations like profit (revenue - cost) or growth rates (period-over-period with `offset_window`).
+
+### Cumulative Metrics
+
+Aggregate a metric over a running window or grain-to-date period. Requires a [time spine](references/time-spine.md). Use for running totals, trailing windows (e.g., 7-day rolling average), or period-to-date (MTD, YTD).
+
+Note: `window` and `grain_to_date` cannot be used together on the same cumulative metric.
+
+### Ratio Metrics
+
+Create a ratio between two metrics (numerator / denominator). Use for conversion rates, percentages, and proportions. Both numerator and denominator can have optional filters.
+
+### Conversion Metrics
+
+Measure how often one event leads to another for a specific entity within a time window. Use for funnel analysis (e.g., visit-to-purchase conversion rate). Supports `constant_properties` to ensure the same dimension value across both events.
+
+## Filtering Metrics
+
+Filters can be added to simple metrics or metric inputs to advanced metrics. Use Jinja template syntax:
+
+> [!NOTE]
+> Open question for code review: Confirm that the Jinja filter syntax is identical across both specs.
+
 ```
+filter: |
+  {{ Entity('entity_name') }} = 'value'
 
-### Step 2: Define Entities
+filter: |
+  {{ Dimension('primary_entity__dimension_name') }} > 100
 
-Identify the primary key column (check for `_id` suffix, uniqueness tests, or explicit config). Add `entity: \n\t type: primary` block to that column's entry. If the model has foreign keys, define those as `entity: type: foreign`.
+filter: |
+  {{ TimeDimension('time_dimension', 'granularity') }} > '2026-01-01'
 
-```yaml
-models:
-  - name: orders
-    semantic_model:
-      enabled: true # enable the semantic model
-    agg_time_dimension: ordered_at # set the primary time column (this is a column in the dbt model)
-    columns:
-      - name: order_id # this is the primary key column of the model
-        entity: 
-          type: primary 
-          name: order
-      - name: customer_id # this is a foreign key column of the model
-        entity: 
-          type: foreign 
-          name: customer
-```
-
-### Step 3: Define Dimensions
-
-Scan columns for dimension candidates. These would be useful columns to group by when querying a metrics:
-- Time columns → `dimension: type: time` with appropriate `granularity` (set at the column level)
-- Categorical columns (strings, booleans) → `dimension: type: categorical`
-
-Present suggested dimensions to user for confirmation.
-
-Example YAML:
-```yaml
-models:
-  - name: orders
-    semantic_model:
-      enabled: true # enable the semantic model
-    agg_time_dimension: ordered_at # set the primary time column (this is a column in the dbt model)
-    columns:
-      
-      - name: order_id
-        entity: 
-          type: primary 
-          name: order
-      
-      - name: customer_id
-        entity: 
-          type: foreign 
-          name: customer
-      
-      - name: ordered_at
-        granularity: day # set the granularity of the time column
-        dimension:
-          type: time
-
-      - name: order_status
-        dimension:
-          type: categorical
-```
-
-### Step 4: Define Metrics
-
-Create some simple metrics for the model.  For each metric, collect: name, description, label, aggregation type, and expression. Support metric types: `simple`, `derived`, `cumulative`, `conversion`, `ratio`. 
-```yaml
-models:
-  - name: orders
-    semantic_model:
-      enabled: true # enable the semantic model
-    agg_time_dimension: ordered_at # set the primary time column (this is a column in the dbt model)
-    columns:
-      
-      - name: order_id
-        entity: 
-          type: primary 
-          name: order
-      
-      - name: customer_id
-        entity: 
-          type: foreign 
-          name: customer
-      
-      - name: ordered_at
-        granularity: day # set the granularity of the time column
-        dimension:
-          type: time
-
-      - name: order_status
-        dimension:
-          type: categorical
-
-    metrics:
-      - name: order_count
-        type: simple
-        agg: count
-        expr: 1
-
-      - name: total_revenue
-        type: simple
-        agg: sum
-        expr: amount
-
-      - name: average_order_value
-        type: simple
-        agg: average
-        expr: amount
+filter: |
+  {{ Metric('metric_name', group_by=['entity_name']) }} > 100
 ```
 
 ## Validation
@@ -183,8 +143,11 @@ After writing YAML, validate in two stages:
 
 1. **Parse Validation**: Run `dbt parse` to confirm YAML syntax and references
 2. **Semantic Layer Validation**:
-   - `dbt sl validate` (dbt Cloud CLI / dbt Fusion)
+   - `dbt sl validate` (dbt Cloud CLI)
    - `mf validate-configs` (MetricFlow CLI)
+
+> [!NOTE]
+> Open question for code review: Confirm these validation commands are correct for both specs.
 
 Do not consider work complete until both validations pass.
 
@@ -192,180 +155,15 @@ Do not consider work complete until both validations pass.
 
 When modifying existing semantic layer config:
 
-- Check if the model's YAML already has `semantic_model:` block
+- Check which spec is in use (see "Determine Which Spec to Use" above)
 - Read existing entities, dimensions, and metrics before making changes
 - Preserve all existing YAML content not being modified
 - After edits, run full validation to ensure nothing broke
 
-## YAML Format Reference
-
-
-
-### Derived Dimensions and Entities
-
-if the user wants to create a derived dimension or entity that is not a column within the dbt model, then we can use the `derived_semantics` block.
-
-```yaml
-    derived_semantics:
-      dimensions:
-        - name: order_size_bucket
-          type: categorical
-          expr: case when amount > 100 then 'large' else 'small' end
-          label: "Order Size"
-
-      entities:
-        - name: order_customer_key
-          type: foreign
-          expr: "order_id || '-' || customer_id"
-```
-
-## Advanced Metric Examples
-
-All simple metrics are defined at the model level under the `metrics` key. Advanced metrics that refer to simple metrics _within the same model_ are defined within a model's YAML entry the `models.metrics` key. Advanced metrics that refer to simple metrics _across different models_ are defined at the top level under the `metrics` key.
-
-
-### Derived Metrics
-
-```yaml
-      - name: revenue_per_order
-        type: derived
-        description: Average revenue per order
-        label: Revenue per Order
-        expr: total_revenue / total_orders
-        input_metrics:
-          - name: total_revenue
-          - name: total_orders
-
-      # With offset window
-      - name: revenue_growth
-        type: derived
-        expr: total_revenue - revenue_last_week
-        input_metrics:
-          - name: total_revenue
-          - name: total_revenue
-            alias: revenue_last_week
-            offset_window: 1 week
-            filter: "{{ Dimension('order__status') }} = 'completed'"
-```
-
-### Cumulative Metrics
-
-```yaml
-      - name: cumulative_revenue
-        type: cumulative
-        description: Running total of revenue
-        label: Cumulative Revenue
-        input_metric: total_revenue
-        grain_to_date: week
-        period_agg: first
-
-      # With window
-      - name: trailing_7d_revenue
-        type: cumulative
-        input_metric: total_revenue
-        window: 7 days
-```
-
-### Ratio Metrics
-
-```yaml
-      - name: conversion_rate
-        type: ratio
-        description: Orders divided by visits
-        label: Conversion Rate
-        numerator: total_orders
-        denominator: total_visits
-
-      # With filters
-      - name: premium_conversion_rate
-        type: ratio
-        numerator:
-          name: total_orders
-          filter: "{{ Dimension('order__customer_segment') }} = 'premium'"
-          alias: premium_orders
-        denominator: total_visits
-```
-
-### Conversion Metrics
-
-```yaml
-      - name: signup_to_purchase
-        type: conversion
-        description: Rate of signups converting to purchase
-        label: Signup to Purchase
-        entity: customer
-        calculation: conversion_rate
-        base_metric: signups
-        conversion_metric: purchases
-        window: 7 days
-        constant_properties:
-          - base_property: signup_channel
-            conversion_property: purchase_channel
-```
-
-### Top-level Metrics (Cross-model)
-
-```yaml
-# For metrics depending on multiple semantic models
-metrics:
-  - name: cross_model_ratio
-    type: ratio
-    numerator:
-      name: metric_from_model_a
-      filter: "{{ Dimension('entity__dim') }} > 10"
-    denominator:
-      name: metric_from_model_b
-    config:
-      group: example_group
-      tags:
-        - example_tag
-      meta:
-        owner: "@someone"
-```
-
-### Filtering Metrics
-
-Filters can be added to simple metrics or metric inputs to advanced metrics. The format of a filters is a Jinja template that can reference entities, dimensions, and metrics, a boolean operator, and a value. Ensure the value matches the type of the column being filtered.
-
-Examples 
-
-filter: | 
-  {{ Entity('entity_name') }} = 'value'
-
-filter: |  
-  {{ Dimension('primary_entity__dimension_name') }} > 100
-
-filter: |  
-  {{ TimeDimension('time_dimension', 'granularity') }} > '2026-01-01'
-
-filter: |  
- {{ Metric('metric_name', group_by=['entity_name']) }} > 100
-
-
-## Key Formatting Rules
-
-- `semantic_model:` block at model level with `enabled: true`
-- `agg_time_dimension:` at model level (not nested under `semantic_model`)
-- `entity:` and `dimension:` on columns (can use shorthand or full form)
-- `granularity:` required at column level for time dimensions
-- `metrics:` array at model level for single-model metrics
-- Top-level `metrics:` key for cross-model metrics (derived, ratio, cumulative, conversion only)
-
-## Best Practices
-
-- **Start with entities** - Identify the grain before defining dimensions or metrics
-- **Use shorthand where possible** - `entity: primary` instead of full nested form for simple cases
-- **Name metrics for business users** - Use clear `label` values for non-technical users
-- **Keep metrics close to their data** - Simple metrics on their semantic model; top-level only for cross-model
-- **Set appropriate granularity** - Match the actual data grain (usually `day`)
-
-## Common Pitfalls
+## Common Pitfalls (Both Specs)
 
 | Pitfall | Fix |
 |---------|-----|
-| Missing `agg_time_dimension` | Every semantic model needs a default time dimension |
-| `granularity` inside `dimension:` block | Must be at column level |
-| Defining a column as both an entity and a dimension | A column can only be one or the other |
-| Simple metrics in top-level `metrics:` | Top-level is only for cross-model metrics |
+| Missing time dimension | Every semantic model with metrics/measures needs a default time dimension |
 | Using `window` and `grain_to_date` together | Cumulative metrics can only have one |
-| Missing `input_metrics` on derived metrics | Must list metrics used in `expr` |
+| Mixing spec syntax | Don't use `type_params` in latest spec or direct keys in legacy spec |
