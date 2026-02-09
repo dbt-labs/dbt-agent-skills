@@ -1,7 +1,10 @@
 ---
-name: create-mermaid-dbt-dag
-description: Creates a markdown representation of a single DBT model from its directed acyclic graph (DAG) as a mermaid diagram.
+name: creating-mermaid-dbt-dag
+description: Use when visualizing dbt model lineage and dependencies as a Mermaid diagram in markdown format
+user-invocable: false
 allowed-tools: mcp__dbt__get_lineage_dev, mcp__dbt__get_lineage, Read, Grep, Glob, Bash
+metadata:
+  author: dbt-labs
 ---
 
 # Create Mermaid Diagram in Markdown from DBT DAG
