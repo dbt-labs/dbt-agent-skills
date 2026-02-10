@@ -492,6 +492,58 @@ class TestNewCommand:
         assert (custom_dir / "scenarios" / "my-test" / "scenario.md").exists()
 
 
+class TestBaseDirOption:
+    """Tests that --base-dir works across commands."""
+
+    def test_new_defaults_to_cwd_evals(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """new command defaults to cwd/evals/ when no evals root found."""
+        monkeypatch.chdir(tmp_path)
+        # No scenarios/ directory exists anywhere
+
+        result = runner.invoke(app, ["new", "my-test"])
+
+        assert result.exit_code == 0
+        assert (tmp_path / "evals" / "scenarios" / "my-test" / "scenario.md").exists()
+
+    def test_run_with_base_dir(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """run command uses --base-dir when provided."""
+        custom_dir = tmp_path / "custom-evals"
+        scenarios_dir = custom_dir / "scenarios"
+        scenario_dir = scenarios_dir / "test-scenario"
+        scenario_dir.mkdir(parents=True)
+        (scenario_dir / "prompt.txt").write_text("Do something")
+        (scenario_dir / "skill-sets.yaml").write_text(
+            yaml.dump({"sets": [{"name": "baseline", "skills": []}]})
+        )
+        monkeypatch.chdir(tmp_path)
+
+        with patch("skill_eval.runner.Runner") as MockRunner:
+            mock_runner = MockRunner.return_value
+            mock_runner.create_run_dir.return_value = custom_dir / "runs" / "test-run"
+            mock_runner.run_scenario.return_value = MagicMock(success=True, error=None)
+
+            result = runner.invoke(app, ["run", "--all", "--base-dir", str(custom_dir)])
+
+        assert result.exit_code == 0
+        mock_runner.run_scenario.assert_called()
+
+    def test_review_with_base_dir(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """review command uses --base-dir when provided."""
+        custom_dir = tmp_path / "my-evals"
+        runs_dir = custom_dir / "runs"
+        run_dir = runs_dir / "2024-01-15-120000"
+        transcript_dir = run_dir / "scenario" / "skill-set" / "transcript"
+        transcript_dir.mkdir(parents=True)
+        (transcript_dir / "index.html").write_text("<html></html>")
+        monkeypatch.chdir(tmp_path)
+
+        with patch("webbrowser.open"):
+            result = runner.invoke(app, ["review", "--base-dir", str(custom_dir)])
+
+        assert result.exit_code == 0
+        assert "Opening 1 transcript" in result.output
+
+
 class TestVersionFlag:
     """Tests for --version flag."""
 
