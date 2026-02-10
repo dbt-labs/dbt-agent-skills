@@ -530,18 +530,23 @@ def new(
                 continue
             copy_context(ctx_path, scenario_dir)
 
-    # Print summary
-    rel = scenario_dir.relative_to(evals_dir) if scenario_dir.is_relative_to(evals_dir) else scenario_dir
+    # Print summary with paths relative to cwd
+    cwd = Path.cwd().resolve()
+    scenario_abs = scenario_dir.resolve()
+    if scenario_abs.is_relative_to(cwd):
+        rel = scenario_abs.relative_to(cwd)
+    else:
+        rel = scenario_abs
     typer.echo(f"\nCreated scenario: {rel}/")
     typer.echo("\nFiles to edit:")
-    typer.echo("  - prompt.txt        <- write your prompt")
-    typer.echo("  - scenario.md       <- describe background, expected outcome, grading criteria")
-    typer.echo("  - skill-sets.yaml   <- configure skill sets to compare")
-    typer.echo("  - .env.example      <- add credentials (copy to .env)")
+    typer.echo(f"  - {rel}/prompt.txt        <- write your prompt")
+    typer.echo(f"  - {rel}/scenario.md       <- describe background, expected outcome, grading criteria")
+    typer.echo(f"  - {rel}/skill-sets.yaml   <- configure skill sets to compare")
+    typer.echo(f"  - {rel}/.env.example      <- add credentials (copy to .env)")
     if context:
-        typer.echo("  - context/          <- review copied context files")
+        typer.echo(f"  - {rel}/context/          <- review copied context files")
     else:
-        typer.echo("  - context/          <- add files the agent needs")
+        typer.echo(f"  - {rel}/context/          <- add files the agent needs")
 
 
 if __name__ == "__main__":
