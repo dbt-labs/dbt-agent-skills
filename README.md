@@ -86,10 +86,6 @@ Some skills like `fetching-dbt-docs` and `configuring-dbt-mcp-server` can be use
 
 We welcome contributions! Whether you want to add a new dbt skill, improve existing ones, or fix issues, please see our [Contributing Guide](CONTRIBUTING.md).
 
-### Development Tools
-
-This repository uses the [skills-ref](https://github.com/agentskills/agentskills/tree/main/skills-ref) library (installed from GitHub) for validating and testing skills. Requires Python 3.11+. See the [Contributing Guide](CONTRIBUTING.md) for setup and usage instructions.
-
 ## Format Specification
 
 All skills in this repository follow the [Agent Skills specification](https://agentskills.io/specification) to ensure compatibility across different agent products.

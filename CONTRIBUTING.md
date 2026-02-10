@@ -7,13 +7,12 @@ Thank you for your interest in contributing to dbt Agent Skills! This guide will
 1. [About this Repository](#about-this-repository)
 2. [How to Contribute](#how-to-contribute)
 3. [Setup](#setup)
-4. [Using skills-ref](#using-skills-ref)
-5. [Creating a New dbt Skill](#creating-a-new-dbt-skill)
-6. [Skill Quality Guidelines](#skill-quality-guidelines)
-7. [Testing Your Skill](#testing-your-skill)
-8. [Submitting a Pull Request](#submitting-a-pull-request)
-9. [Style Guide](#style-guide)
-10. [Troubleshooting](#troubleshooting)
+4. [Creating a New dbt Skill](#creating-a-new-dbt-skill)
+5. [Skill Quality Guidelines](#skill-quality-guidelines)
+6. [Testing Your Skill](#testing-your-skill)
+7. [Submitting a Pull Request](#submitting-a-pull-request)
+8. [Style Guide](#style-guide)
+9. [Troubleshooting](#troubleshooting)
 
 ## About this Repository
 
@@ -27,79 +26,6 @@ There are several ways to contribute:
 - **Improve existing skills**: Enhance command examples, add selector patterns, or clarify instructions
 - **Fix issues**: Help resolve incorrect commands or unclear documentation
 - **Share dbt patterns**: Document your team's best practices or optimization techniques
-
-## Setup
-
-### Prerequisites
-
-- [uv](https://docs.astral.sh/uv/) - Fast Python package installer
-- Python 3.11+ (required by skills-ref)
-- Git
-
-### Installing skills-ref
-
-The `skills-ref` library provides tools to validate skills and generate prompt XML. It's installed directly from GitHub using uv.
-
-1. From the repository root, install development dependencies:
-
-   ```bash
-   uv sync
-   ```
-
-2. Activate the virtual environment:
-
-   ```bash
-   source .venv/bin/activate
-   ```
-
-3. Verify installation:
-
-   ```bash
-   skills-ref --help
-   ```
-
-The `skills-ref` package is installed from the [agentskills repository](https://github.com/agentskills/agentskills/tree/main/skills-ref) without checking all the code into this repository.
-
-## Using skills-ref
-
-### Validate a Skill
-
-Before submitting a skill, validate it follows the specification:
-
-```bash
-# With venv activated from the repository root
-skills-ref validate path/to/your-skill
-
-# Example:
-skills-ref validate skills/using-dbt-for-analytics-engineering
-```
-
-The validator checks:
-
-- Required SKILL.md file exists
-- Valid YAML frontmatter
-- Required metadata fields (name, description)
-- Proper file structure
-
-### Quick Reference
-
-```bash
-# Setup (one-time)
-uv sync
-source .venv/bin/activate
-
-# Validate skill
-skills-ref validate path/to/skill
-
-# Read properties
-skills-ref read-properties path/to/skill
-
-# Generate prompt
-skills-ref to-prompt path/to/skill
-
-# Deactivate venv when done
-deactivate
-```
 
 ## Creating a New dbt Skill
 
@@ -167,13 +93,6 @@ running-incremental-models/
     └── selector_patterns.txt
 ```
 
-### 4. Validate the Skill
-
-```bash
-source .venv/bin/activate
-skills-ref validate skills/your-skill-name
-```
-
 ## Style Guide
 
 ### Naming Conventions
@@ -236,17 +155,6 @@ metadata:
 - Set `user-invocable: false` unless the skill should appear as a slash command
 - Only these fields are allowed: `name`, `description`, `user-invocable`, `allowed-tools`, `compatibility`, `license`, `metadata`
 
-## Troubleshooting
-
-### "Command not found: skills-ref"
-
-Make sure you've installed dependencies and activated the virtual environment:
-
-```bash
-uv sync
-source .venv/bin/activate
-```
-
 ## dbt Skill Ideas
 
 Need inspiration? Consider creating skills for:
@@ -261,7 +169,6 @@ Need inspiration? Consider creating skills for:
 
 - [dbt Documentation](https://docs.getdbt.com/)
 - [Agent Skills Specification](https://agentskills.io/specification)
-- [skills-ref GitHub](https://github.com/agentskills/agentskills/tree/main/skills-ref)
 
 ## Questions or Issues?
 
