@@ -5,9 +5,9 @@ import shutil
 from collections.abc import Callable
 from pathlib import Path
 
-ALWAYS_EXCLUDED = {".git", "__pycache__", ".venv", "node_modules", ".env"}
+ALWAYS_EXCLUDED = {".git", "__pycache__", ".venv", "node_modules", ".env", ".claude", ".agents"}
 
-DBT_EXCLUDED = {"logs", "target", "dbt_packages", "integration_tests"}
+DBT_EXCLUDED = {"logs", "target", "dbt_packages", "integration_tests", "dbt_internal_packages"}
 
 
 def get_templates_dir() -> Path:
@@ -99,6 +99,7 @@ def create_scenario(name: str, base_dir: Path) -> Path:
         raise FileExistsError(f"Scenario already exists: {scenario_dir}")
 
     scenario_dir.mkdir(parents=True)
+    (scenario_dir / "context").mkdir()
 
     templates_dir = get_templates_dir()
 
