@@ -2,16 +2,44 @@
 
 A/B testing tool for comparing LLM skill variations against recorded scenarios.
 
-## Setup
+## Installation
+
+### Local development (from repo)
 
 ```bash
 cd evals
 uv sync
 ```
 
+### Install from GitHub (use anywhere)
+
+```bash
+# One-time install
+uv tool install 'skill-eval @ git+https://github.com/dbt-labs/dbt-agent-skills.git#subdirectory=evals'
+
+# Then use from any directory
+skill-eval run --all
+skill-eval new my-scenario
+```
+
+### Quick run without installing
+
+```bash
+uvx --from 'skill-eval @ git+https://github.com/dbt-labs/dbt-agent-skills.git#subdirectory=evals' skill-eval --help
+```
+
 ## Usage
 
 ```bash
+# Create a new scenario
+skill-eval new my-scenario
+
+# Create with context files
+skill-eval new my-scenario --context models/ --context seeds/data.csv
+
+# Create in a specific directory
+skill-eval new my-scenario --base-dir /path/to/evals
+
 # Run a scenario
 uv run skill-eval run <scenario-name>
 
@@ -286,8 +314,8 @@ Stall detection helps catch runs that get stuck waiting for tool approval when u
 
 ## Workflow
 
-1. **Create a scenario** - Define prompt, context files, and expected behavior
-2. **Configure skill sets** - Specify skills, MCP servers, and tool permissions
+1. **Create a scenario** - `skill-eval new <name>` scaffolds the directory structure
+2. **Configure skill sets** - Edit `skill-sets.yaml` to specify skills, MCP servers, and tool permissions
 3. **Run evaluation** - `skill-eval run <scenario>` executes Claude with each configuration
 4. **Review transcripts** - `skill-eval review` opens HTML transcripts in browser
 5. **Grade outputs** - `skill-eval grade <run-id>` (manual) or `--auto` (Claude-graded)
