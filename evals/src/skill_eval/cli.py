@@ -482,5 +482,55 @@ def review(
         webbrowser.open(f"file://{transcript}")
 
 
+@app.command()
+def new(
+    name: str = typer.Argument(..., help="Scenario name (lowercase, hyphens only)"),
+    base_dir: Optional[Path] = typer.Option(None, "--base-dir", "-d", help="Evals root directory (default: auto-detected)"),
+    context: Optional[list[Path]] = typer.Option(None, "--context", "-c", help="Files or directories to copy into context/"),
+) -> None:
+    """Create a new scenario from templates."""
+    from skill_eval.scaffold import copy_context, create_scenario, validate_scenario_name
+
+    # Validate name
+    error = validate_scenario_name(name)
+    if error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1)
+
+    # Find evals root
+    if base_dir:
+        evals_dir = base_dir
+    else:
+        evals_dir = _get_evals_dir()
+
+    # Create scenario
+    try:
+        scenario_dir = create_scenario(name, evals_dir)
+    except FileExistsError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
+
+    # Copy context files
+    if context:
+        for ctx_path in context:
+            if not ctx_path.exists():
+                typer.echo(f"Warning: Context path not found: {ctx_path}", err=True)
+                continue
+            copy_context(ctx_path, scenario_dir)
+
+    # Print summary
+    rel = scenario_dir.relative_to(evals_dir) if scenario_dir.is_relative_to(evals_dir) else scenario_dir
+    typer.echo(f"\nCreated scenario: {rel}/")
+    typer.echo("\nFiles to edit:")
+    typer.echo("  - prompt.txt        <- write your prompt")
+    typer.echo("  - scenario.md       <- describe background, expected outcome, grading criteria")
+    typer.echo("  - skill-sets.yaml   <- configure skill sets to compare")
+    typer.echo("  - .env.example      <- add credentials (copy to .env)")
+    if context:
+        typer.echo("  - context/          <- review copied context files")
+    else:
+        typer.echo("  - context/          <- add files the agent needs")
+
+
 if __name__ == "__main__":
     app()

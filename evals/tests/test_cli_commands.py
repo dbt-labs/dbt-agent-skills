@@ -405,6 +405,93 @@ class TestRootDiscovery:
         mock_runner.run_scenario.assert_called()
 
 
+class TestNewCommand:
+    """Tests for the 'new' command."""
+
+    def test_new_creates_scenario(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """new command creates scenario directory with all template files."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "scenarios").mkdir()
+
+        result = runner.invoke(app, ["new", "my-test-scenario"])
+
+        assert result.exit_code == 0
+        scenario_dir = tmp_path / "scenarios" / "my-test-scenario"
+        assert scenario_dir.exists()
+        assert (scenario_dir / "skill-sets.yaml").exists()
+        assert (scenario_dir / "scenario.md").exists()
+        assert (scenario_dir / "prompt.txt").exists()
+        assert (scenario_dir / ".env.example").exists()
+        assert "Created scenario" in result.output
+
+    def test_new_shows_files_to_edit(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """new command prints summary of files to edit."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "scenarios").mkdir()
+
+        result = runner.invoke(app, ["new", "my-test"])
+
+        assert "prompt.txt" in result.output
+        assert "scenario.md" in result.output
+        assert "skill-sets.yaml" in result.output
+        assert ".env.example" in result.output
+
+    def test_new_rejects_invalid_name(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """new command rejects invalid scenario names."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "scenarios").mkdir()
+
+        result = runner.invoke(app, ["new", "My_Scenario"])
+
+        assert result.exit_code == 1
+
+    def test_new_errors_if_exists(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """new command errors when scenario already exists."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "scenarios" / "existing").mkdir(parents=True)
+
+        result = runner.invoke(app, ["new", "existing"])
+
+        assert result.exit_code == 1
+        assert "already exists" in result.output
+
+    def test_new_with_context_file(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """new command copies context file."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "scenarios").mkdir()
+        src = tmp_path / "models.yml"
+        src.write_text("version: 2")
+
+        result = runner.invoke(app, ["new", "my-test", "--context", str(src)])
+
+        assert result.exit_code == 0
+        assert (tmp_path / "scenarios" / "my-test" / "context" / "models.yml").exists()
+
+    def test_new_with_context_directory(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """new command copies context directory tree."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "scenarios").mkdir()
+        models = tmp_path / "models"
+        models.mkdir()
+        (models / "a.sql").write_text("SELECT 1")
+
+        result = runner.invoke(app, ["new", "my-test", "--context", str(models)])
+
+        assert result.exit_code == 0
+        assert (tmp_path / "scenarios" / "my-test" / "context" / "models" / "a.sql").exists()
+
+    def test_new_with_base_dir(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """new command uses --base-dir when provided."""
+        custom_dir = tmp_path / "custom"
+        (custom_dir / "scenarios").mkdir(parents=True)
+        monkeypatch.chdir(tmp_path)
+
+        result = runner.invoke(app, ["new", "my-test", "--base-dir", str(custom_dir)])
+
+        assert result.exit_code == 0
+        assert (custom_dir / "scenarios" / "my-test" / "scenario.md").exists()
+
+
 class TestVersionFlag:
     """Tests for --version flag."""
 
