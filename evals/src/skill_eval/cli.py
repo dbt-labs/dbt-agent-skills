@@ -12,6 +12,41 @@ from skill_eval.selector import is_interactive, select_run, select_scenarios
 app = typer.Typer(help="A/B test skill variations against recorded scenarios.")
 
 
+def find_evals_root(start: Path | None = None) -> Path | None:
+    """Find the evals root directory by looking for a 'scenarios/' subdirectory.
+
+    Walks up from `start` (or cwd) looking for a directory containing 'scenarios/'.
+    Also checks for an 'evals/scenarios/' child (repo root case).
+
+    Returns:
+        The evals root directory, or None if not found.
+    """
+    current = (start or Path.cwd()).resolve()
+
+    # Walk up the directory tree
+    for directory in [current, *current.parents]:
+        if (directory / "scenarios").is_dir():
+            return directory
+        # Check for evals/ subdirectory (running from repo root)
+        if (directory / "evals" / "scenarios").is_dir():
+            return directory / "evals"
+
+    return None
+
+
+def _get_evals_dir() -> Path:
+    """Get the evals root directory, or exit with error."""
+    evals_dir = find_evals_root()
+    if evals_dir is None:
+        typer.echo(
+            "Error: Could not find evals root (no scenarios/ directory found).\n"
+            "Run from inside your evals directory or use --base-dir.",
+            err=True,
+        )
+        raise typer.Exit(1)
+    return evals_dir
+
+
 def get_latest_run(runs_dir: Path, *, silent: bool = False) -> Path:
     """Get the most recent run directory.
 
@@ -230,7 +265,7 @@ def run(
     if verbose:
         set_level("DEBUG")
 
-    evals_dir = Path.cwd()
+    evals_dir = _get_evals_dir()
     scenarios_dir = evals_dir / "scenarios"
 
     scenario_dirs = find_scenarios(scenarios_dir, scenarios, all_flag=all_scenarios)
@@ -309,7 +344,7 @@ def grade(
         save_grades,
     )
 
-    evals_dir = Path.cwd()
+    evals_dir = _get_evals_dir()
     runs_dir = evals_dir / "runs"
     scenarios_dir = evals_dir / "scenarios"
 
@@ -404,7 +439,7 @@ def report(
     """Generate comparison report for a run."""
     from skill_eval.reporter import print_rich_report, save_report
 
-    evals_dir = Path.cwd()
+    evals_dir = _get_evals_dir()
     runs_dir = evals_dir / "runs"
 
     run_dir = find_run(runs_dir, run_id, latest=latest)
@@ -426,7 +461,7 @@ def review(
     """Open HTML transcripts in browser for review."""
     import webbrowser
 
-    evals_dir = Path.cwd()
+    evals_dir = _get_evals_dir()
     runs_dir = evals_dir / "runs"
 
     run_dir = find_run(runs_dir, run_id, latest=latest)

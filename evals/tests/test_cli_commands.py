@@ -129,6 +129,9 @@ class TestGradeCommand:
         """grade command without --auto creates grades.yaml template."""
         monkeypatch.chdir(tmp_path)
 
+        # Create scenarios dir so find_evals_root can locate evals root
+        (tmp_path / "scenarios").mkdir()
+
         # Create run directory structure
         runs_dir = tmp_path / "runs"
         run_dir = runs_dir / "2024-01-15-120000"
@@ -147,6 +150,9 @@ class TestGradeCommand:
         """grade command with run_id uses that run."""
         monkeypatch.chdir(tmp_path)
 
+        # Create scenarios dir so find_evals_root can locate evals root
+        (tmp_path / "scenarios").mkdir()
+
         runs_dir = tmp_path / "runs"
         for name in ["2024-01-01-100000", "2024-01-02-100000"]:
             run_dir = runs_dir / name
@@ -162,6 +168,9 @@ class TestGradeCommand:
     def test_grade_latest_flag(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
         """grade --latest uses most recent run without prompting."""
         monkeypatch.chdir(tmp_path)
+
+        # Create scenarios dir so find_evals_root can locate evals root
+        (tmp_path / "scenarios").mkdir()
 
         runs_dir = tmp_path / "runs"
         for name in ["2024-01-01-100000", "2024-01-02-100000"]:
@@ -251,6 +260,9 @@ class TestReportCommand:
         """report command generates report file."""
         monkeypatch.chdir(tmp_path)
 
+        # Create scenarios dir so find_evals_root can locate evals root
+        (tmp_path / "scenarios").mkdir()
+
         # Create run with grades
         runs_dir = tmp_path / "runs"
         run_dir = runs_dir / "2024-01-15-120000"
@@ -284,6 +296,9 @@ class TestReportCommand:
         """report --latest uses most recent run."""
         monkeypatch.chdir(tmp_path)
 
+        # Create scenarios dir so find_evals_root can locate evals root
+        (tmp_path / "scenarios").mkdir()
+
         runs_dir = tmp_path / "runs"
         for name in ["2024-01-01-100000", "2024-01-02-100000"]:
             run_dir = runs_dir / name
@@ -308,6 +323,9 @@ class TestReviewCommand:
         """review command finds and reports transcript files."""
         monkeypatch.chdir(tmp_path)
 
+        # Create scenarios dir so find_evals_root can locate evals root
+        (tmp_path / "scenarios").mkdir()
+
         runs_dir = tmp_path / "runs"
         run_dir = runs_dir / "2024-01-15-120000"
         transcript_dir = run_dir / "test-scenario" / "skill-set-1" / "transcript"
@@ -326,6 +344,9 @@ class TestReviewCommand:
         """review command errors when no transcripts found."""
         monkeypatch.chdir(tmp_path)
 
+        # Create scenarios dir so find_evals_root can locate evals root
+        (tmp_path / "scenarios").mkdir()
+
         runs_dir = tmp_path / "runs"
         run_dir = runs_dir / "2024-01-15-120000"
         run_dir.mkdir(parents=True)
@@ -340,6 +361,9 @@ class TestReviewCommand:
         """review --latest uses most recent run."""
         monkeypatch.chdir(tmp_path)
 
+        # Create scenarios dir so find_evals_root can locate evals root
+        (tmp_path / "scenarios").mkdir()
+
         runs_dir = tmp_path / "runs"
         for name in ["2024-01-01-100000", "2024-01-02-100000"]:
             run_dir = runs_dir / name
@@ -352,6 +376,33 @@ class TestReviewCommand:
 
         assert result.exit_code == 0
         assert "2024-01-02-100000" in result.output
+
+
+class TestRootDiscovery:
+    """Tests that commands find evals root automatically."""
+
+    def test_run_finds_evals_root_from_parent(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """run command works when cwd is parent of evals dir."""
+        evals_dir = tmp_path / "evals"
+        scenarios_dir = evals_dir / "scenarios"
+        scenario_dir = scenarios_dir / "test-scenario"
+        scenario_dir.mkdir(parents=True)
+        (scenario_dir / "prompt.txt").write_text("Do something")
+        (scenario_dir / "skill-sets.yaml").write_text(
+            yaml.dump({"sets": [{"name": "baseline", "skills": []}]})
+        )
+
+        monkeypatch.chdir(tmp_path)
+
+        with patch("skill_eval.runner.Runner") as MockRunner:
+            mock_runner = MockRunner.return_value
+            mock_runner.create_run_dir.return_value = evals_dir / "runs" / "test-run"
+            mock_runner.run_scenario.return_value = MagicMock(success=True, error=None)
+
+            result = runner.invoke(app, ["run", "--all"])
+
+        assert result.exit_code == 0
+        mock_runner.run_scenario.assert_called()
 
 
 class TestVersionFlag:
