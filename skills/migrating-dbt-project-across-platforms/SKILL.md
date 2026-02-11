@@ -12,9 +12,11 @@ This skill guides migration of a dbt project from one data platform (source) to 
 **The core approach**: dbt Fusion compiles SQL in real-time and produces rich, detailed error logs that tell you exactly what's wrong and where. We trust Fusion entirely for dialect conversion — no need to pre-document every SQL pattern difference. The workflow is: read Fusion's errors, fix them, recompile, repeat until done. Combined with dbt unit tests (generated on the source platform before migration), we prove both **compilation correctness** and **data correctness** on the target platform.
 
 **Success criteria**: Migration is complete when:
-1. `dbtf compile` finishes with 0 errors on the target platform
-2. All models run successfully on the target platform (`dbtf run`)
-3. All unit tests pass on the target platform (`dbt test --select test_type:unit`)
+1. `dbtf compile` finishes with 0 errors **and 0 warnings** on the target platform
+2. All unit tests pass on the target platform (`dbt test --select test_type:unit`)
+3. All models run successfully on the target platform (`dbtf run`)
+
+**Validation cost**: Use `dbtf compile` as the primary iteration gate — it's free (no warehouse queries) and catches both errors and warnings from static analysis. Only `dbtf run` and `dbt test` incur warehouse cost; run those only after compile is clean.
 
 ## Additional Resources
 
@@ -67,7 +69,7 @@ If there are errors on the source platform, those must be resolved first before 
 
 While still connected to the **source** platform, generate dbt unit tests for key models to capture expected data outputs as a "golden dataset." These tests will prove data consistency after migration.
 
-**Which models to test**: Prioritize **leaf nodes** — models at the very end of the DAG that nothing else depends on. These are the final outputs that downstream consumers (BI tools, reverse ETL, exports) depend on. Use `dbt ls --resource-type model --output json` and check for models with no children, or use `dbt docs generate` to inspect the DAG visually. Common names include `fct_*`, `dim_*`, `agg_*`, but leaf nodes should be tested regardless of naming convention. Also test any model with significant transformation logic (joins, calculations, case statements) even if it's mid-DAG.
+**Which models to test**: You **must** test **every leaf node** — models at the very end of the DAG that no other model depends on via `ref()`. Do not guess leaf nodes from naming conventions — derive them programmatically using the methods in [references/generating-unit-tests.md](references/generating-unit-tests.md#identifying-leaf-nodes). List all leaf nodes explicitly and confirm the count before writing tests. Also test any mid-DAG model with significant transformation logic (joins, calculations, case statements).
 
 **How to generate tests**:
 
@@ -115,7 +117,11 @@ dbtf compile
 
 **Trust Fusion's errors**: The error logs are the primary guide. Do not try to anticipate or pre-fix issues that Fusion hasn't flagged — this leads to unnecessary changes. Fix exactly what Fusion reports.
 
-Continue iterating until `dbtf compile` succeeds with **0 errors**.
+Continue iterating until `dbtf compile` succeeds with **0 errors and 0 warnings**. Warnings become errors in production — treat them as blockers. Common warnings to resolve:
+
+- **dbt1065 (unspecified numeric precision)**: Aggregations like `SUM()` on Snowflake produce `NUMBER` with unspecified precision/scale, risking silent rounding. Fix by casting: `cast(sum(col) as decimal(18,2))`. This is a cross-platform issue — Databricks doesn't enforce this, Snowflake does.
+- **dbt1005 (package missing dbt_project.yml)**: Caused by platform-specific packages (e.g., `spark_utils`, `dbt-databricks`) that are no longer needed on the target. Remove them from `packages.yml` and any associated config (e.g., `dispatch` blocks, `+file_format: delta`). Also check `dbt_packages/` for stale installed packages and re-run `dbtf deps` after changes.
+- **Adapter warnings from profiles.yml**: If the user's `profiles.yml` contains profiles for multiple platforms (e.g., both `snowflake_demo` and `databricks_demo`), Fusion may load adapters for all profiles and warn about unused ones. These are non-actionable at the project level — inform the user but don't count them as blockers.
 
 #### Step 6: Run and validate unit tests
 
@@ -136,9 +142,9 @@ Iterate until all unit tests pass.
 #### Step 7: Final validation and documentation
 
 If you already ran `dbtf run` (to materialize models for unit testing) and all unit tests passed, the migration is proven — don't repeat work with a redundant `dbtf build`. The migration is complete when:
-- `dbtf compile` has 0 errors
-- All models run successfully (`dbtf run`)
+- `dbtf compile` has 0 errors and 0 actionable warnings
 - All unit tests pass (`dbt test --select test_type:unit`)
+- All models run successfully (`dbtf run`)
 
 If you haven't yet materialized models, run `dbtf build` to do everything in one step.
 
@@ -195,6 +201,7 @@ Use this structure when documenting migration changes:
 4. **Don't modify unit test expectations unless there's a legitimate platform difference.** If a unit test fails, first check if the model logic needs fixing. Only adjust test expectations for genuine platform behavioral differences (e.g., decimal precision, NULL handling). If you modified a unit test, let the user know.
 5. **Don't remove models or features without user approval.** If a model can't be migrated (e.g., it uses a platform-specific feature with no equivalent), inform the user and let them decide.
 6. **Don't change the data architecture.** The migration should preserve the existing model structure, materializations, and relationships. Platform migration is a dialect translation, not a refactoring opportunity.
+7. **Don't use `dbtf run` for iterative validation.** It costs warehouse compute. Use `dbtf compile` (free) to iterate on fixes. Only run `dbtf run` and `dbt test` once compile is fully clean.
 
 ## Known Limitations & Gotchas
 
@@ -202,6 +209,7 @@ Use this structure when documenting migration changes:
 - **Clear the target cache when switching platforms.** Run `rm -rf target/` before compiling against a new platform. Fusion caches warehouse schemas in the target directory, and stale schemas from the source platform can cause false column-not-found errors.
 - **Versioned models and unit tests.** As of Fusion 2.0, unit tests on versioned models (models with `versions:` in their YAML) may fail with `dbt1048` errors. Workaround: test non-versioned models, or test versioned models through their non-versioned intermediate dependencies.
 - **`dbtf show --select` validates against warehouse schema.** If models haven't been materialized on the target platform yet, use `dbtf show --inline "SELECT ..."` for direct warehouse queries instead.
+- **Python models: Fusion validates `dbt.ref()` even when disabled.** Disabling a Python model does not prevent Fusion from validating its `dbt.ref()` calls (`dbt1062`). Workaround: comment out the `dbt.ref()` lines or remove the Python models if they're not relevant to the migration.
 - **See the full list of Fusion limitations** at https://docs.getdbt.com/docs/fusion/supported-features#limitations — these must be adhered to since Fusion is required for this workflow.
 
 ### Cross-platform data differences
