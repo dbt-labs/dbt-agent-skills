@@ -40,24 +40,3 @@ sudo apt install gum      # Debian/Ubuntu
 2. Looks for `SKILL.md` files in package roots, `skills/`, and `.claude/skills/` directories
 3. Presents an interactive menu to select which skills to install
 4. Installs selected skills using `npx skills add`
-
----
-
-## generate_marketplace.py
-
-Generates the `marketplace.json` file for the Claude Code plugin system from `SKILL.md` files in this repository.
-
-### Usage
-
-```bash
-# From the repository root
-python3 scripts/generate_marketplace.py
-```
-
-### Output
-
-Creates `.claude-plugin/marketplace.json` with metadata for all skills in the repository.
-
-### When to run
-
-Run this script after adding or modifying skills to update the marketplace manifest.

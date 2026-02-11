@@ -42,4 +42,3 @@ description: Brief one-sentence description starting with "Use when..."
 1. Test with pressure scenarios using superpowers:writing-skills methodology
 2. Check naming: Skill name matches directory, lowercase with hyphens only
 3. Verify frontmatter: Only allowed fields, no extra metadata
-4. Regenerate marketplace: `python3 scripts/generate_marketplace.py`
