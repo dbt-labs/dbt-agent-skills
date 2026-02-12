@@ -112,6 +112,34 @@ sets:
     assert scenario.skill_sets[1].extra_prompt == "Check if any skill can help with this task."
 
 
+def test_load_scenario_parses_setup_commands(tmp_path: Path) -> None:
+    """Scenario loads setup commands from skill-sets.yaml."""
+    scenario_dir = tmp_path / "test-scenario"
+    scenario_dir.mkdir()
+    (scenario_dir / "scenario.md").write_text("# Test")
+    (scenario_dir / "prompt.txt").write_text("Fix the bug")
+    (scenario_dir / "skill-sets.yaml").write_text(
+        """
+sets:
+  - name: no-setup
+    skills: []
+  - name: with-setup
+    setup:
+      - npx @anthropic-ai/claude-code-skills add https://example.com/skill
+      - echo "ready"
+    skills: []
+"""
+    )
+
+    scenario = load_scenario(scenario_dir)
+
+    assert scenario.skill_sets[0].setup == []
+    assert scenario.skill_sets[1].setup == [
+        "npx @anthropic-ai/claude-code-skills add https://example.com/skill",
+        'echo "ready"',
+    ]
+
+
 def test_load_scenario_parses_multiline_extra_prompt(tmp_path: Path) -> None:
     """Scenario loads multiline extra_prompt using YAML block scalar."""
     scenario_dir = tmp_path / "test-scenario"

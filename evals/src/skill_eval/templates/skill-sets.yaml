@@ -35,6 +35,17 @@ sets:
   #     - Grep
   #     - mcp__dbt__*
 
+  # # With setup commands (run before Claude)
+  # - name: with-setup
+  #   setup:
+  #     - npx skills add https://github.com/dbt-labs/dbt-agent-skills -a claude-code -y
+  #   skills: []
+  #   allowed_tools:
+  #     - Read
+  #     - Glob
+  #     - Grep
+  #     - Skill
+
   # # Full setup: skill + MCP server
   # - name: with-skill-and-mcp
   #   skills:

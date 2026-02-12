@@ -303,16 +303,16 @@ class Runner:
                 else:
                     self._copy_local_skill(skill_path, skills_dir)
 
+        # Copy .env from scenario dir if it exists
+        env_file = scenario_dir / ".env"
+        if env_file.exists():
+            shutil.copy(env_file, env_dir / ".env")
+
         # Write MCP server config if provided
         mcp_config_path = None
         if mcp_servers:
             mcp_config_path = claude_dir / "mcp-servers.json"
             mcp_config_path.write_text(json.dumps({"mcpServers": mcp_servers}, indent=2))
-
-            # Copy .env from scenario dir if it exists (for MCP servers using --env-file .env)
-            env_file = scenario_dir / ".env"
-            if env_file.exists():
-                shutil.copy(env_file, env_dir / ".env")
 
         return env_dir, mcp_config_path
 
@@ -448,6 +448,18 @@ class Runner:
             if remaining:
                 stderr_lines.append(remaining)
 
+    def _load_dot_env(self, env_file: Path) -> dict[str, str]:
+        """Parse a .env file into a dict. Skips comments and blank lines."""
+        env_vars: dict[str, str] = {}
+        for line in env_file.read_text().splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            key, _, value = line.partition("=")
+            if _:
+                env_vars[key.strip()] = value.strip()
+        return env_vars
+
     def run_claude(
         self,
         env_dir: Path,
@@ -457,6 +469,7 @@ class Runner:
         timeout: int = 600,
         stall_timeout: int = 60,
         ctx_logger=None,
+        extra_env: dict[str, str] | None = None,
     ) -> tuple[dict, bool, str | None, str]:
         """Run Claude Code with isolated config and capture output.
 
@@ -468,11 +481,13 @@ class Runner:
             timeout: Maximum total runtime in seconds (default: 600 = 10 min)
             stall_timeout: Kill if no output for this many seconds (default: 60)
             ctx_logger: Optional logger with bound context (scenario, skill_set)
+            extra_env: Optional extra environment variables (e.g. from .env file)
 
         Returns: (parsed_output, success, error, raw_json)
         """
         log = ctx_logger or logger
         env = os.environ.copy()
+        env.update(extra_env or {})
         env["CLAUDE_CONFIG_DIR"] = str(env_dir / ".claude")
 
         cmd = [
@@ -576,6 +591,41 @@ class Runner:
             mcp_servers=skill_set.mcp_servers if skill_set.mcp_servers else None,
         )
 
+        # Load .env vars for setup commands and Claude
+        dot_env_vars: dict[str, str] = {}
+        dot_env_path = env_dir / ".env"
+        if dot_env_path.exists():
+            dot_env_vars = self._load_dot_env(dot_env_path)
+
+        # Run setup commands before Claude
+        if skill_set.setup:
+            setup_env = {**os.environ, **dot_env_vars}
+            for cmd in skill_set.setup:
+                ctx_logger.info(f"Setup: {cmd}")
+                result = subprocess.run(
+                    cmd, shell=True, cwd=env_dir, env=setup_env, capture_output=True, text=True
+                )
+                if result.returncode != 0:
+                    stderr = result.stderr.strip()
+                    error_msg = f"Setup command failed: {cmd}\n{stderr}"
+                    ctx_logger.error(error_msg)
+                    output_dir = run_dir / scenario.name / skill_set.name
+                    output_dir.mkdir(parents=True, exist_ok=True)
+                    (output_dir / "output.md").write_text("")
+                    (output_dir / "raw.jsonl").write_text("")
+                    metadata = {"success": False, "error": error_msg}
+                    (output_dir / "metadata.yaml").write_text(
+                        yaml.dump(metadata, default_flow_style=False, sort_keys=False)
+                    )
+                    shutil.rmtree(env_dir, ignore_errors=True)
+                    return RunResult(
+                        scenario_name=scenario.name,
+                        skill_set_name=skill_set.name,
+                        output="",
+                        success=False,
+                        error=error_msg,
+                    )
+
         # Combine base prompt with skill set's extra_prompt (if any)
         prompt = scenario.prompt
         if skill_set.extra_prompt:
@@ -587,6 +637,7 @@ class Runner:
             mcp_config_path,
             skill_set.allowed_tools if skill_set.allowed_tools else None,
             ctx_logger=ctx_logger,
+            extra_env=dot_env_vars if dot_env_vars else None,
         )
 
         output_dir = run_dir / scenario.name / skill_set.name

@@ -421,7 +421,7 @@ class TestNewCommand:
         assert (scenario_dir / "skill-sets.yaml").exists()
         assert (scenario_dir / "scenario.md").exists()
         assert (scenario_dir / "prompt.txt").exists()
-        assert (scenario_dir / ".env.example").exists()
+        assert (scenario_dir / ".env").exists()
         assert "Created scenario" in result.output
 
     def test_new_shows_files_to_edit(self, tmp_path: Path, monkeypatch: MagicMock) -> None:

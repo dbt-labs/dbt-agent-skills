@@ -22,7 +22,7 @@ def test_templates_directory_exists() -> None:
     assert (templates_dir / "skill-sets.yaml").exists()
     assert (templates_dir / "scenario.md").exists()
     assert (templates_dir / "prompt.txt").exists()
-    assert (templates_dir / ".env.example").exists()
+    assert (templates_dir / ".env").exists()
 
 
 # validate_scenario_name tests
@@ -97,7 +97,7 @@ def test_create_scenario_basic(tmp_path: Path) -> None:
     assert (scenario_dir / "skill-sets.yaml").exists()
     assert (scenario_dir / "scenario.md").exists()
     assert (scenario_dir / "prompt.txt").exists()
-    assert (scenario_dir / ".env.example").exists()
+    assert (scenario_dir / ".env").exists()
 
 
 def test_create_scenario_replaces_name(tmp_path: Path) -> None:
