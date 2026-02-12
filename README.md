@@ -14,6 +14,7 @@ These skills are **not** slash commands or user-invoked actions. Once installed,
 
 - **Analytics engineering**: Build and modify dbt models, write tests, explore data sources
 - **Semantic layer**: Create metrics, dimensions, and semantic models with MetricFlow
+- **dbt Mesh**: Work with multi-project setups, cross-project refs, model governance (contracts, versions, access)
 - **Platform operations**: Troubleshoot job failures, configure the dbt MCP server
 - **Migration**: Move projects from dbt Core to the Fusion engine
 
@@ -66,6 +67,7 @@ These skills work with AI agents that support the [Agent Skills](https://agentsk
 | `adding-dbt-unit-test` | Add unit tests for dbt models, practice test-driven development |
 | `building-dbt-semantic-layer` | Create semantic models, metrics, and dimensions with MetricFlow |
 | `answering-natural-language-questions-with-dbt` | Answer business questions by querying the semantic layer |
+| `working-with-dbt-mesh` | Implement dbt Mesh governance (contracts, access, groups, versions) and cross-project collaboration |
 | `troubleshooting-dbt-job-errors` | Diagnose and resolve dbt platform job failures |
 | `configuring-dbt-mcp-server` | Set up the dbt MCP server for Claude, Cursor, or VS Code |
 | `fetching-dbt-docs` | Look up dbt documentation efficiently |
