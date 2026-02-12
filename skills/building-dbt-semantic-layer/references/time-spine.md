@@ -15,7 +15,9 @@ A time spine is essential for time-based joins and aggregations in MetricFlow. I
 
 ### 1. Create the Time Spine Model
 
-Create `models/marts/time_spine_daily.sql`:
+Create `models/marts/time_spine_daily.sql`.
+
+**Using `dbt.date_spine` macro** (when supported by your adapter):
 
 ```sql
 {{
@@ -47,6 +49,8 @@ from final
 where date_day > dateadd(year, -5, current_date())
   and date_day < dateadd(day, 30, current_date())
 ```
+
+> **Note**: `dbt.date_spine()` is not available for all adapters. If the macro isn't supported, use raw SQL with `generate_series` or your warehouse's equivalent date generation function instead.
 
 ### 2. Configure YAML for MetricFlow
 
