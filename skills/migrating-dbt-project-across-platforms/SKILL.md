@@ -20,7 +20,7 @@ This skill guides migration of a dbt project from one data platform (source) to 
 
 ## Contents
 
-- [Additional Resources](#additional-resources) — Reference docs for installation, unit tests, profiles
+- [Additional Resources](#additional-resources) — Reference docs for installation, unit tests, profile targets
 - [Migration Workflow](#migration-workflow) — 7-step migration process with progress checklist
 - [Don't Do These Things](#dont-do-these-things) — Critical guardrails
 - [Known Limitations & Gotchas](#known-limitations--gotchas) — Fusion-specific and cross-platform caveats
@@ -29,7 +29,7 @@ This skill guides migration of a dbt project from one data platform (source) to 
 
 - [Installing dbt Fusion](references/installing-dbt-fusion.md) — How to install and verify dbt Fusion
 - [Generating Unit Tests](references/generating-unit-tests.md) — How to generate unit tests on the source platform before migration
-- [Switching Profiles](references/switching-profiles.md) — How to configure the target platform profile and update sources
+- [Switching Targets](references/switching-targets.md) — How to configure the dbt target for the destination platform and update sources
 
 ## Migration Workflow
 
@@ -42,7 +42,7 @@ Migration Progress:
 - [ ] Step 1: Verify dbt Fusion is installed and working
 - [ ] Step 2: Assess source project (dbtf compile — 0 errors on source)
 - [ ] Step 3: Generate unit tests on source platform
-- [ ] Step 4: Switch profile to target platform
+- [ ] Step 4: Switch dbt target to destination platform
 - [ ] Step 5: Run Fusion compilation and fix all errors (dbtf compile — 0 errors on target)
 - [ ] Step 6: Run and validate unit tests on target platform
 - [ ] Step 7: Final validation and document changes in migration_changes.md
@@ -64,7 +64,7 @@ Use whichever command is Fusion everywhere this skill references `dbtf`. If neit
 
 #### Step 2: Assess the source project
 
-Run `dbtf compile` on the **source** platform profile to confirm the project compiles cleanly with 0 errors. This establishes the baseline.
+Run `dbtf compile` on the **source** platform target to confirm the project compiles cleanly with 0 errors. This establishes the baseline.
 
 ```bash
 dbtf compile
@@ -90,16 +90,16 @@ See [references/generating-unit-tests.md](references/generating-unit-tests.md) f
 
 **Verify tests pass on source**: Run `dbt test --select test_type:unit` on the source platform to confirm all unit tests pass before proceeding.
 
-#### Step 4: Switch profile to target platform
+#### Step 4: Switch dbt target to destination platform
 
-Configure a dbt profile for the target data platform and update source definitions if needed.
+Add a new target output for the destination platform within the existing profile in `profiles.yml`, then set it as the active target. Do **not** change the `profile` key in `dbt_project.yml`.
 
-1. Update `profiles.yml` to include a profile for the target platform (or switch the existing profile)
-2. Update `dbt_project.yml` to reference the target profile
-3. Update source definitions (`_sources.yml`) if the database/schema names differ on the target platform
+1. Add a new output entry in `profiles.yml` under the existing profile for the destination platform
+2. Set the `target:` key in the profile to point to the new output
+3. Update source definitions (`_sources.yml`) if the database/schema names differ on the destination platform
 4. Remove or update any platform-specific configurations (e.g., `+snowflake_warehouse`, `+file_format: delta`)
 
-See [references/switching-profiles.md](references/switching-profiles.md) for detailed guidance.
+See [references/switching-targets.md](references/switching-targets.md) for detailed guidance.
 
 #### Step 5: Run Fusion compilation and fix errors
 
@@ -181,8 +181,8 @@ Use this structure when documenting migration changes:
 ### Source Definitions
 - [List of source definition changes]
 
-### Profile Changes
-- [Profile configuration details]
+### Target Changes
+- [Target configuration details]
 
 ## Package Changes
 - [Any package additions, removals, or version changes]

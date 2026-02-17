@@ -90,7 +90,7 @@ unit_tests:
         - {order_key: 2, customer_key: 200, order_status: 'open', gross_amount: 0.00}
 ```
 
-For detailed unit test authoring guidance, refer to the `adding-dbt-unit-test` skill.
+For detailed unit test authoring guidance, refer to the `adding-dbt-unit-test` skill if you have access to it.
 
 ### Verify tests pass on source platform
 

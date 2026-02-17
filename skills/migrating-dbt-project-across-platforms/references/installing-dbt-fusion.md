@@ -22,11 +22,6 @@ dbtf debug
 
 If `dbtf` is not found, install it following the official instructions:
 
-**macOS (Homebrew)**:
-```bash
-brew install dbt-labs/dbt-cli/dbtf
-```
-
 **Using the install script**:
 ```bash
 curl -fsSL https://public.cdn.getdbt.com/fs/install.sh | bash
@@ -45,10 +40,6 @@ dbtf debug
 
 ## CHALLENGES
 
-### Fusion is not available for my OS
-
-Fusion is currently available for macOS and Linux. If running on an unsupported OS, check the latest dbt Fusion documentation for updates on platform support.
-
 ### Connection errors with dbtf debug
 
 If `dbtf debug` fails to connect:
@@ -64,7 +55,7 @@ If you encounter unexpected parsing or compilation behavior, ensure you're runni
 dbtf --version
 ```
 
-Update if needed:
+If Fusion is already installed, you can updated it to the latest version with
 ```bash
-brew upgrade dbt-labs/dbt-cli/dbtf
+dbtf system update 
 ```
