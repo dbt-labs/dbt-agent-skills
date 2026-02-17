@@ -1,0 +1,18 @@
+{
+  "name": "dbt-labs/dbt-agent-skills",
+  "version": "0.1.0",
+  "summary": "A curated collection of Agent Skills for working with dbt, to help AI agents understand and execute dbt workflows more effectively.",
+  "private": false,
+  "docs": "README.md",
+  "skills": {
+    "adding-dbt-unit-test": { "path": "skills/adding-dbt-unit-test/SKILL.md" },
+    "answering-natural-language-questions-with-dbt": { "path": "skills/answering-natural-language-questions-with-dbt/SKILL.md" },
+    "building-dbt-semantic-layer": { "path": "skills/building-dbt-semantic-layer/SKILL.md" },
+    "configuring-dbt-mcp-server": { "path": "skills/configuring-dbt-mcp-server/SKILL.md" },
+    "fetching-dbt-docs": { "path": "skills/fetching-dbt-docs/SKILL.md" },
+    "migrating-dbt-core-to-fusion": { "path": "skills/migrating-dbt-core-to-fusion/SKILL.md" },
+    "running-dbt-commands": { "path": "skills/running-dbt-commands/SKILL.md" },
+    "troubleshooting-dbt-job-errors": { "path": "skills/troubleshooting-dbt-job-errors/SKILL.md" },
+    "using-dbt-for-analytics-engineering": { "path": "skills/using-dbt-for-analytics-engineering/SKILL.md" }
+  }
+}
