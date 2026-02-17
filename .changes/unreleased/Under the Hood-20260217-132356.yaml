@@ -1,0 +1,6 @@
+kind: Under the Hood
+body: Allow this to be installed via pip or other build tools.
+time: 2026-02-17T13:23:56.000000-08:00
+custom:
+    Author: theyostalservice
+    Issue: "59"
