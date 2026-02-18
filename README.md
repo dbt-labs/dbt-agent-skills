@@ -21,11 +21,17 @@ These skills are **not** slash commands or user-invoked actions. Once installed,
 
 ### Claude Code
 
-Add the dbt skills marketplace and install the skills:
+Add the dbt skills marketplace and install the plugins:
 
 ```bash
+# Add the marketplace
 /plugin marketplace add dbt-labs/dbt-agent-skills
+
+# Install the dbt skills (analytics engineering, semantic layer, testing, etc.)
 /plugin install dbt@dbt-agent-marketplace
+
+# Install the migration skills (typically a one-off — not needed for every session)
+/plugin install dbt-migration@dbt-agent-marketplace
 ```
 
 ### Other AI Clients
@@ -38,6 +44,12 @@ npx skills add dbt-labs/dbt-agent-skills --list
 
 # Install all skills
 npx skills add dbt-labs/dbt-agent-skills
+
+# Install only the dbt skills (analytics engineering, semantic layer, etc.)
+npx skills add https://github.com/dbt-labs/dbt-agent-skills/tree/main/skills/dbt
+
+# Install only the migration skills
+npx skills add https://github.com/dbt-labs/dbt-agent-skills/tree/main/skills/migration
 
 # Install a specific skill
 npx skills add dbt-labs/dbt-agent-skills --skill using-dbt-for-analytics-engineering
@@ -60,6 +72,8 @@ These skills work with AI agents that support the [Agent Skills](https://agentsk
 
 ## Available Skills
 
+### dbt (analytics engineering)
+
 | Skill | Description |
 |-------|-------------|
 | `using-dbt-for-analytics-engineering` | Build and modify dbt models, debug errors, explore data sources, write tests |
@@ -69,8 +83,16 @@ These skills work with AI agents that support the [Agent Skills](https://agentsk
 | `troubleshooting-dbt-job-errors` | Diagnose and resolve dbt platform job failures |
 | `configuring-dbt-mcp-server` | Set up the dbt MCP server for Claude, Cursor, or VS Code |
 | `fetching-dbt-docs` | Look up dbt documentation efficiently |
-| `migrating-dbt-core-to-fusion` | Migrate dbt projects to the Fusion engine |
 | `running-dbt-commands` | Run dbt CLI commands with correct flags, selectors, and parameter formats |
+
+### dbt-migration (one-off use)
+
+These skills are typically used once during a migration project rather than in every agent session.
+
+| Skill | Description |
+|-------|-------------|
+| `migrating-dbt-core-to-fusion` | Migrate dbt projects from dbt Core to the Fusion engine |
+| `migrating-dbt-project-across-platforms` | Migrate dbt projects across data platforms |
 
 ## Prerequisites
 

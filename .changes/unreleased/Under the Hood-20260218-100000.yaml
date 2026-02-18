@@ -1,0 +1,6 @@
+kind: Under the Hood
+body: Restructure skills into separate installable plugins (dbt and dbt-migration) using Dagster-style plugin directories, enabling selective installation.
+time: 2026-02-18T10:00:00.000000-08:00
+custom:
+    Author: b-per
+    Issue: ""

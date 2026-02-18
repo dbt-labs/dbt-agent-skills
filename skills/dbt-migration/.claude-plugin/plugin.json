@@ -1,0 +1,12 @@
+{
+  "name": "dbt-migration",
+  "description": "Skills for migrating dbt projects — moving from dbt Core to the Fusion engine or across data platforms.",
+  "version": "1.0.0",
+  "author": {
+    "name": "dbt Labs"
+  },
+  "license": "Apache-2.0",
+  "homepage": "https://docs.getdbt.com/",
+  "repository": "https://github.com/dbt-labs/dbt-agent-skills",
+  "keywords": ["dbt", "migration", "fusion", "platform-migration"]
+}

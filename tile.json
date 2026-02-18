@@ -5,14 +5,15 @@
   "private": false,
   "docs": "README.md",
   "skills": {
-    "adding-dbt-unit-test": { "path": "skills/adding-dbt-unit-test/SKILL.md" },
-    "answering-natural-language-questions-with-dbt": { "path": "skills/answering-natural-language-questions-with-dbt/SKILL.md" },
-    "building-dbt-semantic-layer": { "path": "skills/building-dbt-semantic-layer/SKILL.md" },
-    "configuring-dbt-mcp-server": { "path": "skills/configuring-dbt-mcp-server/SKILL.md" },
-    "fetching-dbt-docs": { "path": "skills/fetching-dbt-docs/SKILL.md" },
-    "migrating-dbt-core-to-fusion": { "path": "skills/migrating-dbt-core-to-fusion/SKILL.md" },
-    "running-dbt-commands": { "path": "skills/running-dbt-commands/SKILL.md" },
-    "troubleshooting-dbt-job-errors": { "path": "skills/troubleshooting-dbt-job-errors/SKILL.md" },
-    "using-dbt-for-analytics-engineering": { "path": "skills/using-dbt-for-analytics-engineering/SKILL.md" }
+    "adding-dbt-unit-test": { "path": "skills/dbt/skills/adding-dbt-unit-test/SKILL.md" },
+    "answering-natural-language-questions-with-dbt": { "path": "skills/dbt/skills/answering-natural-language-questions-with-dbt/SKILL.md" },
+    "building-dbt-semantic-layer": { "path": "skills/dbt/skills/building-dbt-semantic-layer/SKILL.md" },
+    "configuring-dbt-mcp-server": { "path": "skills/dbt/skills/configuring-dbt-mcp-server/SKILL.md" },
+    "fetching-dbt-docs": { "path": "skills/dbt/skills/fetching-dbt-docs/SKILL.md" },
+    "running-dbt-commands": { "path": "skills/dbt/skills/running-dbt-commands/SKILL.md" },
+    "troubleshooting-dbt-job-errors": { "path": "skills/dbt/skills/troubleshooting-dbt-job-errors/SKILL.md" },
+    "using-dbt-for-analytics-engineering": { "path": "skills/dbt/skills/using-dbt-for-analytics-engineering/SKILL.md" },
+    "migrating-dbt-core-to-fusion": { "path": "skills/dbt-migration/skills/migrating-dbt-core-to-fusion/SKILL.md" },
+    "migrating-dbt-project-across-platforms": { "path": "skills/dbt-migration/skills/migrating-dbt-project-across-platforms/SKILL.md" }
   }
 }

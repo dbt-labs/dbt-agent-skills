@@ -9,13 +9,13 @@
   "plugins": [
     {
       "name": "dbt",
-      "description": "A curated collection of Agent Skills for working with dbt. These skills help AI agents understand and execute dbt workflows more effectively.",
-      "version": "1.0.0",
-      "license": "Apache-2.0",
-      "author": {
-        "name": "dbt Labs"
-      },
-      "source": "./"
+      "description": "Skills for analytics engineering with dbt — building models, writing tests, querying the semantic layer, troubleshooting jobs, and more.",
+      "source": "./skills/dbt"
+    },
+    {
+      "name": "dbt-migration",
+      "description": "Skills for migrating dbt projects — moving from dbt Core to the Fusion engine or across data platforms.",
+      "source": "./skills/dbt-migration"
     }
   ]
 }
