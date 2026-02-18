@@ -48,6 +48,8 @@ If transforming raw data from these vendors, use their packages rather than writ
 
 ## Installing Packages
 
+> **Security note:** Always confirm package installations with the user before running `dbt deps`. Review the package source and version before adding it to `packages.yml`.
+
 ```bash
 dbt deps --add-package dbt-labs/dbt_utils@">=1.0.0,<2.0.0"
 ```
