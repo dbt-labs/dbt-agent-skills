@@ -46,10 +46,10 @@ npx skills add dbt-labs/dbt-agent-skills --list
 npx skills add dbt-labs/dbt-agent-skills
 
 # Install only the dbt skills (analytics engineering, semantic layer, etc.)
-npx skills add https://github.com/dbt-labs/dbt-agent-skills/tree/main/skills/dbt
+npx skills add dbt-labs/dbt-agent-skills/skills/dbt
 
 # Install only the migration skills
-npx skills add https://github.com/dbt-labs/dbt-agent-skills/tree/main/skills/migration
+npx skills add  dbt-labs/dbt-agent-skills/skills/dbt-migration
 
 # Install a specific skill
 npx skills add dbt-labs/dbt-agent-skills --skill using-dbt-for-analytics-engineering
