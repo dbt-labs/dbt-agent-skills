@@ -63,12 +63,12 @@ this code
 
 needs to be changed to be this
 ```sql
-{% if config.get_meta('cold_storage_date_type') == 'date' %}
+{% if config.meta_get('cold_storage_date_type') == 'date' %}
 ```
 
 the above just wraps the below behavior
 ```sql
-{% if config.get('meta').cold_storage_date_type == 'date' %}
+{% if config.get('meta', {}).get('cold_storage_date_type') == 'date' %}
 ```
 
 When you have many files (50+) with the same custom config pattern, use systematic approaches:
