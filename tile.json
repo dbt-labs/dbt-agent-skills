@@ -13,6 +13,7 @@
     "migrating-dbt-core-to-fusion": { "path": "skills/migrating-dbt-core-to-fusion/SKILL.md" },
     "running-dbt-commands": { "path": "skills/running-dbt-commands/SKILL.md" },
     "troubleshooting-dbt-job-errors": { "path": "skills/troubleshooting-dbt-job-errors/SKILL.md" },
-    "using-dbt-for-analytics-engineering": { "path": "skills/using-dbt-for-analytics-engineering/SKILL.md" }
+    "using-dbt-for-analytics-engineering": { "path": "skills/using-dbt-for-analytics-engineering/SKILL.md" },
+    "legacy-sql-to-dbt": { "path": "skills/legacy-sql-to-dbt/SKILL.md" }
   }
 }
