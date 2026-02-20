@@ -49,7 +49,7 @@ npx skills add dbt-labs/dbt-agent-skills
 npx skills add dbt-labs/dbt-agent-skills/skills/dbt
 
 # Install only the migration skills
-npx skills add  dbt-labs/dbt-agent-skills/skills/dbt-migration
+npx skills add dbt-labs/dbt-agent-skills/skills/dbt-migration
 
 # Install a specific skill
 npx skills add dbt-labs/dbt-agent-skills --skill using-dbt-for-analytics-engineering
