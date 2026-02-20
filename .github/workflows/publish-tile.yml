@@ -1,11 +1,10 @@
 name: Publish Tessl Tile
 
 permissions:
-  id-token: write  # Required for OIDC token
-  contents: read  # Required to checkout the repository
+  id-token: write # Required for OIDC token
+  contents: read # Required to checkout the repository
 
 on:
-  pull_request:
   push:
     branches:
       - main
@@ -14,7 +13,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: tesslio/publish@a85d5126aedcc671a042364ffe48d60593365f7a  # latest commit as-of 2026-02-18
+      - uses: actions/checkout@v6
+      - uses: tesslio/publish@3ebebcd042bd9d3851b6940ebec376fd6d5dee84 # latest commit as of 2026-02-20
         with:
           token: ${{ secrets.TESSL_API_TOKEN }}
