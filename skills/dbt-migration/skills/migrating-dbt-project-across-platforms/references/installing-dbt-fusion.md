@@ -20,12 +20,7 @@ dbtf debug
 
 ### Install Fusion
 
-If `dbtf` is not found, install it following the official instructions:
-
-**Using the install script**:
-```bash
-curl -fsSL https://public.cdn.getdbt.com/fs/install.sh | bash
-```
+If `dbtf` is not found, follow the [official dbt Fusion installation guide](https://docs.getdbt.com/docs/fusion/install-fusion-cli) to install it.
 
 **Verify installation**:
 ```bash

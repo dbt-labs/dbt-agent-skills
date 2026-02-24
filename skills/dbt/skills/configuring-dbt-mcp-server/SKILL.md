@@ -160,6 +160,13 @@ Use service tokens for system-level integrations (CI/CD, automation) rather than
 
 **Example:** In `https://cloud.getdbt.com/settings/accounts/12345/users/67891`, the User ID is `67891`
 
+## Credential Security
+
+- Always use environment variable references (e.g., `${DBT_TOKEN}`) instead of literal token values in configuration files that may be committed to version control
+- Never log, display, or echo token values in terminal output
+- When using `.env` files, ensure they are added to `.gitignore` to prevent accidental commits
+- Recommend users rotate tokens regularly and use the minimum required permission set
+
 ## Configuration Templates
 
 ### Local Server - CLI Only
