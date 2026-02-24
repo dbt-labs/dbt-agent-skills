@@ -1,6 +1,6 @@
 {
   "name": "dbt-labs/dbt-agent-skills",
-  "version": "0.1.0",
+  "version": "1.0.1",
   "summary": "A curated collection of Agent Skills for working with dbt, to help AI agents understand and execute dbt workflows more effectively.",
   "private": false,
   "docs": "README.md",
