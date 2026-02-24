@@ -1,6 +1,6 @@
 ---
 name: configuring-dbt-mcp-server
-description: Use when setting up, configuring, or troubleshooting the dbt MCP server for AI tools like Claude Desktop, Claude Code, Cursor, or VS Code.
+description: Generates MCP server configuration JSON, resolves authentication setup, and validates server connectivity for dbt. Use when setting up, configuring, or troubleshooting the dbt MCP server for AI tools like Claude Desktop, Claude Code, Cursor, or VS Code.
 user-invocable: false
 metadata:
   author: dbt-labs
@@ -89,76 +89,7 @@ flowchart TB
 2. **Production environment ID** (from Orchestration page)
 3. **Personal access token** or service token
 
-## How to Find Your Credentials
-
-### Which Token Type Should I Use?
-
-| Use Case | Token Type | Why |
-|----------|------------|-----|
-| Personal development setup | Personal Access Token (PAT) | Inherits your permissions, works with all APIs including execute_sql |
-| Shared team setup | Service Token | Multiple users, controlled permissions, separate from individual accounts |
-| Using execute_sql tool | PAT (required) | SQL tools that require `x-dbt-user-id` need a PAT |
-| CI/CD or automation | Service Token | System-level access, not tied to a person |
-
-### Personal Access Token (PAT)
-
-1. Go to **Account Settings** → expand **API tokens** → click **Personal tokens**
-2. Click **Create personal access token**
-3. Enter a descriptive name and click **Save**
-4. **Copy the token immediately** — it won't be shown again
-
-**Notes:**
-- Requires a Developer license
-- Inherits all permissions from your user account
-- Account-scoped: create separate tokens for each dbt account you access
-- Rotate regularly for security
-
-### Service Token
-
-Use service tokens for system-level integrations (CI/CD, automation) rather than user-specific access.
-
-1. Go to **Account Settings** → **Service Tokens** (in left sidebar)
-2. Click **+ New Token**
-3. Select the appropriate permission set for your use case
-4. **Save the token immediately** — it won't be shown again
-
-**Permission sets for MCP:**
-- **Semantic Layer Only**: For querying metrics only
-- **Metadata Only**: For Discovery API access
-- **Job Admin**: For Admin API (triggering jobs)
-- **Developer**: For broader access
-
-**Notes:**
-- Requires Developer license + account admin permissions to create
-- Service tokens belong to the account, not a user
-- Cannot use service tokens for `execute_sql` — use PAT instead
-
-### Account ID
-
-1. Sign in to dbt Cloud
-2. Look at the URL in your browser — the Account ID is the number after `/accounts/`
-
-**Example:** In `https://cloud.getdbt.com/settings/accounts/12345/...`, the Account ID is `12345`
-
-**Alternative:** Go to **Settings** → **Account Settings** and check the URL.
-
-### Environment ID (Production or Development)
-
-1. In dbt Cloud, go to **Deploy** → **Environments**
-2. Click on the environment (Production or Development)
-3. Look at the URL — the Environment ID is the last number
-
-**URL pattern:** `https://cloud.getdbt.com/deploy/<account_id>/projects/<project_id>/environments/<environment_id>`
-
-**Example:** In `.../environments/98765`, the Environment ID is `98765`
-
-### User ID
-
-1. Go to **Account Settings** → **Team** → **Users**
-2. Click on your user profile
-3. Look at the URL — the number after `/users/` is your User ID
-
-**Example:** In `https://cloud.getdbt.com/settings/accounts/12345/users/67891`, the User ID is `67891`
+See [How to Find Your Credentials](references/finding-credentials.md) for detailed guidance on obtaining tokens and IDs.
 
 ## Credential Security
 
@@ -382,64 +313,6 @@ After setup, ask the AI:
 - "List my dbt metrics" (if Semantic Layer enabled)
 - "Show my dbt models" (if Discovery enabled)
 
-## Troubleshooting
+See [Troubleshooting](references/troubleshooting.md) for common issues and fixes.
 
-### "uvx not found" or "spawn uvx ENOENT"
-Find full path and use it in config:
-```bash
-# macOS/Linux
-which uvx
-# Use output like: /opt/homebrew/bin/uvx
-
-# Windows
-where uvx
-```
-
-Update config:
-```json
-{
-  "command": "/opt/homebrew/bin/uvx",
-  "args": ["dbt-mcp"]
-}
-```
-
-### "Could not connect to MCP server"
-1. Check `uvx` is installed: `uvx --version`
-2. Verify paths exist: `ls $DBT_PROJECT_DIR/dbt_project.yml`
-3. Check dbt works: `$DBT_PATH --version`
-
-### OAuth Not Working
-Only accounts with static subdomains (e.g., `abc123.us1.dbt.com`) support OAuth. Check your Access URLs in dbt platform settings.
-
-### Remote Server Returns 401/403
-- Verify token has Semantic Layer and Developer permissions
-- For `execute_sql`: Use personal access token, not service token
-- Check environment ID is correct (from Orchestration page)
-
-## Common Mistakes
-
-| Mistake | Fix |
-|---------|-----|
-| Using npm/npx instead of uvx | The package is `dbt-mcp` via `uvx`, not npm |
-| Wrong env var names (DBT_CLOUD_*) | Use `DBT_TOKEN`, `DBT_PROD_ENV_ID`, etc. |
-| Using `mcpServers` in VS Code | VS Code uses `servers` key in mcp.json |
-| Service token for execute_sql | Use personal access token for SQL tools |
-| Windows paths in WSL | Use Linux paths (`/home/...`) not Windows |
-| Local user settings in WSL | Must use Remote settings in VS Code |
-| Missing `uv` installation | Install uv first: https://docs.astral.sh/uv/ |
-
-## Environment Variable Reference
-
-| Variable | Required For | Description |
-|----------|--------------|-------------|
-| `DBT_PROJECT_DIR` | CLI commands | Path to folder with `dbt_project.yml` |
-| `DBT_PATH` | CLI commands | Path to dbt executable |
-| `DBT_HOST` | Platform access | Default: `cloud.getdbt.com` |
-| `DBT_TOKEN` | Platform (non-OAuth) | Personal or service token |
-| `DBT_ACCOUNT_ID` | Admin API | Your dbt account ID |
-| `DBT_PROD_ENV_ID` | Platform access | Production environment ID |
-| `DBT_DEV_ENV_ID` | SQL/Fusion tools | Development environment ID |
-| `DBT_USER_ID` | SQL/Fusion tools | Your dbt user ID |
-| `MULTICELL_ACCOUNT_PREFIX` | Multi-cell accounts | Account prefix (exclude from DBT_HOST) |
-| `DBT_CLI_TIMEOUT` | CLI commands | Timeout in seconds (default: 60) |
-| `DBT_MCP_LOG_LEVEL` | Debugging | DEBUG, INFO, WARNING, ERROR, CRITICAL |
+See [Environment Variable Reference](references/environment-variables.md) for the full list of supported variables.

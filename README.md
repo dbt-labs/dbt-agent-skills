@@ -36,7 +36,9 @@ Add the dbt skills marketplace and install the plugins:
 
 ### Other AI Clients
 
-Use the [Vercel Skills CLI](https://github.com/vercel-labs/skills) to install skills from this repository.
+#### Vercel Skills CLI
+
+Use the [Vercel Skills CLI](https://github.com/vercel-labs/skills) to install skills from this repository. Supports 30+ AI agents including Cursor, Cline, GitHub Copilot, and others.
 
 ```bash
 # Preview available skills
@@ -64,7 +66,22 @@ npx skills check
 npx skills update
 ```
 
-The Vercel Skills CLI supports 30+ AI agents including Cursor, Cline, GitHub Copilot, and others.
+#### Tessl
+
+Install skills using [Tessl](https://tessl.io/), the package manager for agent skills:
+
+```bash
+# Install all skills
+tessl install dbt-labs/dbt-agent-skills
+
+# Install a specific skill
+tessl install dbt-labs/dbt-agent-skills --skill using-dbt-for-analytics-engineering
+
+# Install from GitHub directly
+tessl install github:dbt-labs/dbt-agent-skills
+```
+
+Browse the tile on the [Tessl registry](https://tessl.io/registry/dbt-labs/dbt-agent-skills).
 
 ### Compatible Agents
 

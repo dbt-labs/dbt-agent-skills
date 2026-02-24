@@ -1,6 +1,6 @@
 ---
 name: running-dbt-commands
-description: Use when executing dbt commands via CLI - running models, tests, builds, compiles, or show queries. Use when unsure which dbt executable to use or how to format command parameters.
+description: Formats and executes dbt CLI commands, selects the correct dbt executable, and structures command parameters. Use when running models, tests, builds, compiles, or show queries via dbt CLI. Use when unsure which dbt executable to use or how to format command parameters.
 user-invocable: false
 metadata:
   author: dbt-labs

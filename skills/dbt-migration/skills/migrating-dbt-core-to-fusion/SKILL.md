@@ -1,6 +1,6 @@
 ---
 name: migrating-dbt-core-to-fusion
-description: Guides migration of dbt projects from dbt Core to the Fusion engine. Use when making a project compatible with Fusion, addressing deprecations, or running dbtf commands.
+description: Resolves Fusion compatibility errors, applies dbt-autofix for deprecations and package updates, and iterates with dbtf parse/compile until the project compiles cleanly. Use when migrating a dbt project from dbt Core to the Fusion engine, addressing deprecations, or running dbtf commands.
 compatibility: Designed for dbt Core v1.10+
 metadata:
   author: dbt-labs
