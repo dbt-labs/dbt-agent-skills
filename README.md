@@ -68,7 +68,7 @@ npx skills update
 
 #### Tessl
 
-Install skills using [Tessl](https://tessl.io/), the package manager for agent skills:
+Install skills using [Tessl](https://tessl.io/), a package manager for agent skills:
 
 ```bash
 # Install all skills
