@@ -106,6 +106,37 @@ dbt Mesh includes four governance features. These work independently and can be 
 | **Access Modifiers** | Control which models can `ref` yours | `access: public / protected / private` | [references/groups-and-access.md](references/groups-and-access.md) |
 | **Model Versions** | Manage breaking changes with migration windows | `versions:` with `latest_version:` | [references/model-versions.md](references/model-versions.md) |
 
+### YAML placement rule
+
+In model property YAML files, `access`, `group`, and `contract` are **configs** and must always be nested under the `config:` key — never placed as top-level model properties. Placing them at the top level may appear to work in dbt Core but causes parse errors in dbt's Fusion engine.
+
+```yaml
+# ✅ CORRECT — all governance configs under `config:`
+models:
+  - name: fct_orders
+    config:
+      group: finance
+      access: public
+      contract:
+        enforced: true
+    columns:
+      - name: order_id
+        data_type: int
+
+# ❌ WRONG — governance configs as top-level properties (breaks Fusion)
+models:
+  - name: fct_orders
+    access: public          # WRONG — not under config:
+    group: finance          # WRONG — not under config:
+    contract:               # WRONG — not under config:
+      enforced: true
+    columns:
+      - name: order_id
+        data_type: int
+```
+
+This applies to property YAML files only. In `dbt_project.yml`, use the `+` prefix for directory-level assignment (e.g. `+group: finance`, `+access: private`). In SQL files, use `{{ config(access='public', group='finance') }}`.
+
 ### Adoption order
 
 ```
@@ -182,6 +213,7 @@ Is it referenced cross-project?
 | Versioning for non-breaking changes | Creates unnecessary maintenance burden and warehouse cost | Only version for breaking changes (column removal, type change, rename) |
 | Forgetting `dependencies.yml` | Cross-project refs fail without declaring the upstream project | Add upstream project to `dependencies.yml` before using two-argument `ref()` |
 | Referencing non-public models cross-project | Only `public` models are available to other projects | Set `access: public` on models intended for cross-project consumption |
+| Placing `access`, `group`, or `contract` as top-level model properties in YAML | Breaks Fusion engine parsing; top-level placement is not valid config | Always nest under `config:` — e.g. `config: { access: public }` |
 
 ## Rationalizations to Resist
 
@@ -201,3 +233,4 @@ Is it referenced cross-project?
 - Removing a column from a contracted model without creating a new version
 - Making a model `private` that is already referenced outside its group
 - Adding `dependencies.yml` without verifying the upstream project has a successful production job run
+- About to place `access`, `group`, or `contract` outside of `config:` in a model YAML file — always nest under `config:`
