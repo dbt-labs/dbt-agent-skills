@@ -10,6 +10,8 @@ Model contracts guarantee the shape of a model by enforcing column names, data t
 
 ## Basic Configuration
 
+**Important:** `contract` is a config property and must be nested under `config:` in YAML property files. Placing it as a top-level model property breaks the Fusion engine.
+
 ```yaml
 models:
   - name: fct_orders
@@ -135,3 +137,4 @@ Without `on_schema_change`, schema drift between the YAML contract and the datab
 | Using contracts on ephemeral models | Switch to `table`, `view`, or `incremental` |
 | Assuming constraints are enforced everywhere | Check your warehouse's constraint enforcement — many are informational only |
 | Changing contracted columns without versioning | Create a new model version for breaking changes |
+| Placing `contract` as a top-level model property in YAML | Nest under `config:` — top-level placement breaks Fusion |
