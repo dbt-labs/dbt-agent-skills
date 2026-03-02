@@ -43,7 +43,7 @@ If this file has a `projects:` key, you are in a multi-project mesh setup. Every
 
 ### 2. Understand how upstream data gets into this project
 
-In a mesh setup, upstream project models replace what would traditionally be sources:
+In a mesh setup, upstream project models replace what would alternatively be sources:
 
 | Traditional single-project | Mesh multi-project |
 |---|---|
