@@ -39,7 +39,7 @@ projects:
   - name: marketing_platform
 ```
 
-If this file has a `projects:` key, you are in a multi-project mesh setup. Every model you reference from those upstream projects **must** use two-argument `ref()`.
+If this file has a `projects:` key, you are in a multi-project mesh setup. Every model you reference from those upstream projects **must** use cross-project `ref()`.
 
 ### 2. Understand how upstream data gets into this project
 
