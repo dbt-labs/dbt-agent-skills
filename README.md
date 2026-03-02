@@ -156,10 +156,6 @@ See [evals/README.md](evals/README.md) for the A/B testing tool to compare skill
 
 This repository supports both the vendor-agnostic [Agent Skills specification](https://agentskills.io/specification) and the Kiro Power format, enabling use across multiple AI development platforms.
 
-### Dual Format Approach
-
-The repository maintains two parallel distribution formats:
-
 1. **Agent Skills format** (primary) - Individual `SKILL.md` files in `skills/` directories
    - Works with Claude Code, Cursor, Cline, GitHub Copilot, and 30+ other AI agents
    - Installed via Vercel Skills CLI (`npx skills add`) or Tessl
@@ -169,27 +165,3 @@ The repository maintains two parallel distribution formats:
    - Optimized for Kiro's keyword-based activation system
    - Includes metadata (logo, description, keywords) for Kiro's Power browser
    - References the same underlying skill content
-
-### Why This Approach?
-
-This dual format strategy ensures:
-
-- **Vendor neutrality** - The core skills remain platform-agnostic and work everywhere
-- **Kiro optimization** - Power-specific metadata improves discoverability and user experience in Kiro
-- **Single source of truth** - All platforms reference the same skill content; no duplication
-- **Easy maintenance** - Updates to skills automatically benefit all platforms
-
-### For Kiro Users
-
-Install this power through the Kiro Powers panel or by adding it from GitHub. The power will automatically activate when you work with dbt projects or mention dbt-related keywords.
-
-### For Other Platform Users
-
-Follow the installation instructions in the main sections above using the Vercel Skills CLI, Tessl, or your platform's native skill installation method.
-
-### Technical Details
-
-- **Agent Skills**: Located in `skills/dbt/skills/` with individual `SKILL.md` files
-- **Kiro Power**: `POWER.md` at root aggregates and references the individual skills
-- **Logo**: `dbt_logo.svg` provides branding in Kiro's Power browser
-- **Compatibility**: Both formats coexist without conflicts; changes to skills benefit both distributions
