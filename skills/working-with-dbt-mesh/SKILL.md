@@ -83,6 +83,15 @@ Before writing new SQL:
 
 If you need a model that isn't `public`, coordinate with the upstream team to widen its access.
 
+## Cross-Project Refs Require dbt Cloud Enterprise
+
+Cross-project `ref()` and the `projects:` key in `dependencies.yml` are only available on **dbt Cloud Enterprise or Enterprise+** plans. Before setting up any cross-project collaboration, verify plan eligibility:
+
+1. **If `dependencies.yml` already has a `projects:` key and the project is actively using cross-project refs** — Enterprise is already in place. Proceed.
+2. **Otherwise** — ask the user to confirm they are on dbt Cloud Enterprise or Enterprise+ before adding `projects:` to `dependencies.yml` or writing new two-argument `ref()` calls.
+
+If the user cannot confirm the plan level, or confirms they are on a plan below Enterprise, **do not set up cross-project refs**. Explain that this feature requires upgrading to Enterprise or Enterprise+ and suggest they use the intra-project governance features (groups, access modifiers, contracts) instead.
+
 ## Cross-Project `ref()` Syntax
 
 ```sql
@@ -147,7 +156,7 @@ This applies to property YAML files only. In `dbt_project.yml`, use the `+` pref
 - **Groups & Access** — no schema changes needed, start here
 - **Contracts** — require declaring every column and data type in YAML
 - **Versions** — only needed when a contracted model must introduce a breaking change
-- **Cross-Project Refs** — require dbt Cloud Enterprise and a successful upstream production job
+- **Cross-Project Refs** — require **dbt Cloud Enterprise or Enterprise+** and a successful upstream production job. Do not set up cross-project refs if you cannot confirm the plan level is Enterprise or higher.
 
 ## Contracts vs. Tests
 
@@ -233,6 +242,7 @@ Is it referenced cross-project?
 | "We need a version for every change" | Most changes are additive and non-breaking. Version only for actual breaking changes. |
 | "Groups are just bureaucracy" | Groups make ownership explicit. When something breaks at 2am, you need to know who owns it. |
 | "The user asked for a contract, so I should add it" | Advise against contracts that don't fit. Staging models, evolving models, pivot models, and models without external consumers are poor candidates. |
+| "The user asked me to set up cross-project refs" | Cross-project refs require dbt Cloud Enterprise or Enterprise+. Confirm the plan level before proceeding; if unknown or insufficient, explain the requirement and suggest intra-project governance features instead. |
 
 ## Red Flags — STOP and Reconsider
 
@@ -241,6 +251,7 @@ Is it referenced cross-project?
 - About to set `access: public` without an enforced contract
 - Removing a column from a contracted model without creating a new version
 - Making a model `private` that is already referenced outside its group
+- About to add `projects:` to `dependencies.yml` or write a new two-argument `ref()` for a cross-project setup without confirming the user is on dbt Cloud Enterprise or Enterprise+ — ask first; this feature is unavailable on lower plan tiers
 - Adding `dependencies.yml` without verifying the upstream project has a successful production job run
 - About to place `access`, `group`, or `contract` outside of `config:` in a model YAML file — always nest under `config:`
 - About to add a contract to a staging model, a model with dynamic/pivot columns, or a model the user says is still evolving — advise against it
