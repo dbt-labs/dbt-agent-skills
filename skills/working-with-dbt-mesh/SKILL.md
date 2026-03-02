@@ -45,7 +45,7 @@ If this file has a `projects:` key, you are in a multi-project mesh setup. Every
 
 In a mesh setup, upstream project models replace what would alternatively be sources:
 
-| Traditional single-project | Mesh multi-project |
+| Alternative | Mesh multi-project |
 |---|---|
 | `{{ source('stripe', 'payments') }}` | `{{ ref('core_platform', 'stg_payments') }}` |
 | Data comes from raw database tables | Data comes from another dbt project's public models |
