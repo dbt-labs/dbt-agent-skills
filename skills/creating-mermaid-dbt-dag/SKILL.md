@@ -2,7 +2,7 @@
 name: creating-mermaid-dbt-dag
 description: Use when visualizing dbt model lineage and dependencies as a Mermaid diagram in markdown format
 user-invocable: false
-allowed-tools: mcp__dbt__get_lineage_dev, mcp__dbt__get_lineage, Read, Grep, Glob, Bash
+allowed-tools: mcp__dbt__get_lineage_dev, mcp__dbt__get_lineage
 metadata:
   author: dbt-labs
 ---
