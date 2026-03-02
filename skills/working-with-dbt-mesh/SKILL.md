@@ -106,6 +106,37 @@ dbt Mesh includes four governance features. These work independently and can be 
 | **Access Modifiers** | Control which models can `ref` yours | `access: public / protected / private` | [references/groups-and-access.md](references/groups-and-access.md) |
 | **Model Versions** | Manage breaking changes with migration windows | `versions:` with `latest_version:` | [references/model-versions.md](references/model-versions.md) |
 
+### YAML placement rule
+
+In model property YAML files, `access`, `group`, and `contract` are **configs** and must always be nested under the `config:` key — never placed as top-level model properties. Placing them at the top level may appear to work in dbt Core but causes parse errors in dbt's Fusion engine.
+
+```yaml
+# ✅ CORRECT — all governance configs under `config:`
+models:
+  - name: fct_orders
+    config:
+      group: finance
+      access: public
+      contract:
+        enforced: true
+    columns:
+      - name: order_id
+        data_type: int
+
+# ❌ WRONG — governance configs as top-level properties (breaks Fusion)
+models:
+  - name: fct_orders
+    access: public          # WRONG — not under config:
+    group: finance          # WRONG — not under config:
+    contract:               # WRONG — not under config:
+      enforced: true
+    columns:
+      - name: order_id
+        data_type: int
+```
+
+This applies to property YAML files only. In `dbt_project.yml`, use the `+` prefix for directory-level assignment (e.g. `+group: finance`, `+access: private`). In SQL files, use `{{ config(access='public', group='finance') }}`.
+
 ### Adoption order
 
 ```
@@ -137,11 +168,16 @@ Use a contract when:
 - The model is `access: public` (especially if referenced cross-project)
 - Other teams depend on this model's schema stability
 - The model feeds an exposure (dashboard, ML pipeline, reverse ETL)
+- External consumers (other dbt projects, BI dashboards, reverse ETL) query the table directly and would break from column renames or removals
 
-Skip contracts when:
-- The model is private/internal and changes frequently
-- You are still iterating on the model design
-- The model is ephemeral (contracts are not supported on ephemeral models)
+Do NOT add a contract when:
+- **Staging models** (`stg_*`) — these are internal implementation details, not consumer-facing APIs
+- **The model is still evolving** — if the user says they are iterating on the design, advise waiting until the schema stabilizes
+- **No external consumers exist** — in a single-project setup with no cross-project refs, no BI tools depending on the schema, and no exposures, contracts add maintenance overhead without benefit. Ask about consumers before recommending contracts.
+- **Dynamic/pivot columns** — models that use `pivot()`, `unpivot()`, or dynamically generate columns are poor candidates because the column list isn't fixed and the contract will break whenever the dynamic values change
+- **Ephemeral models** — contracts are not supported on ephemeral materializations
+
+**If the user asks for a contract on a model that matches the "do NOT add" criteria above, advise against it and explain why.** Do not simply comply — the user may not realize the contract is inappropriate. Suggest alternatives (e.g., data tests for staging models, waiting for schema stability, or switching materialization for ephemeral models).
 
 ### Should this model be versioned?
 
@@ -182,6 +218,10 @@ Is it referenced cross-project?
 | Versioning for non-breaking changes | Creates unnecessary maintenance burden and warehouse cost | Only version for breaking changes (column removal, type change, rename) |
 | Forgetting `dependencies.yml` | Cross-project refs fail without declaring the upstream project | Add upstream project to `dependencies.yml` before using two-argument `ref()` |
 | Referencing non-public models cross-project | Only `public` models are available to other projects | Set `access: public` on models intended for cross-project consumption |
+| Placing `access`, `group`, or `contract` as top-level model properties in YAML | Breaks Fusion engine parsing; top-level placement is not valid config | Always nest under `config:` — e.g. `config: { access: public }` |
+| Adding contracts to staging models | Staging models are internal — contracts add friction without protecting external consumers | Advise against it; suggest data tests instead |
+| Adding contracts to models with dynamic/pivot columns | Column list changes with data, breaking the contract | Advise against it; explain why the column list isn't fixed |
+| Adding contracts without establishing external consumers | Contracts protect a schema boundary — no consumers means no boundary to protect | Ask who depends on this model before adding a contract |
 
 ## Rationalizations to Resist
 
@@ -192,6 +232,7 @@ Is it referenced cross-project?
 | "Everything should be public for flexibility" | Public without contract is a liability. Be intentional about your API surface. |
 | "We need a version for every change" | Most changes are additive and non-breaking. Version only for actual breaking changes. |
 | "Groups are just bureaucracy" | Groups make ownership explicit. When something breaks at 2am, you need to know who owns it. |
+| "The user asked for a contract, so I should add it" | Advise against contracts that don't fit. Staging models, evolving models, pivot models, and models without external consumers are poor candidates. |
 
 ## Red Flags — STOP and Reconsider
 
@@ -201,3 +242,5 @@ Is it referenced cross-project?
 - Removing a column from a contracted model without creating a new version
 - Making a model `private` that is already referenced outside its group
 - Adding `dependencies.yml` without verifying the upstream project has a successful production job run
+- About to place `access`, `group`, or `contract` outside of `config:` in a model YAML file — always nest under `config:`
+- About to add a contract to a staging model, a model with dynamic/pivot columns, or a model the user says is still evolving — advise against it

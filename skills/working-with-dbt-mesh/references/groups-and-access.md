@@ -78,15 +78,24 @@ Access modifiers control which models can `ref` yours:
 
 ### Configuring Access
 
+**Important:** `access` is a config property and must be nested under `config:` in YAML property files. Placing it as a top-level model property breaks the Fusion engine. The same applies to `group` — always co-locate them under `config:`.
+
 ```yaml
+# ✅ CORRECT
 models:
   - name: fct_orders
     config:
       group: finance
       access: public
+
+# ❌ WRONG — breaks Fusion
+models:
+  - name: fct_orders
+    access: public     # not under config:
+    group: finance     # not under config:
 ```
 
-Or in `dbt_project.yml` at the directory level:
+In `dbt_project.yml` at the directory level, use the `+` prefix:
 
 ```yaml
 models:
@@ -185,3 +194,4 @@ In this setup:
 | Creating groups that don't map to real teams | Groups need an owner who can respond when things break |
 | Relying on `protected` (default) when `private` is more appropriate | Be intentional — `protected` is permissive within the project |
 | Expecting `access` to control database permissions | Access modifiers are a dbt concept — manage database permissions separately |
+| Placing `access` or `group` as top-level model properties in YAML | Nest under `config:` — top-level placement breaks Fusion |

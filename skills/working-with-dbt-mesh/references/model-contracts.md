@@ -6,9 +6,22 @@ Model contracts guarantee the shape of a model by enforcing column names, data t
 
 - The model is `access: public` and consumed by other teams or projects
 - The model feeds an exposure (dashboard, ML pipeline, reverse ETL)
+- External consumers (other dbt projects, BI dashboards, reverse ETL) query the table directly and would break from column renames or removals
 - You need build-time schema guarantees, not just post-build test assertions
 
+## When NOT to Use Contracts
+
+Do NOT add a contract — and advise against it even if the user asks — when:
+
+- **Staging models** (`stg_*`): Internal implementation details, not consumer-facing APIs. Suggest data tests instead.
+- **Models still under active development**: If the user says they are iterating on columns or just created the model, advise waiting until the schema stabilizes.
+- **No external consumers**: In a single-project setup with no cross-project refs, no BI tools depending on the schema, and no exposures, contracts add maintenance overhead without benefit. Ask about consumers first.
+- **Dynamic/pivot columns**: Models using `pivot()`, `unpivot()`, or dynamically generated columns are poor candidates — the column list changes with the data, so the contract will break whenever the dynamic values change.
+- **Ephemeral models**: Contracts are not supported on ephemeral materializations.
+
 ## Basic Configuration
+
+**Important:** `contract` is a config property and must be nested under `config:` in YAML property files. Placing it as a top-level model property breaks the Fusion engine.
 
 ```yaml
 models:
@@ -135,3 +148,7 @@ Without `on_schema_change`, schema drift between the YAML contract and the datab
 | Using contracts on ephemeral models | Switch to `table`, `view`, or `incremental` |
 | Assuming constraints are enforced everywhere | Check your warehouse's constraint enforcement — many are informational only |
 | Changing contracted columns without versioning | Create a new model version for breaking changes |
+| Placing `contract` as a top-level model property in YAML | Nest under `config:` — top-level placement breaks Fusion |
+| Adding a contract to a staging model | Staging models are internal — use data tests instead |
+| Adding a contract to a model with dynamic/pivot columns | The column list changes with data, breaking the contract |
+| Adding a contract without asking about external consumers | Ask who depends on this model's schema before adding a contract |
