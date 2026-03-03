@@ -1,0 +1,13 @@
+version: 2
+
+models:
+  - name: stg_users
+    description: This entry has no corresponding SQL file
+    columns:
+      - name: user_id
+        description: Primary key
+
+  - name: stg_orders
+    description: This model exists
+    columns:
+      - name: order_id

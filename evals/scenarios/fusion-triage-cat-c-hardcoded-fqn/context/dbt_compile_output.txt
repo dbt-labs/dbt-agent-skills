@@ -1,0 +1,15 @@
+Running with dbt=2.0.0-beta.1
+Found 1 model, 0 sources, 0 tests, 0 snapshots, 0 seeds, 0 macros
+
+Runtime Error in model example_model (models/example_model.sql)
+  dbt0214: Permission denied accessing relation 'prod.raw.orders'
+
+  The current credentials do not have access to 'prod.raw.orders'.
+  This may be a hardcoded fully-qualified table name that should be
+  replaced with {{ ref() }} or {{ source() }} to use dbt's environment-aware
+  resolution.
+
+  > in model example_model (models/example_model.sql)
+
+  Compilation failed for 1 model.
+  1 error found.

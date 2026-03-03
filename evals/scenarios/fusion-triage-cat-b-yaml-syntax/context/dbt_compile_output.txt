@@ -1,0 +1,14 @@
+Running with dbt=2.0.0-beta.1
+
+Configuration Error in dbt_project.yml
+  dbt1060: Unexpected key in project config: 'vars:'
+
+  The key 'vars:' (with trailing colon) is not a recognized project
+  configuration key. This appears to be a YAML syntax issue — the line
+  `vars::` creates a key named `vars:` instead of the expected `vars`.
+
+  Did you mean `vars:` (single colon)?
+
+  > in dbt_project.yml
+
+  Project loading failed with 1 error.

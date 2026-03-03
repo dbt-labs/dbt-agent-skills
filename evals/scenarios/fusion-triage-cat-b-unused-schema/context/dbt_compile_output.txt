@@ -1,0 +1,12 @@
+Running with dbt=2.0.0-beta.1
+Found 1 model, 0 sources, 0 tests, 0 snapshots, 0 seeds, 0 macros
+
+Warning in schema.yml
+  dbt1005: Unused schema.yml entry for model 'stg_users'
+
+  The model 'stg_users' is defined in models/schema.yml but no
+  corresponding SQL file (stg_users.sql) was found in the models directory.
+
+  > in models/schema.yml
+
+  Compilation completed with 1 warning.

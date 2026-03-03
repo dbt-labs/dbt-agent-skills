@@ -1,0 +1,18 @@
+Running with dbt=2.0.0-beta.1
+Found 1 model, 0 sources, 0 tests, 0 snapshots, 0 seeds, 0 macros
+
+Configuration Warning in model my_model (models/my_model.sql)
+  dbt1060: Unexpected key in config: 'my_custom_key'
+
+  The key `my_custom_key` is not a recognized dbt config key. Custom
+  configuration keys should be placed in the `meta` section of the config
+  block.
+
+Configuration Warning in model my_model (models/my_model.sql)
+  dbt1060: Unexpected key in config: 'another_unexpected_key'
+
+  The key `another_unexpected_key` is not a recognized dbt config key.
+
+  > in model my_model (models/my_model.sql)
+
+  Compilation completed with 2 warnings.

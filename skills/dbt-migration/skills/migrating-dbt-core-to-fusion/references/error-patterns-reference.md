@@ -99,14 +99,16 @@ packages:
 # Before (dbt1000)
 tests:
   - accepted_values:
-      values: [1, 2, 3]
+      arguments:
+        values: [1, 2, 3]
       config:
         warn_if: "{{ 'count' == 0 }}"
 
 # After
 tests:
   - accepted_values:
-      values: [1, 2, 3]
+      arguments:
+        values: [1, 2, 3]
       config:
         warn_if: '{{ "count" == 0 }}'
 ```

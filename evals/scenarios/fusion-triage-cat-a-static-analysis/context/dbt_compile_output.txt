@@ -1,0 +1,14 @@
+Running with dbt=2.0.0-beta.1
+Found 1 model, 0 sources, 0 tests, 0 snapshots, 0 seeds, 0 macros, 1 analysis
+
+Static Analysis Error in analysis explore_data (analyses/explore_data.sql)
+  dbt0209: Function not found in static analysis: array_to_string
+
+  The function `array_to_string` is not recognized by the static analysis engine.
+  This may be a database-specific function not available in the analysis context.
+
+  Additionally: No column `invalid_sql` found in scope.
+
+  > in analysis explore_data (analyses/explore_data.sql)
+
+  Compilation completed with 1 error.

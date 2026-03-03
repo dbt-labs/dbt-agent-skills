@@ -1,0 +1,11 @@
+name: 'test_yaml_syntax_error'
+version: '1.0.0'
+config-version: 2
+
+profile: 'default'
+
+model-paths: ["models"]
+
+# This line has invalid YAML syntax (double colon)
+vars::
+  customer_id: 123

@@ -1,0 +1,12 @@
+Running with dbt=2.0.0-beta.1
+Found 1 model, 0 sources, 0 tests, 0 snapshots, 0 seeds, 0 macros
+
+Static Analysis Error in model example_model (models/example_model.sql)
+  dbt0404: SELECT with no columns
+
+  The compiled SQL contains a SELECT statement with no column expressions.
+  This typically happens when a Jinja loop produces no output.
+
+  > in model example_model (models/example_model.sql)
+
+  Compilation completed with 1 error.
