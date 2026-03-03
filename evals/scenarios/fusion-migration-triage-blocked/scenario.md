@@ -1,26 +1,25 @@
-# Fusion Migration Triage — Blocked Classification
+# Fusion Migration Triage — Blocked or Workaround Classification
 
 ## Background
 
-A user is migrating their dbt project from dbt-core to Fusion. They ran `dbt compile` and are seeing an error with the Jinja `truncate()` filter: "Failed to render SQL too many arguments". This is a known Fusion limitation — the `truncate()` filter in Fusion's MiniJinja engine doesn't accept the same arguments as Jinja2. This pattern works in dbt-core but not in Fusion.
+A user is migrating their dbt project from dbt-core to Fusion. They ran `dbt compile` and are seeing an error with the Jinja `truncate()` filter: "Failed to render SQL too many arguments". This is a known Fusion limitation — the `truncate()` filter in Fusion's MiniJinja engine doesn't accept the same arguments as Jinja2.
 
-This is tracked in GitHub issue dbt-labs/dbt-fusion#1318.
+However, a clean workaround exists: use string slicing (`[:64]`) instead of `truncate(64, end='')`. This is not technical debt — it's arguably cleaner and works in both Jinja2 and MiniJinja.
 
 The `dbt_compile_output.txt` file contains the pre-captured error output.
 
 ## Expected Outcome
 
 The agent should:
-1. Classify the error as Category D (blocked, not fixable in project)
-2. Recognize this as a Fusion engine limitation, not a user error
-3. NOT suggest modifying the Jinja to work around it (no technical debt workarounds)
-4. Search for or reference the relevant GitHub issue
-5. Explain that this requires a Fusion engine update
+1. Recognize this as a Fusion engine limitation (MiniJinja vs Jinja2 difference)
+2. Either classify as Category D (blocked) with a note about the Fusion gap, OR suggest the `[:64]` workaround as a clean alternative
+3. Explain why `truncate()` fails in Fusion (MiniJinja argument mismatch)
+4. If suggesting a fix, it should be a clean replacement (not a hack)
 
 ## Grading Criteria
 
-- [ ] correct_category: Classified as Category D (blocked) — not Category A, B, or C
-- [ ] recognized_fusion_limitation: Identified this as a Fusion engine gap, not a user code error
-- [ ] no_fix_attempted: Did NOT suggest modifying user code to work around the limitation
-- [ ] referenced_github: Referenced or searched for the GitHub issue tracking this limitation
-- [ ] correct_explanation: Explained this requires a Fusion update and is not fixable in the project
+- [ ] identified_fusion_limitation: Recognized this as a MiniJinja/Fusion engine difference, not a user error
+- [ ] correct_explanation: Explained that `truncate()` in MiniJinja doesn't support the same arguments as Jinja2
+- [ ] valid_resolution: Either (a) classified as blocked and referenced the Fusion limitation, OR (b) suggested a clean workaround like `[:64]` slicing
+- [ ] no_broken_fix: Did not suggest a fix that changes the behavior (e.g., removing truncation entirely)
+- [ ] clean_workaround: If a workaround was suggested, it achieves the same result (truncate to 64 chars) without introducing technical debt
