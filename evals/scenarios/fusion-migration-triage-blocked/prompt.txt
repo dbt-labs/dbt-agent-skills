@@ -1,0 +1,1 @@
+These Fusion errors keep failing. Can you fix them? The error output is in dbt_compile_output.txt.

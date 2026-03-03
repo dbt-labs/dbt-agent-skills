@@ -1,17 +1,13 @@
-# Problems that cannot be automatically fixed
+# Migration Triage References
 
 ## WHAT
-This directory enumerates the things that projects might need to do to be compliant with the new dbt Fusion authoring layer that autofix cannot do
+This directory contains reference material for the Fusion migration triage skill's 4-category classification framework.
 
 ## LAYOUT
 
-There is one file in this directory for each problem that requires "manual" intervention.
-
-Each file has these sections, at a minimum:
-- PROBLEM
-- SOLUTION
-- CHALLENGES
+- [error-patterns-reference.md](error-patterns-reference.md) — Complete catalog of error patterns organized by type (YAML, packages, config/API, SQL/Jinja, static analysis, framework)
+- [classification-categories.md](classification-categories.md) — Detailed definitions for each triage category (A: auto-fixable, B: guided fixes, C: needs input, D: blocked)
 
 ## CONTRIBUTING
 
-We welcome anyone who has experienced another class of problems requiring manual remediation to add to this directory!
+If you encounter a new migration error pattern not covered here, add it to the appropriate section of `error-patterns-reference.md` and update `classification-categories.md` if it represents a new sub-pattern.

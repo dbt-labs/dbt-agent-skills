@@ -1,0 +1,10 @@
+name: 'test_framework_error'
+version: '1.0.0'
+config-version: 2
+
+profile: 'default'
+
+model-paths: ["models"]
+
+clean-targets:
+  - "target"

@@ -1,0 +1,14 @@
+Running with dbt=2.0.0-beta.1
+Found 1 model, 0 sources, 0 tests, 0 snapshots, 0 seeds, 0 macros
+
+Compilation Error in model example_model (models/example_model.sql)
+  dbt1501: Argument must be a string or a list. Received: (empty)
+
+  The `config.require()` method signature has changed. `config.require('meta')`
+  no longer returns the meta dictionary directly. Use `config.meta_require('key_name')`
+  to access individual meta keys.
+
+  > in macro (models/example_model.sql)
+
+  Compilation failed for 1 model.
+  1 error found.
