@@ -1,6 +1,10 @@
 dbt-fusion 2.0.0-preview.140 (v2.0.0-preview.140-modified 2026-03-02 10:41:41)
    Loading ~/.dbt/profiles.yml
+
+=================== Errors and Warnings ====================
+error: dbt1060: Ignored unexpected key `"'vars:'"`. YAML path: `vars:`.
+  --> dbt_project.yml:10:1
 suggestion: Run 'dbt deps' to see the latest fusion compatible packages. For compatibility errors, try the autofix script: https://github.com/dbt-labs/dbt-autofix
 
 ==================== Execution Summary =====================
-Finished 'compile' with 1 error for target 'postgres' [598ms]
+Finished 'compile' with 1 error for target 'postgres' [890ms]

@@ -1,1 +1,0 @@
-I ran dbt compile and got an empty SELECT error. Help me understand what I can fix. The compile output is in dbt_compile_output.txt.

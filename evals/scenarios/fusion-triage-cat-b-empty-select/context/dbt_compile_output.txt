@@ -1,5 +1,0 @@
-dbt-fusion 2.0.0-preview.140 (v2.0.0-preview.140-modified 2026-03-02 10:41:41)
-   Loading ~/.dbt/profiles.yml
-
-==================== Execution Summary =====================
-Finished 'compile' with 1 error for target 'postgres' [703ms]
