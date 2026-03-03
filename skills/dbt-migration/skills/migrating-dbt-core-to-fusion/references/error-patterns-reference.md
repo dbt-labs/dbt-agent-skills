@@ -96,7 +96,6 @@ packages:
 
 | Error Code | Signal | Fix |
 |------------|--------|-----|
-| `dbt0404` | "SELECT with no columns" | Add `SELECT 1` or actual column list |
 | `dbt0214` | "Permission denied" | Check credentials or use `{{ ref() }}` / `{{ source() }}` |
 | `dbt1502` | Missing `{% endif %}`, "unexpected end of template" | Balance if/endif, for/endfor, macro/endmacro pairs |
 | `dbt1000` | "syntax error: unexpected identifier" with nested quotes | Use single quotes outside: `warn_if='{{ "text" }}'` |
