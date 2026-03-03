@@ -1,0 +1,20 @@
+sets:
+  - name: no-skills
+    skills: []
+    allowed_tools:
+      - Read
+      - Glob
+      - Grep
+
+  - name: with-triage-skill
+    skills:
+      - skills/migrating-dbt-core-to-fusion
+    allowed_tools:
+      - Read
+      - Glob
+      - Grep
+      - Edit
+      - Bash(dbt:*)
+      - Bash(git:*)
+      - Bash(uvx:*)
+      - WebFetch(domain:api.github.com)

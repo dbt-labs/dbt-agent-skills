@@ -7,8 +7,13 @@ Complete catalog of dbt-core to Fusion migration error patterns, organized by ty
 | Error Code | Signal | Fix |
 |------------|--------|-----|
 | `dbt1013` | "YAML mapping values not allowed" | Fix YAML syntax (quotes, indentation, remove extra colons) |
-| `dbt1060` | "Unexpected key in config" | Move custom keys to `meta:` section |
+| `dbt1060` | "Unexpected key in config" | Move custom keys to `meta:` section (but check if it's a misspelling first — see below) |
+| `dbt0102` | "No tables defined for source" | Delete empty source definition, or move config to `dbt_project.yml` |
 | — | Empty `data_type:` value | Provide a value or remove the key |
+
+### Misspelled config keys after autofix
+
+dbt-autofix moves unrecognized config keys into `meta:`. But some may be misspelled versions of real config keys (e.g. `materailized` instead of `materialized`). Check if any key inside `meta:` is a near-match for a known Fusion config key. If it's a typo: move it back out of `meta:` with the correct spelling. If it's truly custom: leave it in `meta:` and update macro references to use `config.meta_get('key')`.
 
 ### Example: Unexpected config key
 
@@ -31,9 +36,11 @@ models:
 
 | Error Code | Signal | Fix |
 |------------|--------|-----|
+| `dbt1001` | "Failed to parse package-lock.yml" or malformed lockfile | Delete `package-lock.yml` (it will regenerate on `dbt deps`) |
 | `dbt1005` | "Package not in lookup map" | Update package version in `packages.yml` |
 | `dbt8999` | "Cannot combine non-exact versions" | Use exact pins (e.g., `"==1.0.0"`) |
 | — | `require-dbt-version` error | Update version constraint |
+| — | "package incompatible", "failed to resolve", "dependency conflict" | Look up latest compatible version on hub.getdbt.com, update packages.yml |
 
 ### Example: Package version pinning
 
@@ -49,7 +56,9 @@ packages:
     version: "==1.3.0"
 ```
 
-**Note**: After changing package versions, delete `package-lock.yml` and the `dbt_packages/` directory, then run `dbt deps`.
+**Note**: After changing package versions, delete `package-lock.yml` and the `dbt_packages/` directory, then run `dbt deps`. If errors persist, run `dbt-autofix deprecations --include-packages`.
+
+**Note**: Fivetran `_source` packages have been merged into main packages (e.g. `fivetran/microsoft_ads_source` is now `fivetran/microsoft_ads`).
 
 ## Config/API Changes
 
@@ -89,9 +98,10 @@ packages:
 |------------|--------|-----|
 | `dbt0404` | "SELECT with no columns" | Add `SELECT 1` or actual column list |
 | `dbt0214` | "Permission denied" | Check credentials or use `{{ ref() }}` / `{{ source() }}` |
-| `dbt1502` | Missing `{% endif %}` | Balance if/endif pairs |
+| `dbt1502` | Missing `{% endif %}`, "unexpected end of template" | Balance if/endif, for/endfor, macro/endmacro pairs |
 | `dbt1000` | "syntax error: unexpected identifier" with nested quotes | Use single quotes outside: `warn_if='{{ "text" }}'` |
 | — | Dangling identifiers (hardcoded `database.schema.table`) | Replace with `{{ ref() }}` or `{{ source() }}` |
+| — | PIVOT ... IN (ANY) unsupported by static analysis | Refactor to hard-coded values or disable static analysis |
 
 ### Example: Quote nesting fix
 
@@ -155,13 +165,21 @@ Fusion requires exact name matching. dbt-core was lenient with spaces vs undersc
 | `dbt1021` | "Seed cast error" | Clean CSV (ISO dates, lowercase `null`, consistent columns) |
 | — | "--models flag deprecated" | Replace `--models/-m` with `--select/-s` |
 
+## Connection/Credential Errors
+
+| Error Code | Signal | Fix |
+|------------|--------|-----|
+| `dbt1308` | "constructing client", "connection", "authentication", "credentials" | Check `profiles.yml` and data platform credentials — not a migration issue |
+
 ## Fusion Engine Gaps (Category D)
 
 These are NOT fixable in user code. They require Fusion engine updates.
 
 | Signal | Meaning | Action |
 |--------|---------|--------|
-| MiniJinja filter differences (e.g. `truncate()` argument mismatch) | Fusion's MiniJinja engine doesn't support the same filter signatures as Jinja2 | Search GitHub issues, link if found |
+| MiniJinja filter differences (e.g. `truncate()` argument mismatch) | Fusion's MiniJinja engine doesn't support the same filter signatures as Jinja2 | Search GitHub issues, link if found. Some have clean workarounds (e.g. string slicing) |
 | Parser gaps / missing implementations | Feature not yet implemented in Fusion | Search GitHub issues |
+| Wrong materialization dispatched (e.g. seeds dispatched to table macro) | Internal dispatch bug | No user workaround — requires Fusion fix |
 | Unsupported macro patterns | Macro works in dbt-core but not in Fusion | Document, check for tracked issue |
-| Adapter-specific functionality gaps | Adapter feature not available in Fusion | Document, check for tracked issue |
+| Adapter-specific functionality gaps (e.g. `not yet implemented: Adapter::method`) | Adapter feature not available in Fusion | Document, check for tracked issue |
+| `panic!` / `internal error` / `RUST_BACKTRACE` | Fusion engine crash | Search GitHub issues, report if not found |
