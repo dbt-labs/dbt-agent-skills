@@ -1,1 +1,0 @@
-I ran dbt build on my project and my seeds are failing with weird syntax errors. Can you fix this? The error output is in dbt_compile_output.txt.

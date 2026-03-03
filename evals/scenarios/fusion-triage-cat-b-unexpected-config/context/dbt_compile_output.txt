@@ -1,18 +1,6 @@
-Running with dbt=2.0.0-beta.1
-Found 1 model, 0 sources, 0 tests, 0 snapshots, 0 seeds, 0 macros
+dbt-fusion 2.0.0-preview.140 (v2.0.0-preview.140-modified 2026-03-02 10:41:41)
+   Loading ~/.dbt/profiles.yml
+suggestion: Run 'dbt deps' to see the latest fusion compatible packages. For compatibility errors, try the autofix script: https://github.com/dbt-labs/dbt-autofix
 
-Configuration Warning in model my_model (models/my_model.sql)
-  dbt1060: Unexpected key in config: 'my_custom_key'
-
-  The key `my_custom_key` is not a recognized dbt config key. Custom
-  configuration keys should be placed in the `meta` section of the config
-  block.
-
-Configuration Warning in model my_model (models/my_model.sql)
-  dbt1060: Unexpected key in config: 'another_unexpected_key'
-
-  The key `another_unexpected_key` is not a recognized dbt config key.
-
-  > in model my_model (models/my_model.sql)
-
-  Compilation completed with 2 warnings.
+==================== Execution Summary =====================
+Finished 'compile' with 2 errors for target 'postgres' [734ms]

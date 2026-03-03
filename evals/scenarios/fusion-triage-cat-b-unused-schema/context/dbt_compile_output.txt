@@ -1,12 +1,7 @@
-Running with dbt=2.0.0-beta.1
-Found 1 model, 0 sources, 0 tests, 0 snapshots, 0 seeds, 0 macros
+dbt-fusion 2.0.0-preview.140 (v2.0.0-preview.140-modified 2026-03-02 10:41:41)
+   Loading ~/.dbt/profiles.yml
 
-Warning in schema.yml
-  dbt1005: Unused schema.yml entry for model 'stg_users'
-
-  The model 'stg_users' is defined in models/schema.yml but no
-  corresponding SQL file (stg_users.sql) was found in the models directory.
-
-  > in models/schema.yml
-
-  Compilation completed with 1 warning.
+==================== Execution Summary =====================
+Finished 'compile' with 2 warnings for target 'postgres' [874ms]
+Processed: 1 model
+Summary: 1 total | 1 success

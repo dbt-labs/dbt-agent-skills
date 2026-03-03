@@ -1,15 +1,12 @@
-Running with dbt=2.0.0-beta.1
-Found 1 model, 0 sources, 0 tests, 0 snapshots, 0 seeds, 0 macros
+dbt-fusion 2.0.0-preview.140 (v2.0.0-preview.140-modified 2026-03-02 10:41:41)
+   Loading ~/.dbt/profiles.yml
+    Failed [  4.65s] model fusion_tests_schema.example_model (view)
 
-Runtime Error in model example_model (models/example_model.sql)
-  dbt0214: Permission denied accessing relation 'prod.raw.orders'
+=================== Errors and Warnings ====================
+error: dbt0214: Table 'PROD.RAW.ORDERS' is missing in remote
+  --> models/example_model.sql:9:6 (target/compiled/models/example_model.sql:9:6)
 
-  The current credentials do not have access to 'prod.raw.orders'.
-  This may be a hardcoded fully-qualified table name that should be
-  replaced with {{ ref() }} or {{ source() }} to use dbt's environment-aware
-  resolution.
-
-  > in model example_model (models/example_model.sql)
-
-  Compilation failed for 1 model.
-  1 error found.
+==================== Execution Summary =====================
+Finished 'compile' with 1 error for target 'snowflake' [5.4s]
+Processed: 1 model
+Summary: 1 total | 1 error

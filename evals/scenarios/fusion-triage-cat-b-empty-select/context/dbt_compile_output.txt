@@ -1,12 +1,5 @@
-Running with dbt=2.0.0-beta.1
-Found 1 model, 0 sources, 0 tests, 0 snapshots, 0 seeds, 0 macros
+dbt-fusion 2.0.0-preview.140 (v2.0.0-preview.140-modified 2026-03-02 10:41:41)
+   Loading ~/.dbt/profiles.yml
 
-Static Analysis Error in model example_model (models/example_model.sql)
-  dbt0404: SELECT with no columns
-
-  The compiled SQL contains a SELECT statement with no column expressions.
-  This typically happens when a Jinja loop produces no output.
-
-  > in model example_model (models/example_model.sql)
-
-  Compilation completed with 1 error.
+==================== Execution Summary =====================
+Finished 'compile' with 1 error for target 'postgres' [703ms]

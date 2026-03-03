@@ -1,1 +1,1 @@
-These Fusion errors keep failing. Can you fix them? The error output is in dbt_compile_output.txt.
+I keep getting this Fusion error when I compile. Is this a known issue? Can you check if there's a GitHub issue for it? The error output is in dbt_compile_output.txt.

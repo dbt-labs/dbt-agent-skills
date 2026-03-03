@@ -2,21 +2,17 @@
   config(
     materialized='table',
     meta={
-      'logical_key': ['id', 'user_id'],
-      'owner': 'analytics_team'
+      'owner': 'analytics_team',
+      'logical_key': ['id', 'user_id']
     }
   )
 }}
 
--- This model uses the deprecated config.require('meta') API
--- It should trigger a dbt1501 error in Fusion
-
-{% set keys = config.require('meta').logical_key %}
-{% set owner = config.require('meta').owner %}
+{% set owner = config.require('owner') %}
+{% set keys = config.require('logical_key') %}
 
 select
   1 as id,
   100 as user_id,
-  'test' as name,
   '{{ owner }}' as owner,
   '{{ keys | join(", ") }}' as key_columns

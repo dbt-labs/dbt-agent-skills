@@ -1,14 +1,239 @@
-Running with dbt=2.0.0-beta.1
-Found 1 model, 0 sources, 0 tests, 0 snapshots, 0 seeds, 0 macros, 1 analysis
-
-Static Analysis Error in analysis explore_data (analyses/explore_data.sql)
-  dbt0209: Function not found in static analysis: array_to_string
-
-  The function `array_to_string` is not recognized by the static analysis engine.
-  This may be a database-specific function not available in the analysis context.
-
-  Additionally: No column `invalid_sql` found in scope.
-
-  > in analysis explore_data (analyses/explore_data.sql)
-
-  Compilation completed with 1 error.
+==================== 2026-03-02T21:25:53.571656Z | 019cb071-7d1a-7162-a6e0-5329220eafe6 ====================
+21:25:53.572064 [info ]: dbt-fusion 2.0.0-preview.127 (vsce-v0.46.0 2026-02-24 13:31:18)
+21:25:53.572758 [info ]: Started loading project
+21:25:53.576021 [info ]: Loading ~/.dbt/profiles.yml
+21:25:53.594514 [debug]:    Started loading packages
+21:25:53.596016 [debug]:     Loaded [  0.00s] packages
+21:25:53.618412 [info ]: Finished loading project [  0.05s]
+21:25:53.619170 [info ]: Started parsing
+21:25:53.721620 [debug]: Finished parsing models/example_model.sql [  0.00s]
+21:25:53.734833 [debug]: Finished parsing analyses/explore_data.sql [  0.00s]
+21:25:53.737658 [info ]: Finished parsing [  0.12s]
+21:25:53.769294 [info ]: New version available 2.0.0-preview.143 (run `dbt system update`)
+21:25:53.973873 [info ]: 
+==================== Execution Summary =====================
+Finished 'parse' successfully for target 'default' [402ms]
+==================== 2026-03-02T21:25:57.230736Z | 019cb071-8b65-78d2-a6f6-3bdde80706fe ====================
+21:25:57.231219 [info ]: dbt-fusion 2.0.0-preview.127 (vsce-v0.46.0 2026-02-24 13:31:18)
+21:25:57.231963 [info ]: Started loading project
+21:25:57.235239 [info ]: Loading ~/.dbt/profiles.yml
+21:25:57.244147 [debug]:    Started loading packages
+21:25:57.245553 [debug]:     Loaded [  0.00s] packages
+21:25:57.268710 [info ]: Finished loading project [  0.04s]
+21:25:57.269456 [info ]: Started parsing
+21:25:57.375249 [debug]: Finished parsing models/example_model.sql [  0.00s]
+21:25:57.377719 [debug]: Finished parsing analyses/explore_data.sql [  0.00s]
+21:25:57.380232 [info ]: Finished parsing [  0.11s]
+21:25:57.380835 [info ]: Started scheduling
+21:25:57.381119 [info ]: Finished scheduling [  0.00s]
+21:25:57.387166 [info ]: Started deferring state
+21:25:57.387249 [info ]: Finished deferring state [  0.00s]
+21:25:57.695100 [info ]: Started building task graph
+21:25:57.695670 [info ]: Finished building task graph [  0.00s]
+21:25:57.699313 [info ]: Started rendering (2 nodes)
+21:25:57.699470 [info ]: Started model ani_default_schema.example_model
+21:25:57.699500 [debug]: Started rendering model ani_default_schema.example_model
+21:25:57.702161 [debug]: Compiled SQL for node model.test_static_analysis_in_analyses.example_model at target/compiled/models/example_model.sql
+21:25:57.702365 [debug]: Finished rendering [  0.00s] model ani_default_schema.example_model [success]
+21:25:57.702503 [info ]: Started analyzing (1 nodes)
+21:25:57.702745 [debug]: Started analyzing model ani_default_schema.example_model
+21:25:57.794555 [info ]:  Succeeded [  0.09s] model ani_default_schema.example_model (view)
+21:25:57.794675 [debug]: Finished analyzing [  0.09s] model ani_default_schema.example_model [success]
+21:25:57.794790 [info ]: Finished analyzing [  0.09s] (1 nodes, 0 skipped, 0 errors)
+21:25:57.794954 [info ]: Started analysis ani_default_schema.explore_data
+21:25:57.794992 [debug]: Started rendering analysis ani_default_schema.explore_data
+21:25:57.799278 [debug]: Compiled SQL for node analysis.test_static_analysis_in_analyses.explore_data at target/compiled/analyses/explore_data.sql
+21:25:57.799462 [info ]:  Succeeded [  0.00s] analysis ani_default_schema.explore_data (analysis)
+21:25:57.799520 [debug]: Finished rendering [  0.00s] analysis ani_default_schema.explore_data [success]
+21:25:57.799591 [info ]: Finished rendering [  0.10s] (2 nodes, 0 skipped, 0 errors)
+21:25:57.826819 [info ]: New version available 2.0.0-preview.143 (run `dbt system update`)
+21:25:58.001923 [info ]: 
+==================== Execution Summary =====================
+Finished 'compile' successfully for target 'default' [771ms]
+Processed: 1 model | 1 analysis
+Summary: 2 total | 2 success
+==================== 2026-03-02T21:26:10.315149Z | 019cb071-be82-7620-ba66-b5f5cdf0bed9 ====================
+21:26:10.315617 [info ]: dbt-fusion 2.0.0-preview.127 (vsce-v0.46.0 2026-02-24 13:31:18)
+21:26:10.316295 [info ]: Started loading project
+21:26:10.319656 [info ]: Loading ~/.dbt/profiles.yml
+21:26:10.328086 [debug]:    Started loading packages
+21:26:10.329442 [debug]:     Loaded [  0.00s] packages
+21:26:10.351510 [info ]: Finished loading project [  0.04s]
+21:26:10.352132 [info ]: Started parsing
+21:26:10.449528 [debug]: Finished parsing models/example_model.sql [  0.00s]
+21:26:10.452566 [debug]: Finished parsing analyses/explore_data.sql [  0.00s]
+21:26:10.455197 [info ]: Finished parsing [  0.10s]
+21:26:10.455846 [info ]: Started scheduling
+21:26:10.456049 [info ]: Finished scheduling [  0.00s]
+21:26:10.461639 [info ]: Started deferring state
+21:26:10.461751 [info ]: Finished deferring state [  0.00s]
+21:26:10.754297 [info ]: Started building task graph
+21:26:10.754866 [info ]: Finished building task graph [  0.00s]
+21:26:10.755959 [info ]: Started rendering (2 nodes)
+21:26:10.756115 [info ]: Started model ani_default_schema.example_model
+21:26:10.756149 [debug]: Started rendering model ani_default_schema.example_model
+21:26:10.758521 [debug]: Compiled SQL for node model.test_static_analysis_in_analyses.example_model at target/compiled/models/example_model.sql
+21:26:10.758978 [debug]: Finished rendering [  0.00s] model ani_default_schema.example_model [success]
+21:26:10.759204 [info ]: Started analyzing (1 nodes)
+21:26:10.759324 [debug]: Started analyzing model ani_default_schema.example_model
+21:26:10.803563 [info ]:  Succeeded [  0.05s] model ani_default_schema.example_model (view)
+21:26:10.803633 [debug]: Finished analyzing [  0.04s] model ani_default_schema.example_model [success]
+21:26:10.803706 [info ]: Finished analyzing [  0.04s] (1 nodes, 0 skipped, 0 errors)
+21:26:10.803817 [info ]: Started analysis ani_default_schema.explore_data
+21:26:10.803856 [debug]: Started rendering analysis ani_default_schema.explore_data
+21:26:10.805741 [debug]: Compiled SQL for node analysis.test_static_analysis_in_analyses.explore_data at target/compiled/analyses/explore_data.sql
+21:26:10.806059 [info ]:  Succeeded [  0.00s] analysis ani_default_schema.explore_data (analysis)
+21:26:10.806136 [debug]: Finished rendering [  0.00s] analysis ani_default_schema.explore_data [success]
+21:26:10.806231 [info ]: Finished rendering [  0.05s] (2 nodes, 0 skipped, 0 errors)
+21:26:10.833338 [info ]: New version available 2.0.0-preview.143 (run `dbt system update`)
+21:26:11.084186 [info ]: 
+==================== Execution Summary =====================
+Finished 'compile' successfully for target 'default' [769ms]
+Processed: 1 model | 1 analysis
+Summary: 2 total | 2 success
+==================== 2026-03-02T21:26:31.775749Z | 019cb072-1257-7b12-86c4-e28e085ecc56 ====================
+21:26:31.776237 [info ]: dbt-fusion 2.0.0-preview.127 (vsce-v0.46.0 2026-02-24 13:31:18)
+21:26:31.777071 [info ]: Started loading project
+21:26:31.780519 [info ]: Loading ~/.dbt/profiles.yml
+21:26:31.789011 [debug]:    Started loading packages
+21:26:31.790403 [debug]:     Loaded [  0.00s] packages
+21:26:31.813830 [info ]: Finished loading project [  0.04s]
+21:26:31.814469 [info ]: Started parsing
+21:26:31.920616 [debug]: Finished parsing models/example_model.sql [  0.00s]
+21:26:31.923172 [debug]: Finished parsing analyses/explore_data.sql [  0.00s]
+21:26:31.925751 [info ]: Finished parsing [  0.11s]
+21:26:31.964166 [info ]: New version available 2.0.0-preview.143 (run `dbt system update`)
+21:26:32.168046 [info ]: 
+==================== Execution Summary =====================
+Finished 'parse' successfully for target 'default' [392ms]
+==================== 2026-03-02T21:26:37.231852Z | 019cb072-27a6-7c83-aead-12fea2714756 ====================
+21:26:37.232314 [info ]: dbt-fusion 2.0.0-preview.127 (vsce-v0.46.0 2026-02-24 13:31:18)
+21:26:37.233069 [info ]: Started loading project
+21:26:37.236438 [info ]: Loading ~/.dbt/profiles.yml
+21:26:37.245093 [debug]:    Started loading packages
+21:26:37.246463 [debug]:     Loaded [  0.00s] packages
+21:26:37.268612 [info ]: Finished loading project [  0.04s]
+21:26:37.269231 [info ]: Started parsing
+21:26:37.367534 [debug]: Finished parsing models/example_model.sql [  0.00s]
+21:26:37.370020 [debug]: Finished parsing analyses/explore_data.sql [  0.00s]
+21:26:37.372482 [info ]: Finished parsing [  0.10s]
+21:26:37.373073 [info ]: Started scheduling
+21:26:37.373424 [info ]: Finished scheduling [  0.00s]
+21:26:37.379316 [info ]: Started deferring state
+21:26:37.379421 [info ]: Finished deferring state [  0.00s]
+21:26:37.679397 [info ]: Started building task graph
+21:26:37.679911 [info ]: Finished building task graph [  0.00s]
+21:26:37.680829 [info ]: Started rendering (2 nodes)
+21:26:37.680961 [info ]: Started model ani_default_schema.example_model
+21:26:37.680997 [debug]: Started rendering model ani_default_schema.example_model
+21:26:37.682964 [debug]: Compiled SQL for node model.test_static_analysis_in_analyses.example_model at target/compiled/models/example_model.sql
+21:26:37.683125 [debug]: Finished rendering [  0.00s] model ani_default_schema.example_model [success]
+21:26:37.683252 [info ]: Started analyzing (1 nodes)
+21:26:37.683321 [debug]: Started analyzing model ani_default_schema.example_model
+21:26:37.728530 [info ]:  Succeeded [  0.05s] model ani_default_schema.example_model (view)
+21:26:37.728615 [debug]: Finished analyzing [  0.05s] model ani_default_schema.example_model [success]
+21:26:37.728698 [info ]: Finished analyzing [  0.05s] (1 nodes, 0 skipped, 0 errors)
+21:26:37.728825 [info ]: Started analysis ani_default_schema.explore_data
+21:26:37.728857 [debug]: Started rendering analysis ani_default_schema.explore_data
+21:26:37.730411 [debug]: Compiled SQL for node analysis.test_static_analysis_in_analyses.explore_data at target/compiled/analyses/explore_data.sql
+21:26:37.730551 [info ]:  Succeeded [  0.00s] analysis ani_default_schema.explore_data (analysis)
+21:26:37.730599 [debug]: Finished rendering [  0.00s] analysis ani_default_schema.explore_data [success]
+21:26:37.730660 [info ]: Finished rendering [  0.05s] (2 nodes, 0 skipped, 0 errors)
+21:26:37.760387 [info ]: New version available 2.0.0-preview.143 (run `dbt system update`)
+21:26:37.999253 [info ]: 
+==================== Execution Summary =====================
+Finished 'compile' successfully for target 'default' [767ms]
+Processed: 1 model | 1 analysis
+Summary: 2 total | 2 success
+==================== 2026-03-02T21:26:52.580195Z | 019cb072-639b-7bf0-9f77-b229d847d0fe ====================
+21:26:52.580686 [info ]: dbt-fusion 2.0.0-preview.127 (vsce-v0.46.0 2026-02-24 13:31:18)
+21:26:52.581444 [info ]: Started loading project
+21:26:52.584745 [info ]: Loading ~/.dbt/profiles.yml
+21:26:52.593400 [debug]:    Started loading packages
+21:26:52.594748 [debug]:     Loaded [  0.00s] packages
+21:26:52.616864 [info ]: Finished loading project [  0.04s]
+21:26:52.617508 [info ]: Started parsing
+21:26:52.713608 [debug]: Finished parsing models/example_model.sql [  0.00s]
+21:26:52.716431 [debug]: Finished parsing analyses/explore_data.sql [  0.00s]
+21:26:52.718876 [info ]: Finished parsing [  0.10s]
+21:26:52.719526 [info ]: Started scheduling
+21:26:52.719725 [info ]: Finished scheduling [  0.00s]
+21:26:52.724928 [info ]: Started deferring state
+21:26:52.725015 [info ]: Finished deferring state [  0.00s]
+21:26:53.019340 [info ]: Started building task graph
+21:26:53.019909 [info ]: Finished building task graph [  0.00s]
+21:26:53.020979 [info ]: Started rendering (2 nodes)
+21:26:53.021129 [info ]: Started analysis ani_default_schema.explore_data
+21:26:53.021164 [debug]: Started rendering analysis ani_default_schema.explore_data
+21:26:53.021291 [info ]: Started model ani_default_schema.example_model
+21:26:53.021314 [debug]: Started rendering model ani_default_schema.example_model
+21:26:53.022835 [debug]: Compiled SQL for node model.test_static_analysis_in_analyses.example_model at target/compiled/models/example_model.sql
+21:26:53.022993 [debug]: Finished rendering [  0.00s] model ani_default_schema.example_model [success]
+21:26:53.023138 [debug]: Compiled SQL for node analysis.test_static_analysis_in_analyses.explore_data at target/compiled/analyses/explore_data.sql
+21:26:53.023145 [info ]: Started analyzing (2 nodes)
+21:26:53.023219 [debug]: Started analyzing model ani_default_schema.example_model
+21:26:53.023282 [debug]: Finished rendering [  0.00s] analysis ani_default_schema.explore_data [success]
+21:26:53.023334 [info ]: Finished rendering [  0.00s] (2 nodes, 0 skipped, 0 errors)
+21:26:53.069812 [info ]:  Succeeded [  0.05s] model ani_default_schema.example_model (view)
+21:26:53.069905 [debug]: Finished analyzing [  0.05s] model ani_default_schema.example_model [success]
+21:26:53.070036 [debug]: Started analyzing analysis ani_default_schema.explore_data
+21:26:53.112990 [warn ]: dbt0227: No column INVALID_SQL found. Available are MOMS_FLOWER_SHOP.ANI_DEFAULT_SCHEMA.EXAMPLE_MODEL.ID, MOMS_FLOWER_SHOP.ANI_DEFAULT_SCHEMA.EXAMPLE_MODEL.NAME
+  --> analyses/explore_data.sql:6:3 (target/compiled/analyses/explore_data.sql:6:3)
+21:26:53.113405 [info ]:  Succeeded [  0.04s] analysis ani_default_schema.explore_data (analysis)
+21:26:53.113488 [debug]: Finished analyzing [  0.04s] analysis ani_default_schema.explore_data [success]
+21:26:53.113579 [info ]: Finished analyzing [  0.09s] (2 nodes, 0 skipped, 0 errors)
+21:26:53.139425 [info ]: New version available 2.0.0-preview.143 (run `dbt system update`)
+21:26:53.349857 [info ]: 
+==================== Execution Summary =====================
+Finished 'compile' with 1 warning for target 'default' [769ms]
+Processed: 1 model | 1 analysis
+Summary: 2 total | 2 success
+==================== 2026-03-03T18:56:35.527356Z | 019cb50f-28c5-75b0-b1f0-ac5cf38b2ab2 ====================
+18:56:35.527637 [info ]: dbt-fusion 2.0.0-preview.140 (v2.0.0-preview.140-modified 2026-03-02 10:41:41)
+18:56:35.527977 [info ]: Started loading project
+18:56:35.530780 [info ]: Loading ~/.dbt/profiles.yml
+18:56:35.531278 [info ]: Finished loading project [  0.00s]
+18:56:35.531335 [error]: dbt1001: Profile 'default' not found in profiles.yml
+18:56:35.811332 [info ]: 
+==================== Execution Summary =====================
+Finished 'compile' with 1 error [283ms]
+==================== 2026-03-03T18:59:15.314276Z | 019cb511-98ef-7950-aa08-7b5f75bfacf8 ====================
+18:59:15.314613 [info ]: dbt-fusion 2.0.0-preview.140 (v2.0.0-preview.140-modified 2026-03-02 10:41:41)
+18:59:15.314973 [info ]: Started loading project
+18:59:15.318477 [info ]: Loading ~/.dbt/profiles.yml
+18:59:15.424613 [debug]:    Started loading packages
+18:59:15.425692 [debug]:     Loaded [  0.00s] packages
+18:59:15.465519 [info ]: Finished loading project [  0.15s]
+18:59:15.466204 [info ]: Started parsing
+18:59:15.558136 [debug]: Finished parsing models/example_model.sql [  0.00s]
+18:59:15.559867 [debug]: Finished parsing analyses/explore_data.sql [  0.00s]
+18:59:15.563089 [info ]: Finished parsing [  0.10s]
+18:59:15.563853 [info ]: Started scheduling
+18:59:15.564011 [info ]: Finished scheduling [  0.00s]
+18:59:15.565654 [info ]: Started deferring state
+18:59:15.565689 [info ]: Finished deferring state [  0.00s]
+18:59:15.812397 [info ]: Started building task graph
+18:59:15.813035 [info ]: Finished building task graph [  0.00s]
+18:59:15.813550 [info ]: Started rendering (2 nodes)
+18:59:15.813610 [info ]: Started analysis fusion_tests_schema.explore_data
+18:59:15.813630 [debug]: Started rendering analysis fusion_tests_schema.explore_data
+18:59:15.813702 [info ]: Started model fusion_tests_schema.example_model
+18:59:15.813719 [debug]: Started rendering model fusion_tests_schema.example_model
+18:59:15.815317 [debug]: Compiled SQL for node model.test_static_analysis_in_analyses.example_model at target/compiled/models/example_model.sql
+18:59:15.815317 [debug]: Compiled SQL for node analysis.test_static_analysis_in_analyses.explore_data at target/compiled/analyses/explore_data.sql
+18:59:15.815432 [debug]: Finished rendering [  0.00s] model fusion_tests_schema.example_model [success]
+18:59:15.815507 [info ]: Started analyzing (2 nodes)
+18:59:15.815520 [debug]: Started analyzing model fusion_tests_schema.example_model
+18:59:15.815549 [debug]: Finished rendering [  0.00s] analysis fusion_tests_schema.explore_data [success]
+18:59:15.815556 [info ]: Finished rendering [  0.00s] (2 nodes, 0 skipped, 0 errors)
+18:59:15.815874 [info ]:  Succeeded [  0.00s] model fusion_tests_schema.example_model (view)
+18:59:15.815899 [debug]: Finished analyzing [  0.00s] model fusion_tests_schema.example_model [success]
+18:59:15.815916 [debug]: Started analyzing analysis fusion_tests_schema.explore_data
+18:59:15.816334 [info ]:  Succeeded [  0.00s] analysis fusion_tests_schema.explore_data (analysis)
+18:59:15.816357 [debug]: Finished analyzing [  0.00s] analysis fusion_tests_schema.explore_data [success]
+18:59:15.816365 [info ]: Finished analyzing [  0.00s] (2 nodes, 0 skipped, 0 errors)
+18:59:16.163715 [info ]: 
+==================== Execution Summary =====================
+Finished 'compile' successfully for target 'postgres' [849ms]
+Processed: 1 model | 1 analysis
+Summary: 2 total | 2 success

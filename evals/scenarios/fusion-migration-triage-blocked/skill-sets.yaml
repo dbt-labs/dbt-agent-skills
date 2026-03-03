@@ -8,7 +8,7 @@ sets:
 
   - name: with-triage-skill
     skills:
-      - skills/migrating-dbt-core-to-fusion
+      - skills/dbt-migration/skills/migrating-dbt-core-to-fusion
     allowed_tools:
       - Read
       - Glob
@@ -17,3 +17,7 @@ sets:
       - Bash(dbt:*)
       - Bash(git:*)
       - Bash(uvx:*)
+      - Bash(gh:*)
+      - Bash(curl:*)
+      - WebFetch(domain:api.github.com)
+      - WebFetch(domain:github.com)

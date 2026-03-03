@@ -77,21 +77,23 @@ These errors have more than one correct resolution. The skill should present opt
 
 **Requires Fusion updates — NOT fixable in user code.**
 
-These errors cannot be resolved by changing the user's project. They are caused by gaps in the Fusion engine or test infrastructure.
+These errors cannot be resolved by changing the user's project. They are caused by gaps in the Fusion engine.
+
+**CRITICAL**: When an error is Category D, do NOT propose any fix, workaround, custom macro, or project modification. The only correct actions are: identify, explain, link the GitHub issue, and move on.
 
 ### Sub-patterns
 
 | Sub-pattern | Signal | Message | Action |
 |-------------|--------|---------|--------|
-| Fusion engine gaps | MiniJinja filter differences (e.g. `truncate()` argument mismatch), parser gaps, missing implementations | "This requires a Fusion update (tracked in issue #XXXX)" | Search GitHub issues, link if found |
-| Known GitHub issues | Incremental models with `on_schema_change='sync_all_columns'`, unsupported macro patterns, adapter-specific gaps | "Known limitation — tracked in issue #XXXX" | Link issue, check if closed (suggest Fusion upgrade) |
-| Technical debt workarounds | Workaround exists but creates worse code | "A workaround exists but creates technical debt — I recommend waiting for the Fusion fix" | Explain tradeoff, let user decide |
+| Fusion engine gaps | MiniJinja filter differences, parser gaps, missing implementations, wrong materialization dispatch | "This requires a Fusion update (tracked in issue #XXXX)" | Search GitHub issues, link if found. **Do not suggest workarounds.** |
+| Known GitHub issues | Incremental models with `on_schema_change='sync_all_columns'`, unsupported macro patterns, adapter-specific gaps | "Known limitation — tracked in issue #XXXX" | Link issue, check if closed (suggest Fusion upgrade). **Do not write custom macros.** |
+| Engine crashes | `panic!`, `internal error`, `RUST_BACKTRACE`, `not yet implemented` | "This is a Fusion engine crash/missing implementation" | Document and report. **Do not attempt to work around engine crashes.** |
 
 ### When to use Category D
 - The error is caused by a Fusion engine gap, not user code
 - No safe fix exists in the user's project
-- A workaround exists but would create technical debt or bad practices
-- The error is a test infrastructure artifact, not a real issue
+- The error involves internal dispatch, materialization routing, or adapter methods — these cannot be overridden safely from user code
+- A workaround would require writing custom macros or fragile code that will break on the next Fusion update
 
 ### GitHub issue search
 When you suspect a Fusion bug:

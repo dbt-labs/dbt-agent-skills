@@ -8,7 +8,7 @@ sets:
 
   - name: with-triage-skill
     skills:
-      - skills/migrating-dbt-core-to-fusion
+      - skills/dbt-migration/skills/migrating-dbt-core-to-fusion
     allowed_tools:
       - Read
       - Glob

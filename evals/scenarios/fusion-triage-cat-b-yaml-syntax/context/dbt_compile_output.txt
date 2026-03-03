@@ -1,14 +1,6 @@
-Running with dbt=2.0.0-beta.1
+dbt-fusion 2.0.0-preview.140 (v2.0.0-preview.140-modified 2026-03-02 10:41:41)
+   Loading ~/.dbt/profiles.yml
+suggestion: Run 'dbt deps' to see the latest fusion compatible packages. For compatibility errors, try the autofix script: https://github.com/dbt-labs/dbt-autofix
 
-Configuration Error in dbt_project.yml
-  dbt1060: Unexpected key in project config: 'vars:'
-
-  The key 'vars:' (with trailing colon) is not a recognized project
-  configuration key. This appears to be a YAML syntax issue — the line
-  `vars::` creates a key named `vars:` instead of the expected `vars`.
-
-  Did you mean `vars:` (single colon)?
-
-  > in dbt_project.yml
-
-  Project loading failed with 1 error.
+==================== Execution Summary =====================
+Finished 'compile' with 1 error for target 'postgres' [598ms]

@@ -1,14 +1,15 @@
-Running with dbt=2.0.0-beta.1
-Found 1 model, 0 sources, 0 tests, 0 snapshots, 0 seeds, 0 macros
+dbt-fusion 2.0.0-preview.140 (v2.0.0-preview.140-modified 2026-03-02 10:41:41)
+   Loading ~/.dbt/profiles.yml
+    Failed [-------] model fusion_tests_schema.example_model (table)
 
-Compilation Error in model example_model (models/example_model.sql)
-  dbt1501: Argument must be a string or a list. Received: (empty)
+=================== Errors and Warnings ====================
+warning: dbt1000: The key 'owner' was not found using config.require('owner'), but was detected as a custom config under 'meta'. Please use config.meta_get('owner') or config.meta_require('owner') instead of config.require('owner') to access the custom config value if intended.
+  --> models/example_model.sql:11:22
+error: dbt1501: Failed to render SQL invalid operation: Required config key 'owner' not found in config
+(in models/example_model.sql:11:22)
+  --> models/example_model.sql:11:22
 
-  The `config.require()` method signature has changed. `config.require('meta')`
-  no longer returns the meta dictionary directly. Use `config.meta_require('key_name')`
-  to access individual meta keys.
-
-  > in macro (models/example_model.sql)
-
-  Compilation failed for 1 model.
-  1 error found.
+==================== Execution Summary =====================
+Finished 'compile' with 1 warning and 1 error for target 'postgres' [1.2s]
+Processed: 1 model
+Summary: 1 total | 1 error

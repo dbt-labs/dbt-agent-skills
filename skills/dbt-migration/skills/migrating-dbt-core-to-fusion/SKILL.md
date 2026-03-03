@@ -107,11 +107,21 @@ Use the 4-category framework to triage errors. For the full pattern catalog see 
 - Failing `analyses/` queries — ask if analysis is actively used
 
 ### Category D: Blocked (Not Fixable in Project)
-**Requires Fusion updates — NOT fixable in user code**
+**Requires Fusion updates — NOT fixable in user code. DO NOT propose fixes or workarounds.**
 
-- Fusion engine gaps — MiniJinja differences (e.g. `truncate()` filter), parser gaps, missing implementations
+When an error is Category D, your job is ONLY to:
+1. Identify it as blocked
+2. Explain why (Fusion engine gap, known bug, etc.)
+3. Link the GitHub issue if one exists
+4. Move on to the next error
+
+**Do NOT** suggest custom macros, SQL rewrites, config changes, or any other modification to the user's project for Category D errors. These are engine-level bugs — no amount of user-side code can fix incorrect internal dispatch, missing implementations, or parser gaps.
+
+Category D signals:
+- Fusion engine gaps — MiniJinja differences, parser gaps, missing implementations, wrong materialization dispatch
 - Known GitHub issues — check `github.com/dbt-labs/dbt-fusion/issues`
-- Technical debt workarounds — explain tradeoff, recommend waiting for the Fusion fix
+- Engine crashes — `panic!`, `internal error`, `RUST_BACKTRACE`
+- Adapter methods not implemented — `not yet implemented: Adapter::method`
 
 ## Pattern Matching Priority Order
 
@@ -169,8 +179,7 @@ Recommendation: [What should happen next]
    - Check: Does this conflict with autofix changes?
 3. **Category C**: Present options, wait for user decision, apply chosen fix, validate
    - Consider: Did autofix cause this issue?
-4. **Category D**: Document clearly with GitHub links, explain why blocked
-   - Note: Could be autofix bug — document if so
+4. **Category D**: STOP. Do not propose any fix or workaround. Document the blocker clearly with GitHub links, explain why it's blocked, and move on to the next error. Do not write custom macros, suggest SQL rewrites, or modify project files for Category D errors.
 
 **Critical validation rule**: After EVERY fix, re-run the repro command (NOT just `dbt parse`).
 - Default: `dbt compile`
@@ -222,5 +231,6 @@ Next: [What to do next]
 - Don't classify errors without understanding what autofix changed
 - Don't auto-fix Category B without approval — show exact diffs first
 - Don't hide Category D issues or downplay blockers
+- **Don't propose workarounds for Category D errors** — no custom macros, no SQL rewrites, no config hacks. If it's a Fusion engine bug, the ONLY correct response is to document it and move on. Attempting to work around engine-level bugs creates fragile code that will break on the next Fusion update.
 - Don't make technical debt decisions for users — present options and tradeoffs
 - Don't skip validation after fixes — always re-run and check for new errors

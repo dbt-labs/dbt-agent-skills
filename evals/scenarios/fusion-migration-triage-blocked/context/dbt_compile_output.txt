@@ -1,14 +1,5 @@
-Running with dbt=2.0.0-beta.1
-Found 1 model, 0 sources, 0 tests, 0 snapshots, 0 seeds, 0 macros
+dbt-fusion 2.0.0-preview.140 (v2.0.0-preview.140-modified 2026-03-02 10:41:41)
+   Loading ~/.dbt/profiles.yml
 
-Compilation Error in model example_model (models/example_model.sql)
-  dbt1501: Failed to render SQL too many arguments
-
-  The Jinja `truncate()` filter received too many arguments. The MiniJinja
-  engine in Fusion does not support the same argument signature as Jinja2's
-  `truncate()` filter.
-
-  > in model example_model (models/example_model.sql)
-
-  Compilation failed for 1 model.
-  1 error found.
+==================== Execution Summary =====================
+Finished 'compile' with 1 error for target 'postgres' [683ms]
