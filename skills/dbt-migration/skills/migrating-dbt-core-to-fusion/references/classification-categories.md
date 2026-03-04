@@ -12,7 +12,6 @@ These are low-risk changes where the fix is deterministic and well-understood. N
 
 | Sub-pattern | Error Code | Signal | Fix | Risk |
 |-------------|------------|--------|-----|------|
-| Static analysis in `analyses/` | `dbt02xx` | Static analysis errors in `analyses/` directory | Add `{{ config(static_analysis='off') }}` at top of file | LOW — analyses are optional |
 | Quote nesting in config | `dbt1000` | `syntax error: unexpected identifier` with nested quotes | Use single quotes outside: `warn_if='{{ "text" }}'` | LOW — syntactic only |
 
 ### When to use Category A
@@ -39,11 +38,11 @@ These fixes are well-understood but may change project behavior. Always show the
 | YAML syntax errors | `dbt1013` | "YAML mapping values not allowed" | Fix quotes, indentation, colons | MEDIUM — syntax dependent |
 | Unexpected config keys | `dbt1060` | "Unexpected key in config" | Move custom keys to `meta:` section | MEDIUM — changes config structure |
 | Package version issues | `dbt1005`, `dbt8999` | "Package not in lookup map", "Cannot combine non-exact versions" | Update versions, use exact pins | MEDIUM — may change package behavior |
-| Deprecated CLI flags | — | "--models flag deprecated" | Replace `--models/-m` with `--select/-s` | LOW — flag rename |
+| SQL parsing errors | — | SQL parsing failures under static analysis | Suggest rewriting the logic (with user approval), or set `static_analysis: off` for the model | MEDIUM — may change analysis behavior |
+| "--models flag deprecated" | — | If the repro command uses `--models/-m`, replace with `--select/-s` | MEDIUM — may change command behavior |
 | Duplicate doc blocks | `dbt1501` | "Duplicate doc block" | Rename or delete conflicting blocks | LOW — documentation only |
 | Seed CSV format | `dbt1021` | "Seed cast error" | Clean CSV (ISO dates, lowercase `null`) | MEDIUM — data format change |
 | Empty SELECT | `dbt0404` | "SELECT with no columns" | Add `SELECT 1` or actual column list | LOW — placeholder needed |
-| Static analysis function errors | `dbt0209` | "Function not found in static analysis" | Add function to project or disable static analysis | MEDIUM — depends on usage |
 
 ### When to use Category B
 - The fix is well-understood but requires a judgment call
@@ -79,21 +78,21 @@ These errors have more than one correct resolution. The skill should present opt
 
 These errors cannot be resolved by changing the user's project. They are caused by gaps in the Fusion engine.
 
-**CRITICAL**: When an error is Category D, do NOT propose any fix, workaround, custom macro, or project modification. The only correct actions are: identify, explain, link the GitHub issue, and move on.
+When an error is Category D, identify it as blocked, explain why, link the GitHub issue, and suggest alternative approaches while clearly describing the risks. Let the user decide whether to apply a workaround or wait for the Fusion fix.
 
 ### Sub-patterns
 
 | Sub-pattern | Signal | Message | Action |
 |-------------|--------|---------|--------|
-| Fusion engine gaps | MiniJinja filter differences, parser gaps, missing implementations, wrong materialization dispatch | "This requires a Fusion update (tracked in issue #XXXX)" | Search GitHub issues, link if found. **Do not suggest workarounds.** |
-| Known GitHub issues | Incremental models with `on_schema_change='sync_all_columns'`, unsupported macro patterns, adapter-specific gaps | "Known limitation — tracked in issue #XXXX" | Link issue, check if closed (suggest Fusion upgrade). **Do not write custom macros.** |
-| Engine crashes | `panic!`, `internal error`, `RUST_BACKTRACE`, `not yet implemented` | "This is a Fusion engine crash/missing implementation" | Document and report. **Do not attempt to work around engine crashes.** |
+| Fusion engine gaps | MiniJinja filter differences, parser gaps, missing implementations, wrong materialization dispatch | "This requires a Fusion update (tracked in issue #XXXX)" | Search GitHub issues, link if found. Suggest alternatives with risk descriptions. |
+| Known GitHub issues | Incremental models with `on_schema_change='sync_all_columns'`, unsupported macro patterns, adapter-specific gaps | "Known limitation — tracked in issue #XXXX" | Link issue, check if closed (suggest Fusion upgrade). Suggest alternatives with risk descriptions. |
+| Engine crashes | `panic!`, `internal error`, `RUST_BACKTRACE`, `not yet implemented` | "This is a Fusion engine crash/missing implementation" | Document and report. Suggest alternatives if possible, with clear risk descriptions. |
 
 ### When to use Category D
 - The error is caused by a Fusion engine gap, not user code
-- No safe fix exists in the user's project
-- The error involves internal dispatch, materialization routing, or adapter methods — these cannot be overridden safely from user code
-- A workaround would require writing custom macros or fragile code that will break on the next Fusion update
+- No direct fix exists in the user's project — the root cause requires a Fusion update
+- The error involves internal dispatch, materialization routing, or adapter methods
+- Workarounds may exist but carry risks (fragility, breakage on future Fusion updates) — suggest them with clear risk descriptions and let the user decide
 
 ### GitHub issue search
 When you suspect a Fusion bug:

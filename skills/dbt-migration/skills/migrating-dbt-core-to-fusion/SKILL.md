@@ -59,7 +59,7 @@ Before analyzing any migration errors, you MUST understand what autofix changed:
    - Which patterns did autofix apply?
    - What config keys were moved to `meta:`?
    - What YAML structures changed?
-   - What API calls were updated?
+   - What Jinja modifications were made?
 
 **Why this matters**: Some migration errors may be CAUSED by autofix bugs or incorrect transformations. Understanding what autofix changed helps you:
 - Identify if a current error was introduced by autofix
@@ -81,7 +81,6 @@ Use the 4-category framework to triage errors. For the full pattern catalog see 
 ### Category A: Auto-Fixable (Safe)
 **Can fix automatically with HIGH confidence**
 
-- Static analysis in `analyses/` (dbt02xx) — add `{{ config(static_analysis='off') }}`
 - Quote nesting in config (dbt1000) — use single quotes outside: `warn_if='{{ "text" }}'`
 
 ### Category B: Guided Fixes (Need Approval)
@@ -94,11 +93,11 @@ Use the 4-category framework to triage errors. For the full pattern catalog see 
 - YAML syntax errors (dbt1013) — fix YAML syntax
 - Unexpected config keys (dbt1060) — move custom keys to `meta:`
 - Package version issues (dbt1005, dbt8999) — update versions, use exact pins
-- Deprecated CLI flags — replace `--models/-m` with `--select/-s`
+- SQL parsing errors — suggest rewriting the logic (with user approval), or set `static_analysis: off` for the model
+- Deprecated CLI flags (dbt0404) — if the repro command uses `--models/-m`, replace with `--select/-s`
 - Duplicate doc blocks (dbt1501) — rename or delete conflicting blocks
 - Seed CSV format (dbt1021) — clean CSV format
 - Empty SELECT (dbt0404) — add `SELECT 1` or column list
-- Static analysis function errors (dbt0209) — add function or disable static analysis
 
 ### Category C: Needs Your Input
 **Requires user decision — multiple valid approaches**
@@ -106,16 +105,15 @@ Use the 4-category framework to triage errors. For the full pattern catalog see 
 - Permission errors with hardcoded FQNs — ask if model, source, or external table
 - Failing `analyses/` queries — ask if analysis is actively used
 
-### Category D: Blocked (Not Fixable in Project)
-**Requires Fusion updates — NOT fixable in user code. DO NOT propose fixes or workarounds.**
+### Category D: Blocked (Requires Fusion Updates)
+**Requires Fusion updates — not directly fixable in user code.**
 
-When an error is Category D, your job is ONLY to:
+When an error is Category D:
 1. Identify it as blocked
 2. Explain why (Fusion engine gap, known bug, etc.)
 3. Link the GitHub issue if one exists
-4. Move on to the next error
-
-**Do NOT** suggest custom macros, SQL rewrites, config changes, or any other modification to the user's project for Category D errors. These are engine-level bugs — no amount of user-side code can fix incorrect internal dispatch, missing implementations, or parser gaps.
+4. **Suggest alternative approaches while clearly describing the risks** (e.g., workarounds may be fragile, may break on next Fusion update, may have semantic differences)
+5. Let the user decide whether to apply a workaround or wait for the Fusion fix
 
 Category D signals:
 - Fusion engine gaps — MiniJinja differences, parser gaps, missing implementations, wrong materialization dispatch
@@ -179,7 +177,7 @@ Recommendation: [What should happen next]
    - Check: Does this conflict with autofix changes?
 3. **Category C**: Present options, wait for user decision, apply chosen fix, validate
    - Consider: Did autofix cause this issue?
-4. **Category D**: STOP. Do not propose any fix or workaround. Document the blocker clearly with GitHub links, explain why it's blocked, and move on to the next error. Do not write custom macros, suggest SQL rewrites, or modify project files for Category D errors.
+4. **Category D**: Document the blocker clearly with GitHub links, explain why it's blocked, suggest alternative approaches while describing the risks, and let the user decide whether to apply a workaround or wait for the Fusion fix.
 
 **Critical validation rule**: After EVERY fix, re-run the repro command (NOT just `dbt parse`).
 - Default: `dbt compile`
@@ -231,6 +229,6 @@ Next: [What to do next]
 - Don't classify errors without understanding what autofix changed
 - Don't auto-fix Category B without approval — show exact diffs first
 - Don't hide Category D issues or downplay blockers
-- **Don't propose workarounds for Category D errors** — no custom macros, no SQL rewrites, no config hacks. If it's a Fusion engine bug, the ONLY correct response is to document it and move on. Attempting to work around engine-level bugs creates fragile code that will break on the next Fusion update.
+- **Don't apply workarounds for Category D errors without explaining risks and getting approval** — workarounds for engine-level bugs may be fragile and break on future Fusion updates. Always describe the risks clearly and let the user decide.
 - Don't make technical debt decisions for users — present options and tradeoffs
 - Don't skip validation after fixes — always re-run and check for new errors

@@ -126,7 +126,6 @@ tests:
 
 | Error Code | Signal | Fix |
 |------------|--------|-----|
-| `dbt0209` | "Function not found in static analysis" | Add function to project or disable static analysis |
 | `dbt02xx` (in `analyses/`) | Static analysis errors in analyses directory | Add `{{ config(static_analysis='off') }}` at top of file |
 
 ### Example: Disable static analysis
@@ -162,7 +161,8 @@ Fusion requires exact name matching. dbt-core was lenient with spaces vs undersc
 |------------|--------|-----|
 | `dbt1005` | "Unused schema.yml entry for model 'ModelName'" | Remove orphaned YAML entry (model SQL doesn't exist) |
 | `dbt1021` | "Seed cast error" | Clean CSV (ISO dates, lowercase `null`, consistent columns) |
-| — | "--models flag deprecated" | Replace `--models/-m` with `--select/-s` |
+| — | SQL parsing errors under static analysis | Suggest rewriting the logic (with user approval), or set `static_analysis: off` for the model |
+| — | "--models flag deprecated" | If the repro command uses `--models/-m`, replace with `--select/-s` |
 
 ## Connection/Credential Errors
 
@@ -172,7 +172,7 @@ Fusion requires exact name matching. dbt-core was lenient with spaces vs undersc
 
 ## Fusion Engine Gaps (Category D)
 
-These are NOT fixable in user code. They require Fusion engine updates.
+These require Fusion engine updates. Alternatives can be suggested with caveats about risks and fragility.
 
 | Signal | Meaning | Action |
 |--------|---------|--------|
