@@ -1,167 +1,54 @@
 ---
 name: dbt
 displayName: dbt Analytics Engineering
-description: Agent Skills for analytics engineering best practice with dbt — build, tests, and deploy data pipelines; querying the semantic layer, troubleshooting jobs, migrate projects and more.
-version: 1.1.1
-author: dbt Labs
-homepage: https://docs.getdbt.com/
-repository: https://github.com/dbt-labs/dbt-agent-skills
-license: Apache-2.0
-keywords:
-  - dbt
-  - analytics-engineering
-  - data-modeling
-  - semantic-layer
-  - testing
-  - sql
-  - data-transformation
-  - etl
-  - analytics
-  - data-pipelines
+description: Agent skills for analytics engineering with dbt — build, test, and deploy data pipelines; query the semantic layer; troubleshoot jobs; migrate projects.
+keywords: ["dbt", "analytics-engineering", "data-modeling", "semantic-layer", "testing", "sql", "data-transformation", "etl", "analytics", "data-pipelines", "metricflow", "metrics", "dbt-cloud", "dbt-core", "fusion"]
 ---
 
 # dbt Analytics Engineering Power
 
-This power provides comprehensive skills for working with dbt (data build tool), enabling AI agents to assist with analytics engineering workflows, data modeling, testing, and semantic layer development.
+You are an analytics engineering assistant with deep expertise in dbt. Use the steering files below to guide your work based on the user's task.
 
-## What This Power Provides
+## Onboarding
 
-When you mention dbt-related keywords or work on dbt projects, Kiro automatically activates the relevant skills to help you:
+Before starting any dbt work, verify the environment:
 
-- **Build and modify dbt models** - Write SQL transformations, use ref() and source() functions, create modular data pipelines
-- **Write and run tests** - Create unit tests, schema tests, and validate data quality
-- **Develop the semantic layer** - Define metrics, dimensions, entities, and semantic models with MetricFlow
-- **Query business data** - Answer natural language questions using the dbt Semantic Layer
-- **Troubleshoot issues** - Diagnose dbt Cloud/platform job failures and resolve errors
-- **Configure tooling** - Set up the dbt MCP server for AI-assisted development
-- **Access documentation** - Efficiently fetch dbt docs for features and best practices
-- **Execute commands** - Run dbt CLI commands with correct syntax and parameters
-- **Migrate dbt projects** - Migrate dbt projects to dbt Fusion
+1. Check that `dbt` (or `dbtf` for Fusion projects) is installed and available on PATH
+2. Look for a `dbt_project.yml` in the current workspace to confirm this is a dbt project
+3. If no dbt project is found, you can still help with documentation lookups and MCP server configuration
 
-## Available Skills
+## Steering
 
-This power includes the following specialized skills that activate automatically based on your work context:
+Load the relevant skill based on the user's task:
 
 ### Core Analytics Engineering
 
-**using-dbt-for-analytics-engineering**
-- Build and modify dbt models, debug errors, explore data sources
-- Write SQL transformations using ref() and source()
-- Create tests and validate results with dbt show
-- Apply software engineering discipline to data transformation work
+- **using-dbt-for-analytics-engineering** — Use for any general dbt work: building or modifying models, writing SQL transformations with `ref()` and `source()`, debugging errors, exploring data sources, writing tests, or evaluating impact of changes.
 
 ### Testing & Quality
 
-**adding-dbt-unit-test**
-- Create unit test YAML definitions with mocked inputs
-- Validate expected outputs before production materialization
-- Practice test-driven development (TDD) in dbt
-- Handle special cases: incremental models, ephemeral dependencies, versioned models
-- Warehouse-specific guidance for BigQuery, Postgres, Redshift, Snowflake, Spark
+- **adding-dbt-unit-test** — Use when adding unit tests for a dbt model or practicing test-driven development. Creates unit test YAML definitions with mocked inputs and expected outputs. Covers incremental models, ephemeral dependencies, and warehouse-specific guidance.
 
-### Semantic Layer Development and Use
+### Semantic Layer
 
-**building-dbt-semantic-layer**
-- Create semantic models, metrics, dimensions, and entities
-- Configure MetricFlow for business intelligence
-- Support for both latest (1.12+) and legacy (1.6-1.11) YAML specs
-- Define metric types: simple, derived, cumulative, ratio, conversion
-- Set up time spines for time-based aggregations
+- **building-dbt-semantic-layer** — Use when creating or modifying semantic models, metrics, dimensions, entities, measures, or time spines. Covers MetricFlow configuration and metric types (simple, derived, cumulative, ratio, conversion).
 
-**answering-natural-language-questions-with-dbt**
-- Query the semantic layer to answer business questions
-- Translate natural language to semantic layer queries
-- Access metrics and dimensions without writing SQL
+- **answering-natural-language-questions-with-dbt** — Use when the user asks a business question that requires querying data (e.g., "What were total sales last quarter?"). Writes and executes queries against the semantic layer. NOT for building or testing models.
 
 ### Operations & Troubleshooting
 
-**troubleshooting-dbt-job-errors**
-- Diagnose dbt Cloud/platform job failures
-- Resolve unclear or intermittent error messages
-- Identify root causes in production environments
+- **troubleshooting-dbt-job-errors** — Use when a dbt Cloud/platform job fails. Diagnoses root causes by analyzing run logs, querying the Admin API, and investigating data issues. Not for local development errors.
 
-**configuring-dbt-mcp-server**
-- Set up the dbt MCP server for Claude Desktop, Claude Code, Cursor, or VS Code
-- Configure environment variables and credentials
-- Troubleshoot connection issues
+- **configuring-dbt-mcp-server** — Use when setting up or troubleshooting the dbt MCP server for AI tools like Claude Desktop, Claude Code, Cursor, or VS Code.
 
 ### Documentation & Commands
 
-**fetching-dbt-docs**
-- Look up dbt documentation efficiently
-- Access information about dbt Cloud, dbt Core, and the Semantic Layer
-- Find feature references and best practices
+- **fetching-dbt-docs** — Use when looking up dbt documentation, features, or best practices for dbt Cloud, dbt Core, or the Semantic Layer.
 
-**running-dbt-commands**
-- Execute dbt CLI commands with correct syntax
-- Use proper flags, selectors, and parameter formats
-- Determine which dbt executable to use (dbt vs dbtf)
+- **running-dbt-commands** — Use when executing dbt CLI commands. Selects the correct executable (`dbt` vs `dbtf`), formats flags and selectors, and structures parameters.
 
-### dbt Migration
+### Migration
 
-**migrating-dbt-core-to-fusion**
-- Resolves Fusion compatability errors and applies dbt-autofix commands
-- Outputs dbt projects which will compile and run on dbt Fusion
-- Unlocks next generation of dbt features and functionality
+- **migrating-dbt-core-to-fusion** — Use when migrating a dbt project from dbt Core to the Fusion engine. Resolves compatibility errors, applies `dbt-autofix` for deprecations, and iterates until the project compiles cleanly.
 
-**migrating-dbt-project-across-platforms**
-- Uses dbt Fusion engine for real-time compilation of pipelines from one data platform to another
-- Geneartes unit tests to ensure output of migrated pipelines is equivalent
-- Resolves any errors generated in Fusion engine by toggling dbt target data platform
-
-## Prerequisites
-
-Most skills assume:
-
-- dbt is installed and configured in your environment
-- A dbt project with `dbt_project.yml` exists
-- Basic familiarity with dbt concepts (models, tests, sources)
-
-Some skills like `fetching-dbt-docs` and `configuring-dbt-mcp-server` can be used without an existing project.
-
-## How Skills Activate
-
-Skills in this power use **automatic activation** based on your work context:
-
-- When you mention dbt-related keywords in your prompts
-- When you're working in files within a dbt project structure
-- When you ask questions about analytics engineering, data modeling, or metrics
-
-You don't need to explicitly invoke skills - Kiro loads the appropriate skill automatically when it detects relevant context.
-
-## Getting Started
-
-1. **Install the power** - Add this power through the Kiro Powers panel
-2. **Open a dbt project** - Navigate to your dbt project directory
-3. **Start working** - Ask Kiro to help with dbt tasks using natural language
-
-Example prompts:
-- "Add a new staging model for the users table"
-- "Create a unit test for the orders model"
-- "Define a revenue metric in the semantic layer"
-- "Why is my dbt Platform job failing?"
-- "Show me the compiled SQL for this model"
-- "Can you help me migrate my project to dbt Fusion?"
-
-
-## Compatibility
-
-This power maintains compatibility with the vendor-agnostic [Agent Skills specification](https://agentskills.io/specification), ensuring it works across multiple AI development platforms including Claude Code, Cursor, Cline, and others.
-
-## Resources
-
-- [dbt Documentation](https://docs.getdbt.com/)
-- [dbt CLI Reference](https://docs.getdbt.com/reference/dbt-commands)
-- [dbt Semantic Layer](https://docs.getdbt.com/docs/use-dbt-semantic-layer/dbt-semantic-layer)
-- [Agent Skills Specification](https://agentskills.io/specification)
-
-## Support
-
-For issues, questions, or contributions:
-- **GitHub Issues**: Report problems or suggest new skills
-- **Repository**: [dbt-labs/dbt-agent-skills](https://github.com/dbt-labs/dbt-agent-skills)
-- **dbt Community**: [community.getdbt.com](https://community.getdbt.com)
-
-## License
-
-Apache-2.0 - See [LICENSE](LICENSE) for details.
+- **migrating-dbt-project-across-platforms** — Use when migrating a dbt project from one data platform to another (e.g., Snowflake to Databricks). Uses Fusion's real-time compilation to identify SQL dialect differences and generates unit tests to validate equivalence.

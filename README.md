@@ -152,16 +152,6 @@ See [LICENSE](LICENSE) for details.
 See [evals/README.md](evals/README.md) for the A/B testing tool to compare skill variations.
 
 
-## Kiro Implementation
+## Kiro
 
-This repository supports both the vendor-agnostic [Agent Skills specification](https://agentskills.io/specification) and the Kiro Power format, enabling use across multiple AI development platforms.
-
-1. **Agent Skills format** (primary) - Individual `SKILL.md` files in `skills/` directories
-   - Works with Claude Code, Cursor, Cline, GitHub Copilot, and 30+ other AI agents
-   - Installed via Vercel Skills CLI (`npx skills add`) or Tessl
-   - Follows the [Agent Skills specification](https://agentskills.io/specification)
-
-2. **Kiro Power format** - `POWER.md` file at repository root
-   - Optimized for Kiro's keyword-based activation system
-   - Includes metadata (logo, description, keywords) for Kiro's Power browser
-   - References the same underlying skill content
+This repository also supports the [Kiro Power](https://kiro.dev/docs/powers/) format via a `POWER.md` file at the repository root. Kiro uses keyword-based activation to automatically load the relevant skill based on your work context. See the [Kiro Powers documentation](https://kiro.dev/docs/powers/create/) for details.
