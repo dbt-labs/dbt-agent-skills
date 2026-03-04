@@ -170,6 +170,8 @@ Fusion requires exact name matching. dbt-core was lenient with spaces vs undersc
 |------------|--------|-----|
 | `dbt1308` | "constructing client", "connection", "authentication", "credentials" | Check `profiles.yml` and data platform credentials — not a migration issue |
 
+> **Tip**: These errors can often be caught early by running `dbt debug` (see Step 0).
+
 ## Fusion Engine Gaps (Category D)
 
 These require Fusion engine updates. Alternatives can be suggested with caveats about risks and fragility.

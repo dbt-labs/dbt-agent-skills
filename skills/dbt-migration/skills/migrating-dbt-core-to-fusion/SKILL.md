@@ -25,6 +25,34 @@ By default this skill uses `dbt compile` to reproduce and validate errors. The c
 - If the user specifies a different command (e.g. `dbt build`, `dbt test --select tag:my_tag`), use that instead
 - If a `repro_command.txt` file exists in the project root, use the command from that file
 
+## Step 0: Validate Credentials with dbt debug
+
+**Before doing anything else**, ask the user if they'd like to verify their credentials work on Fusion.
+
+Ask: "Would you like to start by running `dbt debug` to verify your credentials and connection work on Fusion? This catches environment issues early before we dig into migration errors."
+
+### If the user agrees:
+Run:
+```bash
+dbt debug
+```
+
+**What to check in the output:**
+- **Connection test**: Does it say "Connection test: OK"? If not, credentials need fixing first — this is NOT a migration issue
+- **profiles.yml found**: Is it loading the correct profile/target?
+- **Dependencies**: Are packages installed?
+
+### If `dbt debug` fails:
+- **Connection/auth errors**: Help the user fix their `profiles.yml` and credentials before proceeding. Migration triage can't begin until the connection works.
+- **Profile not found**: Help locate or configure the correct profile for Fusion
+- **Other errors**: Note them and proceed — some `dbt debug` checks may not be relevant to the migration
+
+### If `dbt debug` succeeds:
+Confirm the environment is healthy and proceed to Step 1.
+
+### If the user skips this step:
+That's fine — proceed to Step 1. But if connection errors appear later during classification, circle back and suggest running `dbt debug`.
+
 ## Step 1: Run dbt-autofix (REQUIRED FIRST STEP)
 
 **Before classifying any errors**, ensure the user has run dbt-autofix on their project.
@@ -222,6 +250,7 @@ Next: [What to do next]
 - **Success = progress**: Not reaching 100% in one pass
 - **After each fix, validate**: Check for cascading errors using the repro command
 - **For Category B, show diffs**: Don't apply without approval
+- **Consider `dbt debug` first**: If you see connection or credential errors during triage, suggest running `dbt debug` to verify the environment
 
 ## Anti-Patterns to Avoid
 
