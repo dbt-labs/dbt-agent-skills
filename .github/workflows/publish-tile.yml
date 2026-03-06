@@ -14,6 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: tesslio/publish@3ebebcd042bd9d3851b6940ebec376fd6d5dee84 # latest commit as of 2026-02-20
+      - uses: tesslio/publish@dcef29a61e77d536ca82c7582d5225361862a644 # latest commit as of 2026-02-20
         with:
           token: ${{ secrets.TESSL_API_TOKEN }}
