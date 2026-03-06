@@ -2,6 +2,17 @@
 
 Complete catalog of dbt-core to Fusion migration error patterns, organized by type.
 
+## Contents
+- [YAML Issues](#yaml-issues)
+- [Package Issues](#package-issues)
+- [Config/API Changes](#configapi-changes)
+- [SQL/Jinja Issues](#sqljinja-issues)
+- [Static Analysis Issues](#static-analysis-issues)
+- [Source Name Issues](#source-name-issues)
+- [Schema/Model Issues](#schemamodel-issues)
+- [Connection/Credential Errors](#connectioncredential-errors)
+- [Fusion Engine Gaps (Category D)](#fusion-engine-gaps-category-d)
+
 ## YAML Issues
 
 | Error Code | Signal | Fix |

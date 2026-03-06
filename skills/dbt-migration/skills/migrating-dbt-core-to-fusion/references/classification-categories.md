@@ -2,6 +2,12 @@
 
 Detailed definitions for the 4-category triage framework used to classify dbt-core to Fusion migration errors.
 
+## Contents
+- [Category A: Auto-Fixable (Safe)](#category-a-auto-fixable-safe)
+- [Category B: Guided Fixes (Need Approval)](#category-b-guided-fixes-need-approval)
+- [Category C: Needs Your Input](#category-c-needs-your-input)
+- [Category D: Blocked (Not Fixable in Project)](#category-d-blocked-not-fixable-in-project)
+
 ## Category A: Auto-Fixable (Safe)
 
 **Can fix automatically with HIGH confidence.**
