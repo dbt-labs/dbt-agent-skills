@@ -145,9 +145,9 @@ See [How to Find Your Credentials](references/finding-credentials.md) for detail
       "args": ["dbt-mcp"],
       "env": {
         "DBT_HOST": "cloud.getdbt.com",
-        "DBT_TOKEN": "your-token",
-        "DBT_ACCOUNT_ID": "your-account-id",
-        "DBT_PROD_ENV_ID": "your-prod-env-id",
+        "DBT_TOKEN": "${DBT_TOKEN}",
+        "DBT_ACCOUNT_ID": "${DBT_ACCOUNT_ID}",
+        "DBT_PROD_ENV_ID": "${DBT_PROD_ENV_ID}",
         "DBT_PROJECT_DIR": "/path/to/project",
         "DBT_PATH": "/path/to/dbt"
       }
@@ -172,11 +172,11 @@ See [How to Find Your Credentials](references/finding-credentials.md) for detail
 **.env file contents:**
 ```
 DBT_HOST=cloud.getdbt.com
-DBT_TOKEN=your-token
-DBT_ACCOUNT_ID=your-account-id
-DBT_PROD_ENV_ID=your-prod-env-id
-DBT_DEV_ENV_ID=your-dev-env-id
-DBT_USER_ID=your-user-id
+DBT_TOKEN=<set-via-env-or-secret-manager>
+DBT_ACCOUNT_ID=<your-account-id>
+DBT_PROD_ENV_ID=<your-prod-env-id>
+DBT_DEV_ENV_ID=<your-dev-env-id>
+DBT_USER_ID=<your-user-id>
 DBT_PROJECT_DIR=/path/to/project
 DBT_PATH=/path/to/dbt
 ```
@@ -189,8 +189,8 @@ DBT_PATH=/path/to/dbt
     "dbt": {
       "url": "https://cloud.getdbt.com/api/ai/v1/mcp/",
       "headers": {
-        "Authorization": "Token your-token",
-        "x-dbt-prod-environment-id": "your-prod-env-id"
+        "Authorization": "Token ${DBT_TOKEN}",
+        "x-dbt-prod-environment-id": "${DBT_PROD_ENV_ID}"
       }
     }
   }
@@ -201,10 +201,10 @@ DBT_PATH=/path/to/dbt
 ```json
 {
   "headers": {
-    "Authorization": "Token your-token",
-    "x-dbt-prod-environment-id": "your-prod-env-id",
-    "x-dbt-dev-environment-id": "your-dev-env-id",
-    "x-dbt-user-id": "your-user-id"
+    "Authorization": "Token ${DBT_TOKEN}",
+    "x-dbt-prod-environment-id": "${DBT_PROD_ENV_ID}",
+    "x-dbt-dev-environment-id": "${DBT_DEV_ENV_ID}",
+    "x-dbt-user-id": "${DBT_USER_ID}"
   }
 }
 ```
@@ -243,7 +243,7 @@ Alternatively, you can use the manual configuration below.
 Edit `~/.claude.json` (user scope) or create `.mcp.json` (project scope) in your project root:
 
 - `~/.claude.json`: Global across all projects
-- `.mcp.json`: Project-specific, committed to version control for team sharing
+- `.mcp.json`: Project-specific, can be committed to version control for team sharing. If using token auth, use environment variable references — never commit literal tokens.
 
 For project-specific dbt setups, use `.mcp.json` so your team shares the same configuration.
 

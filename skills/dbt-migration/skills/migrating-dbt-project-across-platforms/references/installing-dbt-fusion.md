@@ -2,7 +2,7 @@
 
 ## PROBLEM
 
-dbt Fusion (`dbtf`) must be installed and working before starting a cross-platform migration. Fusion provides the real-time compilation engine and rich error diagnostics that power the migration workflow.
+dbt Fusion (`dbtf`) is a first-party tool maintained by [dbt Labs](https://github.com/dbt-labs). It must be installed and working before starting a cross-platform migration. Fusion provides the real-time compilation engine and rich error diagnostics that power the migration workflow.
 
 ## SOLUTION
 

@@ -1,6 +1,8 @@
 ---
 name: auditing-skills
 description: Use when checking skills for security or quality issues, reviewing audit results from skills.sh or Tessl, or remediating findings across published skills.
+metadata:
+  internal: true
 ---
 
 # Auditing Skills
