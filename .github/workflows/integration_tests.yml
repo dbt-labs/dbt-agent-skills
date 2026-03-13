@@ -1,0 +1,41 @@
+name: Integration Tests
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request: {} # yamllint disable-line empty-values
+  workflow_dispatch: {} # yamllint disable-line empty-values
+
+permissions:
+  contents: read
+
+jobs:
+  plugin-install-test:
+    name: Plugin Install Integration Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Validate Repository Integrity
+        run: python scripts/validate_repo.py
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Install Claude Code CLI
+        run: |
+          npm install -g @anthropic-ai/claude-code
+
+      - name: Run all plugin integration tests
+        run: |
+          bash ./integration_tests/run.sh --verbose
