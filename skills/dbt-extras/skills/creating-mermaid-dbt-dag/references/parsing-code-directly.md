@@ -34,18 +34,13 @@ This is the **last resort method** when all other approaches fail (no MCP tools 
    - Only direct parents (1 level up) and children (1 level down) may be available
    - File paths can be constructed from found references
 
-## Example Grep patterns
+## Example search patterns
 
-```bash
-# Find all refs to a model
-grep -r "ref('customers')" models/
+Use the `Grep` tool (not bash grep) and `Glob` tool (not bash find) for all searches:
 
-# Find all source calls
-grep -r "source(" models/staging/
-
-# Find model file
-find models/ -name "customers.sql"
-```
+- Find all refs to a model: Grep for `ref('customers')` in `models/`
+- Find all source calls: Grep for `source(` in `models/staging/`
+- Find a model file: Glob pattern `models/**/{model_name}.sql`
 
 ## Benefits
 
