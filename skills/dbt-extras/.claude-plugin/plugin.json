@@ -1,0 +1,12 @@
+{
+  "name": "dbt-extras",
+  "description": "Miscellaneous skills for dbt.",
+  "version": "1.0.0",
+  "author": {
+    "name": "dbt Labs"
+  },
+  "license": "Apache-2.0",
+  "homepage": "https://docs.getdbt.com/",
+  "repository": "https://github.com/dbt-labs/dbt-agent-skills",
+  "keywords": ["dbt", "extras", "utilities"]
+}
