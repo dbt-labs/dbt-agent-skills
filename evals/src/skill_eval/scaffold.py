@@ -21,8 +21,8 @@ def validate_scenario_name(name: str) -> str | None:
         return "Scenario name cannot be empty"
     if name != name.lower():
         return "Scenario name must be lowercase"
-    if not re.match(r"^[a-z][a-z0-9-]*$", name):
-        return "Scenario name must start with a letter and contain only lowercase letters, digits, and hyphens"
+    if not re.match(r"^[_a-z][a-z0-9_-]*$", name):
+        return "Scenario name must start with a letter or underscore and contain only lowercase letters, digits, hyphens, and underscores"
     return None
 
 

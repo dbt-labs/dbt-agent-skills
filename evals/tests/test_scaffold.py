@@ -33,6 +33,9 @@ def test_validate_scenario_name_valid() -> None:
     assert validate_scenario_name("my-scenario") is None
     assert validate_scenario_name("dbt-job-failure-123") is None
     assert validate_scenario_name("a") is None
+    assert validate_scenario_name("_test-scenario") is None
+    assert validate_scenario_name("_wip") is None
+    assert validate_scenario_name("_copy_ia") is None
 
 
 def test_validate_scenario_name_uppercase() -> None:
@@ -44,7 +47,9 @@ def test_validate_scenario_name_uppercase() -> None:
 
 def test_validate_scenario_name_special_chars() -> None:
     """Special characters are rejected."""
-    error = validate_scenario_name("my_scenario")
+    error = validate_scenario_name("my scenario")
+    assert error is not None
+    error = validate_scenario_name("my.scenario")
     assert error is not None
 
 

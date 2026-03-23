@@ -434,7 +434,7 @@ class TestNewCommand:
         assert "prompt.txt" in result.output
         assert "scenario.md" in result.output
         assert "skill-sets.yaml" in result.output
-        assert ".env.example" in result.output
+        assert ".env" in result.output
 
     def test_new_rejects_invalid_name(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
         """new command rejects invalid scenario names."""

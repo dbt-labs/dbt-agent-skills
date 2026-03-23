@@ -542,7 +542,7 @@ def new(
     typer.echo(f"  - {rel}/prompt.txt        <- write your prompt")
     typer.echo(f"  - {rel}/scenario.md       <- describe background, expected outcome, grading criteria")
     typer.echo(f"  - {rel}/skill-sets.yaml   <- configure skill sets to compare")
-    typer.echo(f"  - {rel}/.env.example      <- add credentials (copy to .env)")
+    typer.echo(f"  - {rel}/.env              <- add credentials")
     if context:
         typer.echo(f"  - {rel}/context/          <- review copied context files")
     else:
