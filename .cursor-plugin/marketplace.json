@@ -1,0 +1,25 @@
+{
+  "name": "dbt-agent-marketplace",
+  "description": "Skills for working with dbt Core and the dbt Fusion engine - analytics engineering, data modeling, semantic layer, and dbt platform (fka dbt Cloud) operations",
+  "owner": {
+    "name": "dbt Labs",
+    "email": "support@getdbt.com"
+  },
+  "plugins": [
+    {
+      "name": "dbt",
+      "description": "Skills for analytics engineering with dbt — building models, writing tests, querying the semantic layer, troubleshooting jobs, and more.",
+      "source": "./skills/dbt"
+    },
+    {
+      "name": "dbt-migration",
+      "description": "Skills for migrating dbt projects — moving from dbt Core to the Fusion engine or across data platforms.",
+      "source": "./skills/dbt-migration"
+    },
+    {
+      "name": "dbt-extras",
+      "description": "Miscellaneous skills for dbt.",
+      "source": "./skills/dbt-extras"
+    }
+  ]
+}
