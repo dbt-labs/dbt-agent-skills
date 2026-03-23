@@ -129,6 +129,9 @@ class TestGradeCommand:
         """grade command without --auto creates grades.yaml template."""
         monkeypatch.chdir(tmp_path)
 
+        # Create scenarios dir so find_evals_root can locate evals root
+        (tmp_path / "scenarios").mkdir()
+
         # Create run directory structure
         runs_dir = tmp_path / "runs"
         run_dir = runs_dir / "2024-01-15-120000"
@@ -147,6 +150,9 @@ class TestGradeCommand:
         """grade command with run_id uses that run."""
         monkeypatch.chdir(tmp_path)
 
+        # Create scenarios dir so find_evals_root can locate evals root
+        (tmp_path / "scenarios").mkdir()
+
         runs_dir = tmp_path / "runs"
         for name in ["2024-01-01-100000", "2024-01-02-100000"]:
             run_dir = runs_dir / name
@@ -162,6 +168,9 @@ class TestGradeCommand:
     def test_grade_latest_flag(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
         """grade --latest uses most recent run without prompting."""
         monkeypatch.chdir(tmp_path)
+
+        # Create scenarios dir so find_evals_root can locate evals root
+        (tmp_path / "scenarios").mkdir()
 
         runs_dir = tmp_path / "runs"
         for name in ["2024-01-01-100000", "2024-01-02-100000"]:
@@ -251,6 +260,9 @@ class TestReportCommand:
         """report command generates report file."""
         monkeypatch.chdir(tmp_path)
 
+        # Create scenarios dir so find_evals_root can locate evals root
+        (tmp_path / "scenarios").mkdir()
+
         # Create run with grades
         runs_dir = tmp_path / "runs"
         run_dir = runs_dir / "2024-01-15-120000"
@@ -284,6 +296,9 @@ class TestReportCommand:
         """report --latest uses most recent run."""
         monkeypatch.chdir(tmp_path)
 
+        # Create scenarios dir so find_evals_root can locate evals root
+        (tmp_path / "scenarios").mkdir()
+
         runs_dir = tmp_path / "runs"
         for name in ["2024-01-01-100000", "2024-01-02-100000"]:
             run_dir = runs_dir / name
@@ -308,6 +323,9 @@ class TestReviewCommand:
         """review command finds and reports transcript files."""
         monkeypatch.chdir(tmp_path)
 
+        # Create scenarios dir so find_evals_root can locate evals root
+        (tmp_path / "scenarios").mkdir()
+
         runs_dir = tmp_path / "runs"
         run_dir = runs_dir / "2024-01-15-120000"
         transcript_dir = run_dir / "test-scenario" / "skill-set-1" / "transcript"
@@ -326,6 +344,9 @@ class TestReviewCommand:
         """review command errors when no transcripts found."""
         monkeypatch.chdir(tmp_path)
 
+        # Create scenarios dir so find_evals_root can locate evals root
+        (tmp_path / "scenarios").mkdir()
+
         runs_dir = tmp_path / "runs"
         run_dir = runs_dir / "2024-01-15-120000"
         run_dir.mkdir(parents=True)
@@ -340,6 +361,9 @@ class TestReviewCommand:
         """review --latest uses most recent run."""
         monkeypatch.chdir(tmp_path)
 
+        # Create scenarios dir so find_evals_root can locate evals root
+        (tmp_path / "scenarios").mkdir()
+
         runs_dir = tmp_path / "runs"
         for name in ["2024-01-01-100000", "2024-01-02-100000"]:
             run_dir = runs_dir / name
@@ -352,6 +376,172 @@ class TestReviewCommand:
 
         assert result.exit_code == 0
         assert "2024-01-02-100000" in result.output
+
+
+class TestRootDiscovery:
+    """Tests that commands find evals root automatically."""
+
+    def test_run_finds_evals_root_from_parent(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """run command works when cwd is parent of evals dir."""
+        evals_dir = tmp_path / "evals"
+        scenarios_dir = evals_dir / "scenarios"
+        scenario_dir = scenarios_dir / "test-scenario"
+        scenario_dir.mkdir(parents=True)
+        (scenario_dir / "prompt.txt").write_text("Do something")
+        (scenario_dir / "skill-sets.yaml").write_text(
+            yaml.dump({"sets": [{"name": "baseline", "skills": []}]})
+        )
+
+        monkeypatch.chdir(tmp_path)
+
+        with patch("skill_eval.runner.Runner") as MockRunner:
+            mock_runner = MockRunner.return_value
+            mock_runner.create_run_dir.return_value = evals_dir / "runs" / "test-run"
+            mock_runner.run_scenario.return_value = MagicMock(success=True, error=None)
+
+            result = runner.invoke(app, ["run", "--all"])
+
+        assert result.exit_code == 0
+        mock_runner.run_scenario.assert_called()
+
+
+class TestNewCommand:
+    """Tests for the 'new' command."""
+
+    def test_new_creates_scenario(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """new command creates scenario directory with all template files."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "scenarios").mkdir()
+
+        result = runner.invoke(app, ["new", "my-test-scenario"])
+
+        assert result.exit_code == 0
+        scenario_dir = tmp_path / "scenarios" / "my-test-scenario"
+        assert scenario_dir.exists()
+        assert (scenario_dir / "skill-sets.yaml").exists()
+        assert (scenario_dir / "scenario.md").exists()
+        assert (scenario_dir / "prompt.txt").exists()
+        assert (scenario_dir / ".env").exists()
+        assert "Created scenario" in result.output
+
+    def test_new_shows_files_to_edit(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """new command prints summary of files to edit."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "scenarios").mkdir()
+
+        result = runner.invoke(app, ["new", "my-test"])
+
+        assert "prompt.txt" in result.output
+        assert "scenario.md" in result.output
+        assert "skill-sets.yaml" in result.output
+        assert ".env" in result.output
+
+    def test_new_rejects_invalid_name(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """new command rejects invalid scenario names."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "scenarios").mkdir()
+
+        result = runner.invoke(app, ["new", "My_Scenario"])
+
+        assert result.exit_code == 1
+
+    def test_new_errors_if_exists(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """new command errors when scenario already exists."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "scenarios" / "existing").mkdir(parents=True)
+
+        result = runner.invoke(app, ["new", "existing"])
+
+        assert result.exit_code == 1
+        assert "already exists" in result.output
+
+    def test_new_with_context_file(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """new command copies context file."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "scenarios").mkdir()
+        src = tmp_path / "models.yml"
+        src.write_text("version: 2")
+
+        result = runner.invoke(app, ["new", "my-test", "--context", str(src)])
+
+        assert result.exit_code == 0
+        assert (tmp_path / "scenarios" / "my-test" / "context" / "models.yml").exists()
+
+    def test_new_with_context_directory(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """new command copies context directory tree."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "scenarios").mkdir()
+        models = tmp_path / "models"
+        models.mkdir()
+        (models / "a.sql").write_text("SELECT 1")
+
+        result = runner.invoke(app, ["new", "my-test", "--context", str(models)])
+
+        assert result.exit_code == 0
+        assert (tmp_path / "scenarios" / "my-test" / "context" / "models" / "a.sql").exists()
+
+    def test_new_with_base_dir(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """new command uses --base-dir when provided."""
+        custom_dir = tmp_path / "custom"
+        (custom_dir / "scenarios").mkdir(parents=True)
+        monkeypatch.chdir(tmp_path)
+
+        result = runner.invoke(app, ["new", "my-test", "--base-dir", str(custom_dir)])
+
+        assert result.exit_code == 0
+        assert (custom_dir / "scenarios" / "my-test" / "scenario.md").exists()
+
+
+class TestBaseDirOption:
+    """Tests that --base-dir works across commands."""
+
+    def test_new_defaults_to_cwd_evals(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """new command defaults to cwd/evals/ when no evals root found."""
+        monkeypatch.chdir(tmp_path)
+        # No scenarios/ directory exists anywhere
+
+        result = runner.invoke(app, ["new", "my-test"])
+
+        assert result.exit_code == 0
+        assert (tmp_path / "evals" / "scenarios" / "my-test" / "scenario.md").exists()
+
+    def test_run_with_base_dir(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """run command uses --base-dir when provided."""
+        custom_dir = tmp_path / "custom-evals"
+        scenarios_dir = custom_dir / "scenarios"
+        scenario_dir = scenarios_dir / "test-scenario"
+        scenario_dir.mkdir(parents=True)
+        (scenario_dir / "prompt.txt").write_text("Do something")
+        (scenario_dir / "skill-sets.yaml").write_text(
+            yaml.dump({"sets": [{"name": "baseline", "skills": []}]})
+        )
+        monkeypatch.chdir(tmp_path)
+
+        with patch("skill_eval.runner.Runner") as MockRunner:
+            mock_runner = MockRunner.return_value
+            mock_runner.create_run_dir.return_value = custom_dir / "runs" / "test-run"
+            mock_runner.run_scenario.return_value = MagicMock(success=True, error=None)
+
+            result = runner.invoke(app, ["run", "--all", "--base-dir", str(custom_dir)])
+
+        assert result.exit_code == 0
+        mock_runner.run_scenario.assert_called()
+
+    def test_review_with_base_dir(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """review command uses --base-dir when provided."""
+        custom_dir = tmp_path / "my-evals"
+        runs_dir = custom_dir / "runs"
+        run_dir = runs_dir / "2024-01-15-120000"
+        transcript_dir = run_dir / "scenario" / "skill-set" / "transcript"
+        transcript_dir.mkdir(parents=True)
+        (transcript_dir / "index.html").write_text("<html></html>")
+        monkeypatch.chdir(tmp_path)
+
+        with patch("webbrowser.open"):
+            result = runner.invoke(app, ["review", "--base-dir", str(custom_dir)])
+
+        assert result.exit_code == 0
+        assert "Opening 1 transcript" in result.output
 
 
 class TestVersionFlag:

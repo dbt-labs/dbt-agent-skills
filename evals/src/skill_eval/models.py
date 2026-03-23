@@ -31,6 +31,7 @@ class SkillSet:
     mcp_servers: dict = field(default_factory=dict)  # MCP server config (mcpServers format)
     allowed_tools: list[str] = field(default_factory=list)  # If empty, allows all tools
     extra_prompt: str = ""  # Additional text appended to the base prompt
+    setup: list[str] = field(default_factory=list)  # Commands to run before Claude
 
 
 @dataclass
@@ -65,6 +66,7 @@ def load_scenario(scenario_dir: Path) -> Scenario:
             mcp_servers=s.get("mcp_servers", {}),
             allowed_tools=s.get("allowed_tools", []),
             extra_prompt=s.get("extra_prompt", ""),
+            setup=s.get("setup", []),
         )
         for s in data.get("sets", [])
     ]

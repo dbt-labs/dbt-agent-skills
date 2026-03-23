@@ -22,6 +22,9 @@ default-groups = ["dev"]
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+skill_eval = ["templates/*"]
+
 [dependency-groups]
 dev = [
     "pytest>=8.0",

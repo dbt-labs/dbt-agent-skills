@@ -26,7 +26,7 @@ sets:
   # Full setup: skill + MCP server
   - name: with-skill-and-mcp
     skills:
-      # - skills/troubleshooting-dbt-job-errors
+      # - skills/dbt/skills/troubleshooting-dbt-job-errors
     mcp_servers:
       dbt:
         command: uvx
@@ -43,7 +43,7 @@ sets:
 
   # - name: with-skill-and-mcp-and-skills-tool
   #   skills:
-  #     - skills/troubleshooting-dbt-job-errors
+  #     - skills/dbt/skills/troubleshooting-dbt-job-errors
   #   mcp_servers:
   #     dbt:
   #       command: uvx

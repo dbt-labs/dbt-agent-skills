@@ -2,16 +2,44 @@
 
 A/B testing tool for comparing LLM skill variations against recorded scenarios.
 
-## Setup
+## Installation
+
+### Local development (from repo)
 
 ```bash
 cd evals
 uv sync
 ```
 
+### Install from GitHub (use anywhere)
+
+```bash
+# One-time install
+uv tool install 'skill-eval @ git+https://github.com/dbt-labs/dbt-agent-skills.git#subdirectory=evals'
+
+# Then use from any directory
+skill-eval run --all
+skill-eval new my-scenario
+```
+
+### Quick run without installing
+
+```bash
+uvx --from 'skill-eval @ git+https://github.com/dbt-labs/dbt-agent-skills.git#subdirectory=evals' skill-eval --help
+```
+
 ## Usage
 
 ```bash
+# Create a new scenario
+skill-eval new my-scenario
+
+# Create with context files
+skill-eval new my-scenario --context models/ --context seeds/data.csv
+
+# Create in a specific directory
+skill-eval new my-scenario --base-dir /path/to/evals
+
 # Run a scenario
 uv run skill-eval run <scenario-name>
 
@@ -50,7 +78,7 @@ evals/
 │       ├── prompt.txt          # User message to send
 │       ├── skill-sets.yaml     # Skills, MCP servers, allowed tools
 │       ├── context/            # Files Claude needs (copied to temp env)
-│       └── .env                # Environment variables for MCP servers
+│       └── .env                # Environment variables (setup commands + MCP servers)
 ├── runs/                   # Output from runs (timestamped, gitignored)
 │   └── 2026-01-15-153633/
 │       └── example-yaml-error/
@@ -160,9 +188,20 @@ skills:
 
 **Note:** The URL must point to a `SKILL.md` file. GitHub blob URLs are automatically converted to raw URLs. Directory URLs are not supported.
 
+### Environment Variables (.env)
+
+Each scenario gets a `.env` file (created by `skill-eval new`, gitignored). Variables are loaded automatically for setup commands and passed to Claude:
+
+```bash
+# scenarios/dbt-job-failure/.env
+DO_NOT_TRACK=1
+DBT_HOST=https://cloud.getdbt.com
+DBT_TOKEN=your_token_here
+```
+
 ### MCP Servers
 
-MCP servers use the standard `mcpServers` format. Environment variables are loaded from `.env` in the scenario directory:
+MCP servers use the standard `mcpServers` format:
 
 ```yaml
 mcp_servers:
@@ -172,14 +211,6 @@ mcp_servers:
       - --env-file
       - .env
       - dbt-mcp@latest
-```
-
-Create a `.env` file in your scenario directory (gitignored):
-
-```bash
-# scenarios/dbt-job-failure/.env
-DBT_HOST=https://cloud.getdbt.com
-DBT_TOKEN=your_token_here
 ```
 
 ### Allowed Tools
@@ -232,6 +263,26 @@ extra_prompt: |
   1. Check if any skill can help
   2. Use the MCP server if available
 ```
+
+### Setup Commands
+
+Run commands before Claude starts (e.g., installing skills via CLI):
+
+```yaml
+sets:
+  - name: with-remote-skill
+    setup:
+      - npx skills add https://github.com/dbt-labs/dbt-agent-skills -a claude-code -y
+    skills: []
+    allowed_tools: [Read, Glob, Grep, Skill]
+```
+
+Setup commands run in the isolated temp environment with `.env` variables loaded. If any command fails, the run stops immediately with an error.
+
+Use cases:
+- Installing skills via `npx skills add <url> -a claude-code -y`
+- Running project setup scripts
+- Seeding test data
 
 ## Run Output
 
@@ -286,8 +337,8 @@ Stall detection helps catch runs that get stuck waiting for tool approval when u
 
 ## Workflow
 
-1. **Create a scenario** - Define prompt, context files, and expected behavior
-2. **Configure skill sets** - Specify skills, MCP servers, and tool permissions
+1. **Create a scenario** - `skill-eval new <name>` scaffolds the directory structure
+2. **Configure skill sets** - Edit `skill-sets.yaml` to specify skills, MCP servers, and tool permissions
 3. **Run evaluation** - `skill-eval run <scenario>` executes Claude with each configuration
 4. **Review transcripts** - `skill-eval review` opens HTML transcripts in browser
 5. **Grade outputs** - `skill-eval grade <run-id>` (manual) or `--auto` (Claude-graded)
@@ -373,3 +424,16 @@ sets:
       - https://github.com/org/repo/blob/main/skills/debugging-dbt-errors/SKILL.md
     allowed_tools: [Read, Glob, Grep, Edit, Skill]
 ```
+
+## Troubleshooting
+
+### "Please log in" errors
+
+If run logs mention needing to log in, authenticate Claude Code first:
+
+```bash
+claude
+/login
+```
+
+Then exit and re-run the evaluation.

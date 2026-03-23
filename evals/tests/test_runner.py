@@ -916,7 +916,7 @@ def test_run_scenario_appends_extra_prompt(tmp_path: Path) -> None:
 
     captured_prompt = None
 
-    def mock_run_claude(env_dir, prompt, mcp_config_path, allowed_tools, ctx_logger=None):
+    def mock_run_claude(env_dir, prompt, mcp_config_path, allowed_tools, ctx_logger=None, extra_env=None):
         nonlocal captured_prompt
         captured_prompt = prompt
         return {"output_text": "Done", "skills_invoked": [], "tools_used": []}, True, None, ""
@@ -956,7 +956,7 @@ def test_run_scenario_no_extra_prompt_unchanged(tmp_path: Path) -> None:
 
     captured_prompt = None
 
-    def mock_run_claude(env_dir, prompt, mcp_config_path, allowed_tools, ctx_logger=None):
+    def mock_run_claude(env_dir, prompt, mcp_config_path, allowed_tools, ctx_logger=None, extra_env=None):
         nonlocal captured_prompt
         captured_prompt = prompt
         return {"output_text": "Done", "skills_invoked": [], "tools_used": []}, True, None, ""
@@ -1074,3 +1074,160 @@ def test_run_claude_stall_timeout(tmp_path: Path) -> None:
     assert error is not None
     assert "Stalled" in error
     mock_proc.kill.assert_called_once()
+
+
+def test_runner_copies_env_file_always(tmp_path: Path) -> None:
+    """Runner copies .env file even without MCP servers."""
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    scenario_dir = evals_dir / "scenarios" / "test"
+    scenario_dir.mkdir(parents=True)
+    (scenario_dir / ".env").write_text("DO_NOT_TRACK=1")
+
+    runner = Runner(evals_dir=evals_dir)
+
+    # No MCP servers
+    env_dir, mcp_config_path = runner.prepare_environment(
+        scenario_dir=scenario_dir,
+        context_dir=None,
+        skills=[],
+    )
+
+    assert mcp_config_path is None
+    env_file = env_dir / ".env"
+    assert env_file.exists()
+    assert "DO_NOT_TRACK=1" in env_file.read_text()
+
+
+def test_load_dot_env_parses_values(tmp_path: Path) -> None:
+    """_load_dot_env parses key=value pairs, skipping comments and blanks."""
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    runner = Runner(evals_dir=evals_dir)
+
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "# This is a comment\n"
+        "\n"
+        "KEY1=value1\n"
+        "KEY2=value2\n"
+        "  # Another comment\n"
+        "KEY_WITH_EQUALS=val=ue\n"
+        "\n"
+    )
+
+    result = runner._load_dot_env(env_file)
+
+    assert result == {
+        "KEY1": "value1",
+        "KEY2": "value2",
+        "KEY_WITH_EQUALS": "val=ue",
+    }
+
+
+def test_setup_commands_run_in_env_dir(tmp_path: Path) -> None:
+    """Setup commands run in env_dir with .env vars."""
+    from skill_eval.models import Scenario, SkillSet
+
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    (evals_dir / "runs").mkdir()
+
+    scenario_dir = tmp_path / "scenarios" / "test"
+    scenario_dir.mkdir(parents=True)
+    (scenario_dir / ".env").write_text("MY_VAR=hello")
+
+    scenario = Scenario(
+        name="test-scenario",
+        path=scenario_dir,
+        prompt="Test",
+        skill_sets=[],
+    )
+
+    skill_set = SkillSet(
+        name="with-setup",
+        skills=[],
+        setup=["echo $MY_VAR > setup_output.txt"],
+    )
+
+    runner = Runner(evals_dir=evals_dir)
+    run_dir = runner.create_run_dir()
+
+    def mock_run_claude(env_dir, prompt, mcp_config_path, allowed_tools, ctx_logger=None, extra_env=None):
+        # Verify setup command ran and created the file
+        output_file = env_dir / "setup_output.txt"
+        assert output_file.exists()
+        assert "hello" in output_file.read_text()
+        return {"output_text": "Done", "skills_invoked": [], "tools_used": []}, True, None, ""
+
+    with patch.object(runner, "run_claude", side_effect=mock_run_claude):
+        result = runner.run_scenario(scenario, skill_set, run_dir)
+
+    assert result.success is True
+
+
+def test_setup_command_failure_stops_run(tmp_path: Path) -> None:
+    """A failing setup command stops the run and returns failure."""
+    from skill_eval.models import Scenario, SkillSet
+
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    (evals_dir / "runs").mkdir()
+
+    scenario_dir = tmp_path / "scenarios" / "test"
+    scenario_dir.mkdir(parents=True)
+
+    scenario = Scenario(
+        name="test-scenario",
+        path=scenario_dir,
+        prompt="Test",
+        skill_sets=[],
+    )
+
+    skill_set = SkillSet(
+        name="bad-setup",
+        skills=[],
+        setup=["exit 1"],
+    )
+
+    runner = Runner(evals_dir=evals_dir)
+    run_dir = runner.create_run_dir()
+
+    # run_claude should NOT be called if setup fails
+    with patch.object(runner, "run_claude") as mock_claude:
+        result = runner.run_scenario(scenario, skill_set, run_dir)
+
+    mock_claude.assert_not_called()
+    assert result.success is False
+    assert "Setup command failed" in result.error
+
+
+def test_run_claude_receives_extra_env(tmp_path: Path) -> None:
+    """run_claude merges extra_env into the subprocess environment."""
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    env_dir = tmp_path / "env"
+    env_dir.mkdir()
+    (env_dir / ".claude").mkdir()
+
+    runner = Runner(evals_dir=evals_dir)
+
+    captured_env = {}
+
+    def mock_popen(cmd, cwd, stdout, stderr, text, env):
+        captured_env.update(env)
+        mock_proc = MagicMock()
+        mock_proc.poll.return_value = 0
+        mock_proc.returncode = 0
+        import io
+        mock_proc.stdout = io.StringIO("")
+        mock_proc.stderr = io.StringIO("")
+        return mock_proc
+
+    with patch.object(runner_module.subprocess, "Popen", side_effect=mock_popen):
+        runner.run_claude(
+            env_dir, "test", extra_env={"CUSTOM_VAR": "custom_value"}
+        )
+
+    assert captured_env.get("CUSTOM_VAR") == "custom_value"
+    assert "CLAUDE_CONFIG_DIR" in captured_env

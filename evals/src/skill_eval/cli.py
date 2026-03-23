@@ -12,6 +12,47 @@ from skill_eval.selector import is_interactive, select_run, select_scenarios
 app = typer.Typer(help="A/B test skill variations against recorded scenarios.")
 
 
+def find_evals_root(start: Path | None = None) -> Path | None:
+    """Find the evals root directory by looking for a 'scenarios/' subdirectory.
+
+    Walks up from `start` (or cwd) looking for a directory containing 'scenarios/'.
+    Also checks for an 'evals/scenarios/' child (repo root case).
+
+    Returns:
+        The evals root directory, or None if not found.
+    """
+    current = (start or Path.cwd()).resolve()
+
+    # Walk up the directory tree
+    for directory in [current, *current.parents]:
+        if (directory / "scenarios").is_dir():
+            return directory
+        # Check for evals/ subdirectory (running from repo root)
+        if (directory / "evals" / "scenarios").is_dir():
+            return directory / "evals"
+
+    return None
+
+
+def _get_evals_dir(base_dir: Path | None = None) -> Path:
+    """Get the evals root directory, or exit with error.
+
+    Args:
+        base_dir: Explicit base directory override. If provided, use it directly.
+    """
+    if base_dir:
+        return base_dir
+    evals_dir = find_evals_root()
+    if evals_dir is None:
+        typer.echo(
+            "Error: Could not find evals root (no scenarios/ directory found).\n"
+            "Run from inside your evals directory or use --base-dir.",
+            err=True,
+        )
+        raise typer.Exit(1)
+    return evals_dir
+
+
 def get_latest_run(runs_dir: Path, *, silent: bool = False) -> Path:
     """Get the most recent run directory.
 
@@ -221,6 +262,7 @@ def run(
     parallel: bool = typer.Option(False, "--parallel", "-p", help="Run tasks in parallel"),
     workers: int = typer.Option(4, "--workers", "-w", help="Number of parallel workers"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed progress (tool calls)"),
+    base_dir: Optional[Path] = typer.Option(None, "--base-dir", "-d", help="Evals root directory (default: auto-detected)"),
 ) -> None:
     """Run scenarios against skill variants."""
     from skill_eval.logging import set_level
@@ -230,7 +272,7 @@ def run(
     if verbose:
         set_level("DEBUG")
 
-    evals_dir = Path.cwd()
+    evals_dir = _get_evals_dir(base_dir)
     scenarios_dir = evals_dir / "scenarios"
 
     scenario_dirs = find_scenarios(scenarios_dir, scenarios, all_flag=all_scenarios)
@@ -295,6 +337,7 @@ def grade(
     run_id: Optional[str] = typer.Argument(None, help="Run ID (full or partial). Defaults to latest run."),
     auto: bool = typer.Option(False, "--auto", help="Auto-grade using Claude"),
     latest: bool = typer.Option(False, "--latest", "-l", help="Use latest run without prompting"),
+    base_dir: Optional[Path] = typer.Option(None, "--base-dir", "-d", help="Evals root directory (default: auto-detected)"),
 ) -> None:
     """Grade outputs from a run."""
     import yaml
@@ -309,7 +352,7 @@ def grade(
         save_grades,
     )
 
-    evals_dir = Path.cwd()
+    evals_dir = _get_evals_dir(base_dir)
     runs_dir = evals_dir / "runs"
     scenarios_dir = evals_dir / "scenarios"
 
@@ -400,11 +443,12 @@ def grade(
 def report(
     run_id: Optional[str] = typer.Argument(None, help="Run ID (full or partial). Defaults to latest run."),
     latest: bool = typer.Option(False, "--latest", "-l", help="Use latest run without prompting"),
+    base_dir: Optional[Path] = typer.Option(None, "--base-dir", "-d", help="Evals root directory (default: auto-detected)"),
 ) -> None:
     """Generate comparison report for a run."""
     from skill_eval.reporter import print_rich_report, save_report
 
-    evals_dir = Path.cwd()
+    evals_dir = _get_evals_dir(base_dir)
     runs_dir = evals_dir / "runs"
 
     run_dir = find_run(runs_dir, run_id, latest=latest)
@@ -422,11 +466,12 @@ def report(
 def review(
     run_id: Optional[str] = typer.Argument(None, help="Run ID (full or partial). Defaults to latest run."),
     latest: bool = typer.Option(False, "--latest", "-l", help="Use latest run without prompting"),
+    base_dir: Optional[Path] = typer.Option(None, "--base-dir", "-d", help="Evals root directory (default: auto-detected)"),
 ) -> None:
     """Open HTML transcripts in browser for review."""
     import webbrowser
 
-    evals_dir = Path.cwd()
+    evals_dir = _get_evals_dir(base_dir)
     runs_dir = evals_dir / "runs"
 
     run_dir = find_run(runs_dir, run_id, latest=latest)
@@ -445,6 +490,63 @@ def review(
         rel_path = transcript.relative_to(run_dir)
         typer.echo(f"  {rel_path}")
         webbrowser.open(f"file://{transcript}")
+
+
+@app.command()
+def new(
+    name: str = typer.Argument(..., help="Scenario name (lowercase, hyphens only)"),
+    base_dir: Optional[Path] = typer.Option(None, "--base-dir", "-d", help="Evals root directory (default: auto-detected)"),
+    context: Optional[list[Path]] = typer.Option(None, "--context", "-c", help="Files or directories to copy into context/"),
+) -> None:
+    """Create a new scenario from templates."""
+    from skill_eval.scaffold import copy_context, create_scenario, validate_scenario_name
+
+    # Validate name
+    error = validate_scenario_name(name)
+    if error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1)
+
+    # Find evals root (default to cwd/evals/ for bootstrapping)
+    if base_dir:
+        evals_dir = base_dir
+    else:
+        evals_dir = find_evals_root()
+        if evals_dir is None:
+            evals_dir = Path.cwd() / "evals"
+
+    # Create scenario
+    try:
+        scenario_dir = create_scenario(name, evals_dir)
+    except FileExistsError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
+
+    # Copy context files
+    if context:
+        for ctx_path in context:
+            if not ctx_path.exists():
+                typer.echo(f"Warning: Context path not found: {ctx_path}", err=True)
+                continue
+            copy_context(ctx_path, scenario_dir)
+
+    # Print summary with paths relative to cwd
+    cwd = Path.cwd().resolve()
+    scenario_abs = scenario_dir.resolve()
+    if scenario_abs.is_relative_to(cwd):
+        rel = scenario_abs.relative_to(cwd)
+    else:
+        rel = scenario_abs
+    typer.echo(f"\nCreated scenario: {rel}/")
+    typer.echo("\nFiles to edit:")
+    typer.echo(f"  - {rel}/prompt.txt        <- write your prompt")
+    typer.echo(f"  - {rel}/scenario.md       <- describe background, expected outcome, grading criteria")
+    typer.echo(f"  - {rel}/skill-sets.yaml   <- configure skill sets to compare")
+    typer.echo(f"  - {rel}/.env              <- add credentials")
+    if context:
+        typer.echo(f"  - {rel}/context/          <- review copied context files")
+    else:
+        typer.echo(f"  - {rel}/context/          <- add files the agent needs")
 
 
 if __name__ == "__main__":

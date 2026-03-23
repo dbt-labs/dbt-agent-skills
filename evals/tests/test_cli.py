@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 from click.exceptions import Exit
 
-from skill_eval.cli import find_run, find_scenarios, get_latest_run
+from skill_eval.cli import find_evals_root, find_run, find_scenarios, get_latest_run
 
 
 def test_get_latest_run_returns_most_recent(tmp_path: Path) -> None:
@@ -315,3 +315,36 @@ def test_find_scenarios_non_interactive_no_names_exits(tmp_path: Path) -> None:
     with patch("skill_eval.cli.is_interactive", return_value=False):
         with pytest.raises(Exit):
             find_scenarios(scenarios_dir, None)
+
+
+def test_find_evals_root_from_evals_dir(tmp_path: Path) -> None:
+    """find_evals_root finds root when cwd is the evals directory."""
+    scenarios_dir = tmp_path / "scenarios"
+    scenarios_dir.mkdir()
+    result = find_evals_root(tmp_path)
+    assert result == tmp_path
+
+
+def test_find_evals_root_from_subdirectory(tmp_path: Path) -> None:
+    """find_evals_root finds root when cwd is a subdirectory."""
+    scenarios_dir = tmp_path / "scenarios"
+    scenarios_dir.mkdir()
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    result = find_evals_root(sub)
+    assert result == tmp_path
+
+
+def test_find_evals_root_from_repo_with_evals_subdir(tmp_path: Path) -> None:
+    """find_evals_root finds evals/ when cwd is the repo root."""
+    evals_dir = tmp_path / "evals"
+    scenarios_dir = evals_dir / "scenarios"
+    scenarios_dir.mkdir(parents=True)
+    result = find_evals_root(tmp_path)
+    assert result == evals_dir
+
+
+def test_find_evals_root_returns_none_when_not_found(tmp_path: Path) -> None:
+    """find_evals_root returns None when no scenarios/ directory found."""
+    result = find_evals_root(tmp_path)
+    assert result is None

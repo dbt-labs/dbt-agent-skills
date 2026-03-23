@@ -1,0 +1,68 @@
+sets:
+  # Baseline: no skills, read-only tools
+  - name: no-skills
+    skills: []
+    allowed_tools:
+      - Read
+      - Glob
+      - Grep
+
+  # # With skills and additional tools
+  # - name: with-skills
+  #   skills:
+  #     - skills/my-skill
+  #   allowed_tools:
+  #     - Read
+  #     - Glob
+  #     - Grep
+  #     - Write
+  #     - Edit
+  #     - Skill
+
+  # # With MCP server
+  # - name: with-mcp
+  #   skills: []
+  #   mcp_servers:
+  #     dbt:
+  #       command: uvx
+  #       args:
+  #         - --env-file
+  #         - .env
+  #         - dbt-mcp@latest
+  #   allowed_tools:
+  #     - Read
+  #     - Glob
+  #     - Grep
+  #     - mcp__dbt__*
+
+  # # With setup commands (run before Claude)
+  # - name: with-setup
+  #   setup:
+  #     - npx skills add https://github.com/dbt-labs/dbt-agent-skills -a claude-code -y
+  #   skills: []
+  #   allowed_tools:
+  #     - Read
+  #     - Glob
+  #     - Grep
+  #     - Skill
+
+  # # Full setup: skill + MCP server
+  # - name: with-skill-and-mcp
+  #   skills:
+  #     - skills/my-skill
+  #   mcp_servers:
+  #     dbt:
+  #       command: uvx
+  #       args:
+  #         - --env-file
+  #         - .env
+  #         - dbt-mcp@latest
+  #   allowed_tools:
+  #     - Read
+  #     - Glob
+  #     - Grep
+  #     - Write
+  #     - Edit
+  #     - Skill
+  #     - mcp__dbt__*
+  #   extra_prompt: Check if any skill can help with this task.
