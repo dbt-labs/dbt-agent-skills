@@ -47,7 +47,7 @@ Recommended, but not required:
 
 ## Recommended Workflow
 
-1. Identify current config surface in code and separate default SAO behavior from explicit overrides.
+1. Start with an activation pass: identify current config surface in code, separate default SAO behavior from explicit overrides, and confirm baseline behavior before tuning.
 2. Add or refine project-level defaults first to maximize broad savings with minimal complexity.
 3. Add model-level overrides only for exceptions where business SLOs require it.
 4. Use `loaded_at_field` or `loaded_at_query` only when warehouse metadata is not the right freshness signal.
@@ -60,8 +60,9 @@ See [Rollout Playbook](references/rollout-playbook.md) for code-first rollout se
 
 1. Start from SAO defaults and avoid advanced settings until baseline behavior is understood.
 2. Recommend source freshness on important sources even though SAO does not require it to function.
-3. Use project-level defaults first, then add model-level exceptions.
-4. Keep model override count low to avoid policy drift.
+3. Let business freshness needs drive the config shape; do not start by encoding complex job architecture into model configs.
+4. Use project-level defaults first, then add model-level exceptions.
+5. Keep model override count low to avoid policy drift.
 
 ### Where to Configure SAO Behavior
 
@@ -92,6 +93,8 @@ Where practical, make sure source freshness checks are actually scheduled or oth
 - `updates_on`: controls what upstream change signals should trigger a rebuild. Default to `any`, but use `all` if a downstream model should only rebuild when all upstream dependencies have changed.
 - `loaded_at_field` / `loaded_at_query`: use only for sources needing custom freshness logic.
 
+If you need different freshness tiers across hourly, daily, or weekly workflows, prefer a simple project default plus narrow overrides instead of a dense matrix of directory-level policies.
+
 Only define one of `loaded_at_field` or `loaded_at_query` for a given source.
 
 ### Choosing `updates_on` for Facts and Dimensions
@@ -100,6 +103,7 @@ Only define one of `loaded_at_field` or `loaded_at_query` for a given source.
 - Dimension-like models often fit `updates_on: all` when they combine multiple upstream dependencies and should rebuild only after the full set of required updates has arrived.
 - These are starting heuristics, not hard rules: a single-source dimension may still fit `any`, and a fact model with tightly synchronized batch dependencies may fit `all`.
 - Pick the setting that matches the business requirement for partial versus fully synchronized refreshes.
+- Apply `updates_on: all` selectively. Broad use can increase runtime, create job queueing, and cause missed cadences if upstream inputs refresh unevenly.
 
 ### Warehouse-Specific Freshness Semantics
 
@@ -126,8 +130,10 @@ This reduces Fusion capabilities and should be narrowed to problematic models as
 |---------|--------------|------------|-----|
 | SAO skips too much or too little | Misaligned freshness/SLO config | Compare expected critical models vs actual run graph | Adjust `build_after` and source freshness thresholds |
 | Runtime savings do not materialize | Overuse of model-level overrides negates defaults | Audit config inheritance in project files | Move common policy back to project-level defaults |
+| Hourly or frequent jobs start queueing or miss cadence | `updates_on: all` was applied too broadly across dependencies that do not refresh together | Compare job runtime before and after the change and inspect which upstream dependencies gate rebuilds | Roll back to `any` by default and keep `all` only on models with truly coordinated upstream cadence |
 | Freshness SLA misses | Freshness config not aligned to source cadence | Compare source arrival timings vs thresholds | Tighten freshness thresholds for critical sources/models |
 | Late-arriving data is missed | `loaded_at_*` logic does not match the incremental model lookback window | Compare the incremental filter window to the freshness query or field being used | Use `loaded_at_query` that aligns with the same lookback logic |
+| Newly merged models do not build as expected on first deploy | SAO does not yet have the expected upstream freshness signal or the rollout assumes reuse too early | Check first-run behavior for new resources and compare it to source freshness and selection scope | Add an explicit first-run validation or handoff note for newly introduced models |
 | Warehouse metadata does not track data arrival correctly | Default freshness signal reflects object changes or refresh timing instead of real upstream data changes | Compare object metadata timestamps to actual source arrival timing | Add `loaded_at_field` or `loaded_at_query` for the affected source |
 | Fusion compile cannot pass | Static analysis limitation on dynamic SQL | Reproduce compile errors in pilot scope | Apply temporary scoped `static_analysis: baseline`, then remediate |
 

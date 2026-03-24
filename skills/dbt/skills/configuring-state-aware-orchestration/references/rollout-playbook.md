@@ -7,6 +7,7 @@ This playbook is for a user working inside the dbt Cloud IDE with the dbt develo
 Have the agent work in small, verifiable steps:
 
 - inspect current config first
+- confirm what SAO already saves without tuning
 - propose the smallest broad default that improves SAO behavior
 - implement project-level defaults before model-level exceptions
 - validate after each config change
@@ -30,7 +31,7 @@ Expected agent output:
 
 - a short inventory of current SAO-related config
 - a list of files likely to change
-- a recommendation for the safest first default to add or refine
+- a recommendation for whether the project should stay in activation mode first or move straight to tuning
 
 ## Step 2: Set the Broadest Safe Project-Level Defaults First
 
@@ -43,6 +44,7 @@ Implement project-level defaults before any exceptions:
 - standardize `updates_on` behavior for the domain unless there is a clear reason not to
 - keep the first pass conservative and easy to reason about
 - apply config at the highest safe level, usually `dbt_project.yml` before model-specific YAML or SQL
+- prefer a small number of business-led freshness tiers over a detailed directory-level matrix
 
 Recommendation:
 
@@ -71,6 +73,7 @@ Add model-level exceptions only after the default pass is validated:
 - add overrides only for those exceptions
 - prefer grouped exceptions by layer or domain over scattered one-off rules
 - document the reason for each override in the change summary or nearby docs
+- be especially selective with `updates_on: all` on frequent jobs and monitor whether it lengthens runtime enough to create queueing
 
 Validation after this step:
 
@@ -106,13 +109,29 @@ Tell the agent to:
 - inspect incremental models for lookback windows or delayed ingestion logic
 - compare those windows to any `loaded_at_field` or `loaded_at_query` being introduced
 - prefer `loaded_at_query` when freshness must reflect a bounded ingest window rather than a raw event timestamp
+- keep long-range late-arriving handling simple rather than spreading it across many config layers
 
 Validation after this step:
 
 - confirm the freshness query would change when late-arriving rows enter the model's lookback window
 - confirm the chosen freshness signal matches the intended rebuild trigger
 
-## Step 6: Clean Up Config Drift Before Stopping
+## Step 6: Validate First-Run Behavior for New Models
+
+Goal: Avoid rollout surprises when new resources have not yet established steady-state SAO behavior.
+
+Tell the agent to:
+
+- identify whether the change introduces brand-new models or first-time dependencies
+- verify that first deploy behavior is acceptable even if reuse history is not yet established
+- leave a handoff note if the rollout needs an explicit first-run check after merge
+
+Validation after this step:
+
+- confirm whether new models require a one-time explicit build expectation
+- confirm the rollout notes distinguish first-run behavior from steady-state behavior
+
+## Step 7: Clean Up Config Drift Before Stopping
 
 Goal: Leave the project in a simpler, more governable state than before.
 
@@ -130,7 +149,7 @@ Exit criteria:
 - validation commands passed for the intended scope
 - remaining risks or assumptions are explicitly called out
 
-## Step 7: Escalate Non-Code Work Instead of Mixing It Into the Change
+## Step 8: Escalate Non-Code Work Instead of Mixing It Into the Change
 
 Goal: Keep the dbt developer agent focused on code and config changes inside the IDE.
 
