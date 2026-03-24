@@ -29,10 +29,7 @@ Use this skill inside the dbt IDE to change dbt project code and configs for max
 
 - A dbt project open in the IDE
 - Access to edit project files (`dbt_project.yml`, YAML config files, model SQL)
-- Known data freshness SLOs for critical domains
 - Agreement on where defaults live (project-level vs model-level overrides)
-
-See [Prerequisites and Eligibility](references/prerequisites-and-eligibility.md) for code-scope readiness and [Platform and Job Adjustments (Out of Scope)](references/platform-and-job-adjustments.md) for non-code setup dependencies.
 
 ## Questions to Ask First
 
@@ -78,13 +75,21 @@ Tune thresholds based on source arrival patterns and business SLOs.
 - `updates_on`: controls what upstream change signals should trigger a rebuild.
 - `loaded_at_field` / `loaded_at_query`: use only for sources needing custom freshness logic.
 
+### Warehouse-Specific Freshness Semantics
+
+- Validate how your warehouse updates object metadata before relying on default change detection.
+- When warehouse metadata does not reflect underlying data arrival, define `loaded_at_field` or `loaded_at_query` explicitly.
+- Keep warehouse-specific exceptions documented in a reference file rather than embedding them into the main workflow.
+
+See [Snowflake-specific considerations](references/snowflake.md) for known behavior around shared objects and dynamic tables.
+
 ### Temporary Fusion Unblocker (Use Sparingly)
 
 If Fusion compile blockers prevent SAO rollout, a temporary fallback is:
 
 ```yaml
 models:
-  +static_analysis: off
+  +static_analysis: baseline
 ```
 
 This reduces Fusion capabilities and should be narrowed to problematic models as soon as possible.
@@ -96,7 +101,8 @@ This reduces Fusion capabilities and should be narrowed to problematic models as
 | SAO skips too much or too little | Misaligned freshness/SLO config | Compare expected critical models vs actual run graph | Adjust `build_after` and source freshness thresholds |
 | Runtime savings do not materialize | Overuse of model-level overrides negates defaults | Audit config inheritance in project files | Move common policy back to project-level defaults |
 | Freshness SLA misses | Freshness config not aligned to source cadence | Compare source arrival timings vs thresholds | Tighten freshness thresholds for critical sources/models |
-| Fusion compile cannot pass | Static analysis limitation on dynamic SQL | Reproduce compile errors in pilot scope | Apply temporary scoped `static_analysis: off`, then remediate |
+| Warehouse metadata does not track data arrival correctly | Default freshness signal reflects object changes or refresh timing instead of real upstream data changes | Compare object metadata timestamps to actual source arrival timing | Add `loaded_at_field` or `loaded_at_query` for the affected source |
+| Fusion compile cannot pass | Static analysis limitation on dynamic SQL | Reproduce compile errors in pilot scope | Apply temporary scoped `static_analysis: baseline`, then remediate |
 
 ## Verification Steps
 
@@ -110,9 +116,7 @@ For platform-side checks and job configuration updates, use [Platform and Job Ad
 ## References
 
 - [Implementation Notes](references/implementation-notes.md)
-- [Prerequisites and Eligibility](references/prerequisites-and-eligibility.md)
-- [Platform and Job Adjustments (Out of Scope)](references/platform-and-job-adjustments.md)
 - [Rollout Playbook](references/rollout-playbook.md)
-- [Success Metrics and Definition of Done](references/success-metrics.md)
+- [Snowflake-specific Considerations](references/snowflake.md)
 - [Resource Links](references/resource-links.md)
 - https://docs.getdbt.com/

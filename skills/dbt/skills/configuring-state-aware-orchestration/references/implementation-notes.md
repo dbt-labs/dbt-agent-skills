@@ -29,6 +29,8 @@ Use threshold values that match business SLOs and source arrival characteristics
 - `updates_on`: Standardize on one policy (`any` or `all`) per domain to reduce confusion.
 - `loaded_at_field` / `loaded_at_query`: Use only where metadata-based freshness is insufficient.
 
+Use warehouse specific information and supersede these implementation notes where necessary.
+
 ## High-Savings Patterns
 
 - Prefer project-level defaults for shared behavior across a domain.
@@ -42,7 +44,7 @@ If Fusion compile issues block SAO adoption, use this temporary fallback:
 
 ```yaml
 models:
-  +static_analysis: off
+  +static_analysis: baseline
 ```
 
 Prefer scoping this to specific models once root causes are known.
