@@ -21,8 +21,10 @@ You should:
 - inspect `dbt_project.yml` for existing project-level defaults
 - inspect model and source YAML files for `build_after`, `updates_on`, freshness, and `loaded_at_*` settings
 - inspect model SQL for inline config overrides
+- identify which current behavior comes from SAO defaults and which comes from explicit config
 - identify whether defaults already exist and where override sprawl has accumulated
 - call out warehouse-specific freshness cases that may need explicit handling
+- call out incremental models with lookback windows or known late-arriving data
 
 Expected agent output:
 
@@ -36,16 +38,22 @@ Goal: Maximize savings with minimal config complexity.
 
 Implement project-level defaults before any exceptions:
 
-- add or refine source freshness where missing for critical sources
+- add or refine source freshness where missing for important or critical sources
 - define a default `build_after` policy that fits the dominant data arrival pattern
 - standardize `updates_on` behavior for the domain unless there is a clear reason not to
 - keep the first pass conservative and easy to reason about
+- apply config at the highest safe level, usually `dbt_project.yml` before model-specific YAML or SQL
+
+Recommendation:
+
+- even though SAO does not require source freshness config to function, prefer having source freshness configured and actively running for important sources during rollout
 
 Agent constraints:
 
 - do not introduce many one-off overrides in the first pass
 - do not mix platform changes with code changes
 - do not rely on warehouse metadata semantics unless they are known to be valid
+- do not add custom freshness logic where SAO defaults are already sufficient
 
 Validation after this step:
 
@@ -79,6 +87,7 @@ Tell the agent to:
 
 - check whether object metadata reflects real upstream data arrival or only object-level changes
 - add `loaded_at_field` or `loaded_at_query` when default metadata signals are unreliable
+- never define both `loaded_at_field` and `loaded_at_query` for the same source
 - use warehouse-specific reference guidance when needed rather than hard-coding warehouse assumptions into the general workflow
 
 For Snowflake-specific behavior, see [snowflake.md](snowflake.md).
@@ -88,7 +97,22 @@ Validation after this step:
 - compare metadata timestamps to actual source arrival expectations
 - confirm that freshness logic is tied to data recency rather than object-alter timing when required
 
-## Step 5: Clean Up Config Drift Before Stopping
+## Step 5: Align Freshness Logic with Late-Arriving Data
+
+Goal: Make sure SAO notices the same data windows the project logic actually processes.
+
+Tell the agent to:
+
+- inspect incremental models for lookback windows or delayed ingestion logic
+- compare those windows to any `loaded_at_field` or `loaded_at_query` being introduced
+- prefer `loaded_at_query` when freshness must reflect a bounded ingest window rather than a raw event timestamp
+
+Validation after this step:
+
+- confirm the freshness query would change when late-arriving rows enter the model's lookback window
+- confirm the chosen freshness signal matches the intended rebuild trigger
+
+## Step 6: Clean Up Config Drift Before Stopping
 
 Goal: Leave the project in a simpler, more governable state than before.
 
@@ -106,7 +130,7 @@ Exit criteria:
 - validation commands passed for the intended scope
 - remaining risks or assumptions are explicitly called out
 
-## Step 6: Escalate Non-Code Work Instead of Mixing It Into the Change
+## Step 7: Escalate Non-Code Work Instead of Mixing It Into the Change
 
 Goal: Keep the dbt developer agent focused on code and config changes inside the IDE.
 
@@ -116,3 +140,8 @@ Stop and hand off when the next step requires:
 - environment flag changes
 - account-level feature enablement
 - orchestration ownership decisions outside project code
+- deploy-job setup or enabling SAO / Efficient testing in the dbt Cloud UI
+
+Remember that SAO applies to deploy jobs and SQL models. CI jobs, merge jobs, and Python models are out of scope for this code-focused workflow.
+
+See [platform-and-job-adjustments.md](platform-and-job-adjustments.md).
