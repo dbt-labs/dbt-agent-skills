@@ -22,8 +22,8 @@ Do **NOT** version for:
 models:
   - name: fct_orders
     latest_version: 1
-    access: public
     config:
+      access: public
       contract:
         enforced: true
     columns:
@@ -51,8 +51,8 @@ When you need to rename `order_total` to `order_amount` and change a data type:
 models:
   - name: fct_orders
     latest_version: 1  # Keep pointing to v1 until consumers migrate
-    access: public
     config:
+      access: public
       contract:
         enforced: true
     columns:

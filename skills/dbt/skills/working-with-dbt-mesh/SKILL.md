@@ -1,6 +1,6 @@
 ---
 name: working-with-dbt-mesh
-description: Use when implementing dbt Mesh governance features (model contracts, access modifiers, groups, versioning) or setting up multi-project collaboration with cross-project refs. Also use when a project has models from multiple upstream projects or when disambiguating between similarly-named models across projects.
+description: Implements dbt Mesh governance features (model contracts, access modifiers, groups, versioning) and multi-project collaboration with cross-project refs. Use when implementing dbt Mesh governance, setting up cross-project refs with dependencies.yml, disambiguating similarly-named models across projects, or splitting a monolithic dbt project into multiple mesh projects.
 metadata:
   author: dbt-labs
   user-invocable: false
@@ -231,27 +231,6 @@ Is it referenced cross-project?
 | Adding contracts to staging models | Staging models are internal — contracts add friction without protecting external consumers | Advise against it; suggest data tests instead |
 | Adding contracts to models with dynamic/pivot columns | Column list changes with data, breaking the contract | Advise against it; explain why the column list isn't fixed |
 | Adding contracts without establishing external consumers | Contracts protect a schema boundary — no consumers means no boundary to protect | Ask who depends on this model before adding a contract |
-
-## Rationalizations to Resist
-
-| Excuse | Reality |
-|--------|---------|
-| "I'll just use `ref('model_name')` — it's simpler" | In a multi-project setup, single-argument ref is ambiguous. Always include the project name. |
-| "We'll add contracts later" | Downstream consumers form dependencies immediately. Contract early on public models. |
-| "Everything should be public for flexibility" | Public without contract is a liability. Be intentional about your API surface. |
-| "We need a version for every change" | Most changes are additive and non-breaking. Version only for actual breaking changes. |
-| "Groups are just bureaucracy" | Groups make ownership explicit. When something breaks at 2am, you need to know who owns it. |
-| "The user asked for a contract, so I should add it" | Advise against contracts that don't fit. Staging models, evolving models, pivot models, and models without external consumers are poor candidates. |
-| "The user asked me to set up cross-project refs" | Cross-project refs require dbt Cloud Enterprise or Enterprise+. Confirm the plan level before proceeding; if unknown or insufficient, explain the requirement and suggest intra-project governance features instead. |
-
-## Red Flags — STOP and Reconsider
-
-- About to write `ref('model_name')` in a project that has `dependencies.yml` — use two-argument `ref()`
-- About to use `source()` when the data actually comes from an upstream dbt project
-- About to set `access: public` without an enforced contract
-- Removing a column from a contracted model without creating a new version
-- Making a model `private` that is already referenced outside its group
-- About to add `projects:` to `dependencies.yml` or write a new two-argument `ref()` for a cross-project setup without confirming the user is on dbt Cloud Enterprise or Enterprise+ — ask first; this feature is unavailable on lower plan tiers
-- Adding `dependencies.yml` without verifying the upstream project has a successful production job run
-- About to place `access`, `group`, or `contract` outside of `config:` in a model YAML file — always nest under `config:`
-- About to add a contract to a staging model, a model with dynamic/pivot columns, or a model the user says is still evolving — advise against it
+| Making a model `private` that is already referenced outside its group | Existing refs break with a `DbtReferenceError` | Widen access to `protected` or refactor callers into the same group first |
+| Setting up cross-project refs without confirming dbt Cloud Enterprise | Cross-project `ref()` is unavailable on lower plan tiers | Confirm the plan level before adding `projects:` to `dependencies.yml` or writing two-argument `ref()` calls |
+| Adding `dependencies.yml` without a successful upstream production job | dbt Cloud resolves cross-project refs via the upstream `manifest.json` — no job run means no manifest | Run at least one successful production deployment in the upstream project first |
