@@ -10,6 +10,7 @@
     "building-dbt-semantic-layer": { "path": "skills/dbt/skills/building-dbt-semantic-layer/SKILL.md" },
     "configuring-dbt-mcp-server": { "path": "skills/dbt/skills/configuring-dbt-mcp-server/SKILL.md" },
     "fetching-dbt-docs": { "path": "skills/dbt/skills/fetching-dbt-docs/SKILL.md" },
+    "interviewing-for-project-context": { "path": "skills/dbt/skills/interviewing-for-project-context/SKILL.md" },
     "running-dbt-commands": { "path": "skills/dbt/skills/running-dbt-commands/SKILL.md" },
     "troubleshooting-dbt-job-errors": { "path": "skills/dbt/skills/troubleshooting-dbt-job-errors/SKILL.md" },
     "using-dbt-for-analytics-engineering": { "path": "skills/dbt/skills/using-dbt-for-analytics-engineering/SKILL.md" },
