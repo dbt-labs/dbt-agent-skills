@@ -120,6 +120,6 @@ Use `dbt-index schema` to list all tables. Use `dbt-index schema <table>` to see
 ## Global flags
 
 - `--db <path>` — index location (default: `target/index`; env: `DBT_INDEX_DB`). Only needed if using a non-default location.
-- `--format compact` — default output format, token-efficient for LLMs (do not change)
+- `--format compact` — default output format: YAML envelope with metadata keys + embedded CSV `data` block, token-efficient for LLMs (do not change)
+- `--raw` — only meaningful with `compact`: strips the YAML envelope, leaving just the CSV `data` block
 - `--limit <n>` — max rows returned (default 100, use 0 for unlimited)
-- `--raw` — suppress headers/metadata, raw data only
