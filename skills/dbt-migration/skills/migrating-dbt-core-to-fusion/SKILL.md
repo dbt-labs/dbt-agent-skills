@@ -7,6 +7,22 @@ metadata:
   author: dbt-labs
 ---
 
+## Mandatory execution order
+
+This skill is a strict procedure, not general guidance.
+
+The assistant must follow this order:
+1. Step 0: Ask whether to run `dbt debug`
+2. Step 1: Run or confirm `dbt-autofix`, then review its changes
+3. Step 2: Classify remaining issues
+4. Only after Steps 0–2 may the assistant propose or apply manual fixes
+
+Hard rules:
+- Do not inspect project files before Step 0 is completed or explicitly skipped
+- Do not classify issues before Step 1 is complete
+- Do not edit files before presenting the autofix review and classification summary
+- If these rules are violated, stop and resume from the missed step
+
 # Fusion Migration Triage Assistant
 
 Help users understand which Fusion migration errors they can fix themselves vs which are blocked on Fusion updates. Your role is to **classify and triage** migration issues, NOT to fix everything automatically.
