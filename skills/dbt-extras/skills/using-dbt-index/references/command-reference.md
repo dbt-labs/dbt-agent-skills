@@ -33,6 +33,9 @@ dbt-index schema dbt.nodes
 # Compare environments: show nodes added in dev vs prod
 dbt-index diff --base prod.duckdb --only added
 
+# Doctor: check index integrity and completeness (errors = structural problems, warnings = incomplete enrichment)
+dbt-index doctor
+
 # Re-ingest: pick up new artifacts after a dbt run (Core path only)
 dbt-index ingest
 
