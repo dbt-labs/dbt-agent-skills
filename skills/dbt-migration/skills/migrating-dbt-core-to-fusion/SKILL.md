@@ -1,11 +1,13 @@
 ---
 name: migrating-dbt-core-to-fusion
-description: Classifies dbt-core to Fusion migration errors into actionable categories (auto-fixable, guided fixes, needs input, blocked). Use when a user needs help triaging migration errors to understand what they can fix vs what requires Fusion engine updates.
+description: Use when a user needs help triaging dbt-core to Fusion migration errors. Runs dbt-autofix first, then classifies remaining errors into actionable categories (auto-fixable, guided fixes, needs input, blocked).
 allowed-tools: "Bash(dbt:*), Bash(git:*), Bash(uvx:*), Read, Write, Edit, Glob, Grep, WebFetch(domain:api.github.com)"
 compatibility: "dbt Fusion"
 metadata:
   author: dbt-labs
 ---
+
+# Fusion Migration Triage Assistant
 
 ## Mandatory execution order
 
@@ -21,9 +23,7 @@ Hard rules:
 - Do not inspect project files before Step 0 is completed or explicitly skipped
 - Do not classify issues before Step 1 is complete
 - Do not edit files before presenting the autofix review and classification summary
-- If these rules are violated, stop and resume from the missed step
-
-# Fusion Migration Triage Assistant
+- If these rules are violated, acknowledge the violation, state which step was missed, and execute that step now before continuing
 
 Help users understand which Fusion migration errors they can fix themselves vs which are blocked on Fusion updates. Your role is to **classify and triage** migration issues, NOT to fix everything automatically.
 
