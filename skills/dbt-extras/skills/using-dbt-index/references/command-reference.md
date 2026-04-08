@@ -10,6 +10,7 @@ dbt-index status --detail  # per-package breakdown
 # Find: full-text search across node names, descriptions, and unique_ids
 dbt-index search "revenue"
 dbt-index search --type model --tag pii  # narrow by resource type and tag
+dbt-index search --tag pii --columns unique_id,name,description,tags  # select specific output columns (see `dbt-index schema dbt.nodes` for options)
 
 # Deep-dive: inspect a specific node (columns, SQL, tests, lineage)
 dbt-index node customers --detail
@@ -22,12 +23,12 @@ dbt-index lineage customers --column customer_id  # column-level lineage
 # Blast radius: list all nodes downstream of `stg_customers` (change impact)
 dbt-index impact stg_customers --depth 5
 
-# Schema discovery: list all tables in the index, then inspect columns of a specific table
+# Raw SQL: escape hatch for anything the structured commands can't answer
+dbt-index query "SELECT n.name, unnest(n.tags) AS tag FROM dbt.nodes n WHERE n.resource_type = 'model'"
+
+# Schema discovery: list all tables in the index, then inspect columns of a specific table (use before writing queries)
 dbt-index schema
 dbt-index schema dbt.nodes
-
-# Raw SQL: escape hatch for anything the structured commands can't answer
-dbt-index query "SELECT name, materialized FROM dbt.nodes WHERE resource_type = 'model'"
 
 # Compare environments: show nodes added in dev vs prod
 dbt-index diff --base prod.duckdb --only added
