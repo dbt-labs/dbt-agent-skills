@@ -3,39 +3,39 @@
 ## Quick command cheat sheet
 
 ```bash
-# Orient
+# Orient: get project summary (node counts, coverage, last run)
 dbt-index status
 dbt-index status --detail  # per-package breakdown
 
-# Find
+# Find: full-text search across node names, descriptions, and unique_ids
 dbt-index search "revenue"
-dbt-index search --type model --tag pii
+dbt-index search --type model --tag pii  # narrow by resource type and tag
 
-# Deep-dive
+# Deep-dive: inspect a specific node (columns, SQL, tests, lineage)
 dbt-index node customers --detail
 dbt-index node model.my_project.fct_orders --sql --columns
 
-# DAG traversal
+# DAG traversal: walk the dependency graph up to 5 layers upstream of `customers`
 dbt-index lineage customers --upstream --depth 5
-dbt-index lineage customers --column customer_id
+dbt-index lineage customers --column customer_id  # column-level lineage
 
-# Blast radius
+# Blast radius: list all nodes downstream of `stg_customers` (change impact)
 dbt-index impact stg_customers --depth 5
 
-# Schema discovery (before using query)
+# Schema discovery: list all tables in the index, then inspect columns of a specific table
 dbt-index schema
 dbt-index schema dbt.nodes
 
-# Raw SQL (last resort)
+# Raw SQL: escape hatch for anything the structured commands can't answer
 dbt-index query "SELECT name, materialized FROM dbt.nodes WHERE resource_type = 'model'"
 
-# Compare environments
+# Compare environments: show nodes added in dev vs prod
 dbt-index diff --base prod.duckdb --only added
 
-# Re-ingest after new dbt run
+# Re-ingest: pick up new artifacts after a dbt run (Core path only)
 dbt-index ingest
 
-# Export
+# Export: dump a table to Parquet for use outside the index
 dbt-index export --table dbt.nodes
 ```
 
