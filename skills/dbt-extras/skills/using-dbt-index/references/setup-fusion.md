@@ -4,7 +4,7 @@ Use this when the project runs dbt Fusion.
 
 ## Key insight
 
-Adding `--use-index` to any Fusion command automatically generates the Parquet index as part of that command — there is no separate ingest step. The index is written during the parse phase with ~2ms overhead.
+Adding `--use-index` (or setting `DBT_USE_INDEX=1`) to any Fusion command automatically generates the Parquet index as part of that command — there is no separate ingest step. The index is written after compilation, with ~2ms overhead.
 
 ## Creating the index
 
@@ -17,7 +17,13 @@ dbtf run --use-index
 dbtf test --use-index
 ```
 
-The index is written to `target/index/` by default. Use `--index-dir` to specify a different location:
+Or set `DBT_USE_INDEX=1` once so every Fusion command keeps the index fresh automatically:
+
+```bash
+export DBT_USE_INDEX=1
+```
+
+The index is written to `target/index/` by default. Specifying a different location with `--index-dir` (or `DBT_INDEX_DIR`) is rarely needed — the default works in almost all cases:
 
 ```bash
 dbtf parse --use-index --index-dir /path/to/index
@@ -25,14 +31,10 @@ dbtf parse --use-index --index-dir /path/to/index
 
 ## Environment variables
 
-Instead of passing flags every time, set environment variables:
-
 | Flag | Environment variable | Description |
 |---|---|---|
 | `--use-index` | `DBT_USE_INDEX=1` | Write parquet index alongside JSON artifacts |
 | `--index-dir` | `DBT_INDEX_DIR=/path/to/index` | Directory for index output (default: `<target>/index/`) |
-
-With these set, every Fusion command automatically keeps the index up-to-date with no extra flags.
 
 ## Verify
 
@@ -42,7 +44,7 @@ dbt-index status
 
 ## Keeping the index fresh
 
-Since `--use-index` is additive to normal commands, the index stays fresh automatically as long as the flag (or env var) is set. Every `dbtf build`, `dbtf run`, etc. regenerates the index as part of the parse phase.
+Since `--use-index` is additive to normal commands, the index stays fresh automatically as long as the flag (or env var) is set. Every `dbtf build`, `dbtf run`, etc. refreshes the index.
 
 ## Differences from Core path
 
