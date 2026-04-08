@@ -58,7 +58,7 @@ Always run `dbt-index status` first to understand the project shape (node counts
 | Trace upstream/downstream dependencies | `lineage` | `--upstream`, `--downstream`, `--depth`, `--column` for column-level |
 | Assess blast radius before changing a model | `impact` | `--depth` to control hops |
 | Discover what tables/columns exist in the index | `schema` | Pass a table name for column details, `--tables-only` for just table list |
-| Compare dev vs prod | `diff` | `--base <prod-index>`, `--only`, `--type` to filter |
+| Compare dev vs prod | `diff` | `--base <prod-index>`, `--only added\|removed\|modified`, `--type model\|source\|test\|...` to filter |
 | Export tables as parquet | `export` | `--table` to select specific tables |
 | Refresh the index after a new dbt run (Core path) | `ingest` | `--full-refresh` to skip hash cache |
 | Update or uninstall dbt-index itself | `system` | `update`, `uninstall` |
