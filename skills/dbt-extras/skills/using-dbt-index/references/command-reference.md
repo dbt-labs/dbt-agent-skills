@@ -22,10 +22,6 @@ dbt-index lineage customers -d <index-dir> --column customer_id
 # Blast radius
 dbt-index impact stg_customers -d <index-dir> --depth 5
 
-# Health
-dbt-index report all -d <index-dir>
-dbt-index report coverage -d <index-dir>
-
 # Schema discovery (before using query)
 dbt-index schema -d <index-dir>
 dbt-index schema dbt.nodes -d <index-dir>
@@ -126,21 +122,3 @@ Use `dbt-index schema` to list all tables. Use `dbt-index schema <table>` to see
 - `-f compact` — default output format, token-efficient for LLMs (do not change)
 - `-n <limit>` — max rows returned (default 100, use 0 for unlimited)
 - `--raw` — suppress headers/metadata, raw data only
-
-## Available report subreports
-
-`dbt-index report <name>`:
-
-| Report | What it shows |
-|---|---|
-| `coverage` | Documentation and test coverage percentages |
-| `undocumented` | Nodes missing descriptions |
-| `untested` | Nodes with no tests |
-| `dead-columns` | Columns declared but unused |
-| `dag-depth` | Longest paths in the DAG |
-| `slowest` | Slowest-running nodes |
-| `freshness` | Source freshness results |
-| `failing` | Currently failing tests |
-| `drift` | Schema drift between declared and catalog |
-| `islands` | Disconnected nodes in the DAG |
-| `all` | Combined scorecard with key metrics |

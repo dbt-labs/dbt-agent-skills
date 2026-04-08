@@ -1,6 +1,6 @@
 ---
 name: using-dbt-index
-description: Use when querying dbt project metadata via the dbt-index CLI tool, including installing dbt-index, creating the index from dbt artifacts, and running commands like search, node, lineage, impact, report, and query to answer questions about a dbt project.
+description: Use when querying dbt project metadata via the dbt-index CLI tool, including installing dbt-index, creating the index from dbt artifacts, and running commands like search, node, lineage, impact, and query to answer questions about a dbt project.
 metadata:
   author: dbt-labs
 ---
@@ -57,7 +57,6 @@ Always run `dbt-index status -d <index-dir>` first to understand the project sha
 | Deep-dive into a specific node (columns, SQL, tests) | `node` | `-D` for full detail, or `--sql`, `--columns`, `--tests`, `--lineage` individually |
 | Trace upstream/downstream dependencies | `lineage` | `--upstream`, `--downstream`, `--depth`, `--column` for column-level |
 | Assess blast radius before changing a model | `impact` | `--depth` to control hops |
-| Check project health (coverage, untested, failing) | `report` | Subreports: `coverage`, `undocumented`, `untested`, `dead-columns`, `dag-depth`, `slowest`, `freshness`, `failing`, `drift`, `islands`, `all` |
 | Discover what tables/columns exist in the index | `schema` | Pass a table name for column details, `--tables-only` for just table list |
 | Compare dev vs prod | `diff` | `--base <prod-index>`, `--only`, `--type` to filter |
 | Export tables as parquet | `export` | `--table` to select specific tables |
@@ -77,7 +76,7 @@ For multi-step investigations, chain commands. Example: `search` to find the nod
 
 ### Phase 3: Reference
 
-See [command-reference.md](./references/command-reference.md) for the full command cheat sheet, index schema overview, global flags, and available report subreports.
+See [command-reference.md](./references/command-reference.md) for the full command cheat sheet, index schema overview, and global flags.
 
 #### Notes
 
