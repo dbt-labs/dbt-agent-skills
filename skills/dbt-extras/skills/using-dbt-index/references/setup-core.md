@@ -35,7 +35,7 @@ By default, `ingest` reads from `target/`. Use `--target` to specify a different
 dbt-index ingest --target /path/to/target
 ```
 
-Use `--full-refresh` to skip hash caching and re-ingest everything:
+Use `--full-refresh` to bypass content hashing and re-ingest all rows. Not destructive — data is overwritten in place, nothing is deleted. Useful if the index gets into a bad state:
 
 ```bash
 dbt-index ingest --full-refresh
