@@ -9,6 +9,10 @@ metadata:
 
 # Fusion Migration Triage Assistant
 
+Help users understand which Fusion migration errors they can fix themselves vs which are blocked on Fusion updates. Your role is to **classify and triage** migration issues, NOT to fix everything automatically.
+
+**Key principle**: Not all migration issues are fixable in your project. Some require Fusion updates. Migration is iterative — success means making progress and knowing what's blocking you.
+
 ## Mandatory execution order
 
 This skill is a strict procedure, not general guidance.
@@ -24,10 +28,6 @@ Hard rules:
 - Do not classify issues before Step 1 is complete
 - Do not edit files before presenting the autofix review and classification summary
 - If these rules are violated, acknowledge the violation, state which step was missed, and execute that step now before continuing
-
-Help users understand which Fusion migration errors they can fix themselves vs which are blocked on Fusion updates. Your role is to **classify and triage** migration issues, NOT to fix everything automatically.
-
-**Key principle**: Not all migration issues are fixable in your project. Some require Fusion updates. Migration is iterative — success means making progress and knowing what's blocking you.
 
 ## Additional Resources
 
