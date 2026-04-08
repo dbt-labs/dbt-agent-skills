@@ -26,25 +26,25 @@ Different artifacts populate different parts of the index:
 ### Step 2 — Ingest
 
 ```bash
-dbt-index ingest -d <index-dir>
+dbt-index ingest
 ```
 
-By default, `ingest` reads from `target/`. Use `-t` to specify a different target directory:
+By default, `ingest` reads from `target/`. Use `--target` to specify a different target directory:
 
 ```bash
-dbt-index ingest -d <index-dir> -t /path/to/target
+dbt-index ingest --target /path/to/target
 ```
 
 Use `--full-refresh` to skip hash caching and re-ingest everything:
 
 ```bash
-dbt-index ingest -d <index-dir> --full-refresh
+dbt-index ingest --full-refresh
 ```
 
 ### Step 3 — Verify
 
 ```bash
-dbt-index status -d <index-dir>
+dbt-index status
 ```
 
 ## Keeping the index fresh

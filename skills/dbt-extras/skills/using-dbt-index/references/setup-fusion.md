@@ -37,7 +37,7 @@ With these set, every Fusion command automatically keeps the index up-to-date wi
 ## Verify
 
 ```bash
-dbt-index status -d target/index
+dbt-index status
 ```
 
 ## Keeping the index fresh

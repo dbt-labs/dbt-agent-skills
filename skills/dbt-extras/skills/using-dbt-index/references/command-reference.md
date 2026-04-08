@@ -4,39 +4,39 @@
 
 ```bash
 # Orient
-dbt-index status -d <index-dir>
-dbt-index status -d <index-dir> -D  # per-package breakdown
+dbt-index status
+dbt-index status --detail  # per-package breakdown
 
 # Find
-dbt-index search "revenue" -d <index-dir>
-dbt-index search --type model --tag pii -d <index-dir>
+dbt-index search "revenue"
+dbt-index search --type model --tag pii
 
 # Deep-dive
-dbt-index node customers -d <index-dir> -D
-dbt-index node model.my_project.fct_orders -d <index-dir> --sql --columns
+dbt-index node customers --detail
+dbt-index node model.my_project.fct_orders --sql --columns
 
 # DAG traversal
-dbt-index lineage customers -d <index-dir> --upstream --depth 5
-dbt-index lineage customers -d <index-dir> --column customer_id
+dbt-index lineage customers --upstream --depth 5
+dbt-index lineage customers --column customer_id
 
 # Blast radius
-dbt-index impact stg_customers -d <index-dir> --depth 5
+dbt-index impact stg_customers --depth 5
 
 # Schema discovery (before using query)
-dbt-index schema -d <index-dir>
-dbt-index schema dbt.nodes -d <index-dir>
+dbt-index schema
+dbt-index schema dbt.nodes
 
 # Raw SQL (last resort)
-dbt-index query "SELECT name, materialized FROM dbt.nodes WHERE resource_type = 'model'" -d <index-dir>
+dbt-index query "SELECT name, materialized FROM dbt.nodes WHERE resource_type = 'model'"
 
 # Compare environments
-dbt-index diff --base prod.duckdb -d <index-dir> --only added
+dbt-index diff --base prod.duckdb --only added
 
 # Re-ingest after new dbt run
-dbt-index ingest -d <index-dir>
+dbt-index ingest
 
 # Export
-dbt-index export -d <index-dir> --table dbt.nodes
+dbt-index export --table dbt.nodes
 ```
 
 ## Index schema overview
@@ -118,7 +118,7 @@ Use `dbt-index schema` to list all tables. Use `dbt-index schema <table>` to see
 
 ## Global flags
 
-- `-d <index-dir>` — always pass the index directory
-- `-f compact` — default output format, token-efficient for LLMs (do not change)
-- `-n <limit>` — max rows returned (default 100, use 0 for unlimited)
+- `--db <path>` — index location (default: `target/index`; env: `DBT_INDEX_DB`). Only needed if using a non-default location.
+- `--format compact` — default output format, token-efficient for LLMs (do not change)
+- `--limit <n>` — max rows returned (default 100, use 0 for unlimited)
 - `--raw` — suppress headers/metadata, raw data only

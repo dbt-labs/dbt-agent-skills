@@ -39,7 +39,7 @@ Ensure `dbt-index` is installed, up-to-date, the dbt flavor is known, and an ind
 3. If no index exists anywhere:
    - **Core path:** See [setup-core.md](./references/setup-core.md) for detailed instructions
    - **Fusion path:** See [setup-fusion.md](./references/setup-fusion.md) for detailed instructions
-4. After creation, verify with `dbt-index status -d <index-dir>`
+4. After creation, verify with `dbt-index status`
 
 ### Phase 2: Command Selection
 
@@ -47,7 +47,7 @@ After prerequisites are met, use this decision tree to pick the right command.
 
 #### Orient first
 
-Always run `dbt-index status -d <index-dir>` first to understand the project shape (node counts, coverage, last run info). Use `-D` for per-package breakdown.
+Always run `dbt-index status` first to understand the project shape (node counts, coverage, last run info). Use `--detail` for per-package breakdown.
 
 #### Match intent to command
 
@@ -66,9 +66,9 @@ Always run `dbt-index status -d <index-dir>` first to understand the project sha
 
 #### Global flags
 
-- `-d <index-dir>` — always pass the index directory
+- `--db <path>` — index location (default: `target/index`; env: `DBT_INDEX_DB`). Only needed if using a non-default location.
 - Default `compact` format — do not change (it is token-efficient)
-- `-n` to control row limits when expecting large results
+- `--limit` to control row limits when expecting large results
 
 #### Command chaining
 
