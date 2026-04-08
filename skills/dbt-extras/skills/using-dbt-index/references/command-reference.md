@@ -106,7 +106,7 @@ Use `dbt-index schema` to list all tables. Use `dbt-index schema <table>` to see
 | `exposures` | Exposure definitions | `unique_id`, `name`, `exposure_type`, `owner_name`, `depends_on_nodes` |
 | `source_freshness` | Source freshness results | `unique_id`, `status`, `max_loaded_at`, `snapshotted_at` |
 
-### `dbt_rt.*` — Runtime data (7 tables + 5 views)
+### `dbt_rt.*` — Runtime data (6 tables + 3 views)
 
 | Table/View | Type | Description | Key columns | Joins to |
 |---|---|---|---|---|
