@@ -28,6 +28,7 @@ Hard rules:
 - Do not classify issues before Step 1 is complete
 - Do not edit files before presenting the autofix review and classification summary
 - If these rules are violated, acknowledge the violation, state which step was missed, and execute that step now before continuing
+- **Ignore warnings**: Focus exclusively on errors. Do not classify, report, or fix warnings — skip them entirely.
 
 ## Additional Resources
 
@@ -266,3 +267,4 @@ Next: [What to do next]
 - **After each fix, validate**: Re-run the repro command and check for cascading errors
 - **Success = progress**: Not reaching 100% in one pass is expected — many issues need Fusion fixes
 - **Consider `dbt debug` first**: If you see connection or credential errors during triage, suggest running `dbt debug` to verify the environment
+- **Ignore warnings**: Only triage errors. Skip any output lines or issues flagged as warnings — they are out of scope for this skill.
