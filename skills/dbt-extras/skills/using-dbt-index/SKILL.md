@@ -61,7 +61,7 @@ Always run `dbt-index status` first to understand the project shape (node counts
 | Compare dev vs prod | `diff` | `--base <prod-index>`, `--only added\|removed\|modified`, `--type model\|source\|test\|...` to filter |
 | Export tables as parquet | `export` | `--table` to select specific tables |
 | Check index integrity and completeness | `doctor` | `--name <check>` to run a specific check |
-| Refresh the index after a new dbt run (Core path) | `ingest` | `--full-refresh` to bypass content hashing and re-ingest all rows (not destructive — overwrites in place) |
+| Refresh the index after a new dbt run (Core path) | `ingest` | `--full-refresh` to bypass content hashing and force a full re-read of all artifacts |
 | Update or uninstall dbt-index itself | `system` | `update`, `uninstall` |
 | Anything the above can't answer | `query` | Raw SQL escape hatch; SELECT-only by default; use `schema` first to discover table structure |
 
