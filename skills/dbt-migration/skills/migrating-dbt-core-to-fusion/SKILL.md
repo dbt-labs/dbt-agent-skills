@@ -28,6 +28,7 @@ Hard rules:
 - Do not classify issues before Step 1 is complete
 - Do not edit files before presenting the autofix review and classification summary
 - If these rules are violated, acknowledge the violation, state which step was missed, and execute that step now before continuing
+- **Focus on errors**: For `dbt1065` package version compatibility warnings specifically (e.g. `Package '<package_name>' requires dbt version [>=1.2.0, <2.0.0]`) — ignore these. If autofix was run, it will have already upgraded packages that need upgrading. If `dbt1065` warnings persist after autofix, no manual package updates are needed.
 
 ## Additional Resources
 
@@ -104,6 +105,7 @@ Before analyzing any migration errors, you MUST understand what autofix changed:
    - What config keys were moved to `meta:`?
    - What YAML structures changed?
    - What Jinja modifications were made?
+   - Were any package versions updated? (autofix upgrades packages that require it)
 
 **Why this matters**: Some migration errors may be CAUSED by autofix bugs or incorrect transformations. Understanding what autofix changed helps you:
 - Identify if a current error was introduced by autofix
@@ -136,7 +138,7 @@ Use the 4-category framework to triage errors. For the full pattern catalog see 
 - Source name mismatches (dbt1005) — align source references with YAML definitions
 - YAML syntax errors (dbt1013) — fix YAML syntax
 - Unexpected config keys (dbt1060) — move custom keys to `meta:`
-- Package version issues (dbt1005, dbt8999) — update versions, use exact pins
+- Package version issues (dbt8999) — update versions, use exact pins. `dbt1065` package compatibility warnings (e.g. `Package '<package_name>' requires dbt version [>=1.2.0, <2.0.0]`) are not errors — autofix handles package upgrades. If `dbt1065` warnings persist after autofix, no manual action is needed.
 - SQL parsing errors — suggest rewriting the logic (with user approval), or set `static_analysis: off` for the model
 - Deprecated CLI flags (dbt0404) — if the repro command uses `--models/-m`, replace with `--select/-s`
 - Duplicate doc blocks (dbt1501) — rename or delete conflicting blocks
@@ -266,3 +268,4 @@ Next: [What to do next]
 - **After each fix, validate**: Re-run the repro command and check for cascading errors
 - **Success = progress**: Not reaching 100% in one pass is expected — many issues need Fusion fixes
 - **Consider `dbt debug` first**: If you see connection or credential errors during triage, suggest running `dbt debug` to verify the environment
+- **Focus on errors**: For `dbt1065` package version compatibility warnings specifically (e.g. `Package '<package_name>' requires dbt version [>=1.2.0, <2.0.0]`) — ignore these. Autofix upgrades packages that need it; if `dbt1065` warnings remain after autofix, no manual package updates are needed.
