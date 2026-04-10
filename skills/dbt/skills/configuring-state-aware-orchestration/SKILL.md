@@ -1,6 +1,6 @@
 ---
 name: configuring-state-aware-orchestration
-description: Configures State-Aware Orchestration (SAO) for dbt projects by analyzing model dependencies, generating freshness/build_after YAML configs, and validating with Fusion. Use when setting up SAO, adding freshness rules, or optimizing model rebuild frequency to reduce compute costs.
+description: Use when setting up State-Aware Orchestration (SAO), adding freshness rules, or optimizing model rebuild frequency to reduce compute costs. Analyzes model dependencies, generates freshness/build_after YAML configs, and validates with Fusion.
 user-invocable: false
 metadata:
   author: dbt-labs
