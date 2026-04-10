@@ -48,11 +48,22 @@ Controls the trigger logic for when a model should rebuild:
 
 SAO needs to know when source data was last updated. Configuring source freshness is **recommended** — it captures metadata that drives SAO all the way upstream, giving Fusion better visibility into data changes.
 
-**Tables vs. Views:** Fusion can automatically detect freshness from warehouse metadata for actual tables. However, **database views are treated as "always fresh"** because Fusion cannot determine freshness from view metadata. You cannot tell from YAML alone whether a source is a table or view — query `information_schema.tables` if warehouse access is available.
+**Tables vs. Views:** When `loaded_at_field` and `loaded_at_query` are not set, SAO and `dbt source freshness` fall back to adapter-specific warehouse metadata to detect when source data changed. This only works for actual tables — **database views are treated as "always fresh"** because warehouse metadata cannot determine view freshness.
+
+**Warehouse metadata used for automatic freshness detection:**
+
+| Warehouse | Metadata Table | Column |
+|-----------|---------------|--------|
+| BigQuery | `INFORMATION_SCHEMA.TABLE_STORAGE` | `storage_last_modified_time` |
+| Databricks | `system.information_schema.tables` | `last_altered` |
+| Redshift | `SHOW TABLES FROM SCHEMA` | `last_modified_time` |
+| Snowflake | `INFORMATION_SCHEMA.TABLES` | `LAST_ALTERED` |
+
+You cannot tell from YAML alone whether a source is a table or view — query `information_schema.tables` (or the equivalent for your warehouse) if access is available.
 
 | Source Type | Freshness Detection | `loaded_at_field`/`loaded_at_query` Needed? |
 |-------------|--------------------|--------------------------------------------|
-| Table | Automatic via warehouse metadata | Recommended (improves accuracy), not strictly required |
+| Table | Automatic via warehouse metadata (see table above) | Recommended (improves accuracy), not strictly required |
 | View | None (treated as "always fresh") | **Required** for SAO to work correctly |
 
 **Two mechanisms for explicit freshness detection:**
