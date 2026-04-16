@@ -1,0 +1,1 @@
+I have two saved queries — daily_orders_saved_query.yml (daily grain) and monthly_revenue_saved_query.yml (monthly grain). I want to join them in a single Looker explore. Snowflake, database JAFFLE_SHOP, schema MARTS. Connection is snowflake_prod.

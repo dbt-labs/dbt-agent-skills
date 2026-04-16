@@ -1,0 +1,52 @@
+semantic_models:
+  - name: customers
+    description: "Customer-level semantic model"
+    model: ref('customers')
+    defaults:
+      agg_time_dimension: first_order_at
+    entities:
+      - name: customer
+        type: primary
+        expr: customer_id
+    dimensions:
+      - name: first_order_at
+        type: time
+        expr: first_order_at
+      - name: country
+        type: categorical
+        expr: country
+
+metrics:
+  - name: lifetime_spend_pretax
+    label: "Lifetime Spend (Pre-Tax)"
+    description: "Customer lifetime spend before tax."
+    type: simple
+    type_params:
+      measure:
+        name: lifetime_spend_pretax
+        agg: sum
+        expr: lifetime_spend_pretax
+    meta:
+      semantic_model: customers
+
+  - name: count_lifetime_orders
+    label: "Lifetime Orders"
+    description: "Count of lifetime orders per customer."
+    type: simple
+    type_params:
+      measure:
+        name: count_lifetime_orders
+        agg: sum
+        expr: count_lifetime_orders
+    meta:
+      semantic_model: customers
+
+  - name: average_order_value
+    label: "Average Order Value"
+    description: "LTV pre-tax divided by number of orders."
+    type: ratio
+    type_params:
+      numerator: lifetime_spend_pretax
+      denominator: count_lifetime_orders
+    meta:
+      semantic_model: customers

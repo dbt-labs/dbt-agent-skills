@@ -1,0 +1,55 @@
+semantic_models:
+  - name: opportunity_commission
+    description: "Opportunity commission semantic model"
+    model: ref('opportunity_commission')
+    entities:
+      - name: opportunity
+        type: primary
+        expr: opportunity_id
+    dimensions:
+      - name: fiscal_quarter
+        type: categorical
+        expr: fiscal_quarter
+      - name: is_current_fiscal_quarter
+        type: categorical
+        expr: is_current_fiscal_quarter
+      - name: is_previous_fiscal_quarter
+        type: categorical
+        expr: is_previous_fiscal_quarter
+      - name: is_last_9_fiscal_quarters
+        type: categorical
+        expr: is_last_9_fiscal_quarters
+
+metrics:
+  - name: opportunity_net_average_arr_won
+    label: "Net ARR (Average)"
+    type: simple
+    type_params:
+      measure:
+        name: net_arr_won
+        agg: average
+        expr: net_arr
+    meta:
+      semantic_model: opportunity_commission
+
+  - name: opportunity_new_average_arr_won
+    label: "New ARR (Average)"
+    type: simple
+    type_params:
+      measure:
+        name: new_arr_won
+        agg: average
+        expr: new_arr
+    meta:
+      semantic_model: opportunity_commission
+
+  - name: count_of_opportunities_won
+    label: "Opportunities Won"
+    type: simple
+    type_params:
+      measure:
+        name: count_opps_won
+        agg: count
+        expr: "1"
+    meta:
+      semantic_model: opportunity_commission

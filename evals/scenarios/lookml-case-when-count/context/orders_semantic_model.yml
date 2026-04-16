@@ -1,0 +1,57 @@
+semantic_models:
+  - name: orders
+    description: "Order-level semantic model"
+    model: ref('orders')
+    defaults:
+      agg_time_dimension: ordered_at
+    entities:
+      - name: order
+        type: primary
+        expr: order_id
+      - name: customer
+        type: foreign
+        expr: customer_id
+    dimensions:
+      - name: ordered_at
+        type: time
+        expr: ordered_at
+      - name: is_food_order
+        type: categorical
+        expr: is_food_order
+
+metrics:
+  - name: orders
+    label: "Orders"
+    description: "Count of orders."
+    type: simple
+    type_params:
+      measure:
+        name: orders
+        agg: count
+        expr: "1"
+    meta:
+      semantic_model: orders
+
+  - name: new_customer_orders
+    label: "New Customer Orders"
+    description: "New customer's first order count."
+    type: simple
+    type_params:
+      measure:
+        name: new_customer_orders
+        agg: sum
+        expr: "CASE WHEN customer_order_number = 1 THEN 1 ELSE 0 END"
+    meta:
+      semantic_model: orders
+
+  - name: food_orders
+    label: "Food Orders"
+    description: "Count of orders that contain food items."
+    type: simple
+    type_params:
+      measure:
+        name: food_orders
+        agg: sum
+        expr: "CASE WHEN is_food_order THEN order_total END"
+    meta:
+      semantic_model: orders

@@ -1,0 +1,1 @@
+Generate LookML for our expansion rate metrics. The metric definitions are in expansion_rate_metric.yml. Snowflake, database ANALYTICS, schema SALES. Connection is snowflake_prod.

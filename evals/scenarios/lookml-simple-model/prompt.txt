@@ -1,0 +1,1 @@
+Generate LookML for my orders model. The semantic model YAML is in orders_semantic_model.yml. I'm on Snowflake, database JAFFLE_SHOP, schema MARTS. Connection name is snowflake_prod. Output to the current directory.

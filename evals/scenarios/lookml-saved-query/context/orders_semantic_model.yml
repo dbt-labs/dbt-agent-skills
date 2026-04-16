@@ -1,0 +1,48 @@
+semantic_models:
+  - name: orders
+    description: "Order-level semantic model"
+    model: ref('orders')
+    defaults:
+      agg_time_dimension: ordered_at
+    entities:
+      - name: order
+        type: primary
+        expr: order_id
+    dimensions:
+      - name: ordered_at
+        type: time
+        expr: ordered_at
+
+metrics:
+  - name: orders
+    label: "Orders"
+    type: simple
+    type_params:
+      measure:
+        name: orders
+        agg: count
+        expr: "1"
+    meta:
+      semantic_model: orders
+
+  - name: order_total
+    label: "Order Total"
+    type: simple
+    type_params:
+      measure:
+        name: order_total
+        agg: sum
+        expr: order_total
+    meta:
+      semantic_model: orders
+
+  - name: new_customer_orders
+    label: "New Customer Orders"
+    type: simple
+    type_params:
+      measure:
+        name: new_customer_orders
+        agg: sum
+        expr: "CASE WHEN customer_order_number = 1 THEN 1 ELSE 0 END"
+    meta:
+      semantic_model: orders

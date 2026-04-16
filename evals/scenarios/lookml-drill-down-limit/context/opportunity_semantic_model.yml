@@ -1,0 +1,66 @@
+semantic_models:
+  - name: opportunities
+    description: "Opportunity-level semantic model"
+    model: ref('opportunities')
+    entities:
+      - name: opportunity
+        type: primary
+        expr: opportunity_id
+      - name: account
+        type: foreign
+        expr: account_id
+    dimensions:
+      - name: close_date
+        type: time
+        expr: close_date
+      - name: stage
+        type: categorical
+        expr: stage
+
+  - name: accounts
+    description: "Account-level semantic model"
+    model: ref('accounts')
+    entities:
+      - name: account
+        type: primary
+        expr: account_id
+      - name: region
+        type: foreign
+        expr: region_id
+    dimensions:
+      - name: name
+        type: categorical
+        expr: name
+      - name: industry
+        type: categorical
+        expr: industry
+
+  - name: regions
+    description: "Region-level semantic model"
+    model: ref('regions')
+    entities:
+      - name: region
+        type: primary
+        expr: region_id
+      - name: territory
+        type: foreign
+        expr: territory_id
+    dimensions:
+      - name: region_name
+        type: categorical
+        expr: region_name
+
+relationships:
+  - name: opp_to_account
+    from: opportunities
+    from_column: account_id
+    to: accounts
+    to_column: account_id
+    type: many_to_one
+
+  - name: account_to_region
+    from: accounts
+    from_column: region_id
+    to: regions
+    to_column: region_id
+    type: many_to_one

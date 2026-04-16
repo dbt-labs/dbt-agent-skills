@@ -16,6 +16,7 @@
     "working-with-dbt-mesh": { "path": "skills/dbt/skills/working-with-dbt-mesh/SKILL.md" },
     "migrating-dbt-core-to-fusion": { "path": "skills/dbt-migration/skills/migrating-dbt-core-to-fusion/SKILL.md" },
     "migrating-dbt-project-across-platforms": { "path": "skills/dbt-migration/skills/migrating-dbt-project-across-platforms/SKILL.md" },
-    "creating-mermaid-dbt-dag": { "path": "skills/dbt-extras/skills/creating-mermaid-dbt-dag/SKILL.md" }
+    "creating-mermaid-dbt-dag": { "path": "skills/dbt-extras/skills/creating-mermaid-dbt-dag/SKILL.md" },
+    "generating-lookml-from-dbt-models": { "path": "skills/dbt-extras/skills/generating-lookml-from-dbt-models/SKILL.md" }
   }
 }

@@ -1,0 +1,6 @@
+Generate LookML for our GTM bookings dashboard. I need to:
+1. Convert the gtm_bookings_total_l9fq saved query (in gtm_bookings_total_l9fq.yml)
+2. Include the opportunity metrics from opportunity_commission_metrics.yml
+3. The all_days time spine model context is in all_days_semantic_model.yml
+
+Snowflake, database ANALYTICS, schema SALES. Connection is snowflake_prod. Include saved queries. Output to current directory.

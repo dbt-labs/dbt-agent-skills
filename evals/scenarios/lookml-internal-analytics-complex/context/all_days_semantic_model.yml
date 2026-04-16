@@ -1,0 +1,63 @@
+# Excerpt from internal-analytics models/util/_utils__models.yml
+# The all_days model is a time spine with derived entity join paths.
+# opportunity_commission is a derived entity (join path) on this model.
+
+version: 2
+
+models:
+  - name: all_days
+    description: >
+      Utility semantic model to bring in fiscal quarter and fiscal year.
+    time_spine:
+      standard_granularity_column: date_day
+    columns:
+      - name: date_day
+        granularity: day
+        entity:
+          type: primary
+          name: date
+      - name: is_fiscal_quarter_to_date
+        description: >
+          A boolean to determine if a date is in the fiscal quarter to date.
+        dimension:
+          type: categorical
+      - name: is_current_fiscal_quarter
+        description: Is True if the date_day is in the current fiscal quarter.
+        dimension:
+          type: categorical
+      - name: is_previous_fiscal_quarter
+        description: Is True if the date_day is in the previous fiscal quarter.
+        dimension:
+          type: categorical
+      - name: is_previous_year_fiscal_quarter
+        description: Is True if the date_day is in the current fiscal quarter one year ago.
+        dimension:
+          type: categorical
+      - name: is_last_4_fiscal_quarters
+        description: Is True if the date_day is in the last 4 fiscal quarters.
+        dimension:
+          type: categorical
+      - name: is_last_8_fiscal_quarters
+        description: Is True if the date_day is in the last 8 fiscal quarters.
+        dimension:
+          type: categorical
+      - name: is_last_9_fiscal_quarters
+        description: Is True if the date_day is in the last 9 fiscal quarters.
+        dimension:
+          type: categorical
+      - name: fiscal_quarter
+        dimension:
+          type: categorical
+      - name: fiscal_year
+        dimension:
+          type: categorical
+    semantic_model:
+      enabled: true
+      name: all_days
+    derived_semantics:
+      entities:
+        # opportunity_commission is an entity join path into all_days
+        # so Dimension('opportunity_commission__fiscal_quarter') resolves to all_days.fiscal_quarter
+        - name: opportunity_commission
+          type: unique
+          expr: date_day

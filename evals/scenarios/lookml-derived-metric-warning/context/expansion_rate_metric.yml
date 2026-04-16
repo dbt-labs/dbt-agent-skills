@@ -1,0 +1,43 @@
+metrics:
+  # Simple translatable metrics (inputs to the derived metric)
+  - name: opportunity_expansion_average_arr_renew_won
+    label: "Expansion ARR (Renew Won)"
+    description: "Average ARR for renewal expansion opportunities won."
+    type: simple
+    type_params:
+      measure:
+        name: expansion_arr_renew_won
+        agg: average
+        expr: delta_arr
+    meta:
+      semantic_model: opportunity_commission
+
+  - name: opportunity_starting_arr_won_with_expansion
+    label: "Starting ARR (With Expansion)"
+    description: "Starting ARR for accounts with expansion."
+    type: simple
+    type_params:
+      measure:
+        name: starting_arr_won_expansion
+        agg: sum
+        expr: starting_arr
+    meta:
+      semantic_model: opportunity_commission
+
+  # Untranslatable derived metric — uses input_metrics and Metric() filter
+  - name: opportunity_expansion_rate_renew_won
+    label: "Expansion Rate (Renew Won)"
+    description: >
+      Expansion rate for renewal opportunities won. Calculated as expansion ARR
+      divided by starting ARR for accounts with meaningful expansion activity.
+    type: derived
+    type_params:
+      expr: div0(opportunity_expansion_average_arr_renew_won, opportunity_starting_arr_won_with_expansion)
+      input_metrics:
+        - name: opportunity_expansion_average_arr_renew_won
+        - name: opportunity_starting_arr_won_with_expansion
+          alias: starting_arr
+          filter:
+            - "{{ Metric('opportunity_delta_average_arr', group_by=['opportunity']) }} > 100"
+    meta:
+      semantic_model: opportunity_commission

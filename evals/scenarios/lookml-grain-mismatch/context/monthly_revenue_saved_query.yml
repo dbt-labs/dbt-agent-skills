@@ -1,0 +1,13 @@
+saved_queries:
+  - name: monthly_revenue_metrics
+    label: "Monthly Revenue Metrics"
+    query_params:
+      metrics:
+        - revenue
+        - food_revenue
+      group_by:
+        - Dimension('order_items__ordered_at__month')
+    exports:
+      - name: monthly_revenue_metrics
+        config:
+          export_as: table

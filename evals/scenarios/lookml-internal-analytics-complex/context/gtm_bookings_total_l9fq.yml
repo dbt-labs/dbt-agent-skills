@@ -1,0 +1,36 @@
+# Simplified from internal-analytics models/saved_queries/sales/gtm_bookings.yml
+# The simplest variant: quarterly totals (no geo/manager breakdown).
+#
+# Key complexity:
+# - where: clause uses Dimension('opportunity_commission__...') refs
+# - opportunity_commission is a derived entity join path on all_days (not a standalone model)
+# - group_by uses cross-model Dimension refs
+# - Boolean = True must become filters: [...: "Yes"] in LookML explore_source
+
+saved_queries:
+  - name: gtm_bookings_total_l9fq
+    label: 'GTM Bookings Metrics - Last 9 Fiscal Quarters (Totals)'
+    description: >
+      Features key GTM metrics for Bookings over the last 9 fiscal quarters.
+      This export is used for our GTM Integrated Dashboard - specifically the Executive view.
+    query_params:
+      metrics:
+        - opportunity_net_average_arr_won
+        - opportunity_new_average_arr_won
+        - count_of_opportunities_won
+      group_by:
+        - Dimension('opportunity_commission__fiscal_quarter')
+        - Dimension('opportunity_commission__is_current_fiscal_quarter')
+        - Dimension('opportunity_commission__is_previous_fiscal_quarter')
+        - Dimension('opportunity_commission__is_previous_year_fiscal_quarter')
+        - Dimension('opportunity_commission__is_last_4_fiscal_quarters')
+        - Dimension('opportunity_commission__is_last_8_fiscal_quarters')
+      where:
+        - "{{ Dimension('opportunity_commission__is_last_9_fiscal_quarters') }} = True"
+    exports:
+      - name: gtm_bookings_total_l9fq
+        config:
+          export_as: table
+    config:
+      cache:
+        enabled: false

@@ -1,0 +1,59 @@
+# Representative subset of internal-analytics opportunity metrics.
+# Includes simple, ratio, and derived (untranslatable) types.
+
+metrics:
+  # Simple translatable metrics
+  - name: opportunity_net_average_arr_won
+    label: 'ARR (Net - Average)'
+    description: Average net ARR for won opportunities.
+    type: simple
+    type_params:
+      measure:
+        name: net_arr_won
+        agg: average
+        expr: net_arr
+    meta:
+      semantic_model: fct_opportunities
+
+  - name: opportunity_new_average_arr_won
+    label: 'ARR (New - Average)'
+    description: Average new ARR for won opportunities.
+    type: simple
+    type_params:
+      measure:
+        name: new_arr_won
+        agg: average
+        expr: new_arr
+    meta:
+      semantic_model: fct_opportunities
+
+  - name: count_of_opportunities_won
+    label: 'Opportunities Won'
+    description: Count of won opportunities.
+    type: simple
+    type_params:
+      measure:
+        name: count_opps_won
+        agg: count
+        expr: "1"
+    meta:
+      semantic_model: fct_opportunities
+
+  # Untranslatable derived metric
+  - name: opportunity_expansion_rate_renew_won
+    label: 'Opportunity Expansion Rate on Renewals'
+    description: >
+      The ARR expansion rate on renewal Opportunities for Managed customers.
+    type: derived
+    type_params:
+      expr: div0(opportunity_expansion_average_arr_renew_won, opportunity_starting_arr_won_with_expansion)
+      input_metrics:
+        - name: opportunity_expansion_average_arr_renew_won
+        - name: opportunity_starting_arr
+          alias: opportunity_starting_arr_won_with_expansion
+          filter: |-
+            {{ Dimension('opportunity__opportunity_type') }} = 'Renew'
+              and {{ Dimension('opportunity__stage_name') }} = 'Closed Won'
+              and {{ Metric('opportunity_delta_average_arr', group_by=['opportunity']) }} > 100
+    meta:
+      semantic_model: fct_opportunities

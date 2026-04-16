@@ -1,0 +1,65 @@
+semantic_models:
+  - name: orders
+    description: "Order-level semantic model"
+    model: ref('orders')
+    defaults:
+      agg_time_dimension: ordered_at
+    entities:
+      - name: order
+        type: primary
+        expr: order_id
+      - name: customer
+        type: foreign
+        expr: customer_id
+    dimensions:
+      - name: ordered_at
+        type: time
+        expr: ordered_at
+      - name: status
+        type: categorical
+        expr: status
+
+metrics:
+  - name: orders
+    label: "Orders"
+    type: simple
+    type_params:
+      measure:
+        name: orders
+        agg: count
+        expr: "1"
+    meta:
+      semantic_model: orders
+
+  - name: order_total
+    label: "Order Total"
+    type: simple
+    type_params:
+      measure:
+        name: order_total
+        agg: sum
+        expr: order_total
+    meta:
+      semantic_model: orders
+
+  - name: distinct_customers
+    label: "Distinct Customers"
+    type: simple
+    type_params:
+      measure:
+        name: distinct_customers
+        agg: count_distinct
+        expr: customer_id
+    meta:
+      semantic_model: orders
+
+  - name: median_order_value
+    label: "Median Order Value"
+    type: simple
+    type_params:
+      measure:
+        name: median_order_value
+        agg: median
+        expr: order_total
+    meta:
+      semantic_model: orders

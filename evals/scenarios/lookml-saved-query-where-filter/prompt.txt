@@ -1,0 +1,1 @@
+Convert the gtm_bookings_total_l9fq saved query to LookML. The semantic model is in opportunity_commission_semantic_model.yml and the saved query is in bookings_saved_query.yml. Snowflake, database ANALYTICS, schema SALES. Connection is snowflake_prod. Include saved queries.

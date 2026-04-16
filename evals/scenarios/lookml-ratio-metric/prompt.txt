@@ -1,0 +1,1 @@
+Generate LookML for my customers model. The semantic model YAML is in customers_semantic_model.yml. I'm on BigQuery, project jaffle_shop, dataset marts. Connection is bigquery_prod. Output to current directory.

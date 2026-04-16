@@ -1,0 +1,18 @@
+saved_queries:
+  - name: order_metrics
+    label: "Order Metrics by Date"
+    description: "Daily order metrics for dashboard use."
+    query_params:
+      metrics:
+        - orders
+        - order_total
+        - new_customer_orders
+      group_by:
+        - Dimension('orders__ordered_at__date')
+    exports:
+      - name: order_metrics
+        config:
+          export_as: table
+    config:
+      cache:
+        enabled: false

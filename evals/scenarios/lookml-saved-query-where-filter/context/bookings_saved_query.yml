@@ -1,0 +1,24 @@
+saved_queries:
+  - name: gtm_bookings_total_l9fq
+    label: 'GTM Bookings Metrics - Last 9 Fiscal Quarters (Totals)'
+    description: >
+      Features key GTM metrics for Bookings over the last 9 fiscal quarters.
+      This export is used for our GTM Integrated Dashboard - specifically the Executive view.
+    query_params:
+      metrics:
+        - opportunity_net_average_arr_won
+        - opportunity_new_average_arr_won
+        - count_of_opportunities_won
+      group_by:
+        - Dimension('opportunity_commission__fiscal_quarter')
+        - Dimension('opportunity_commission__is_current_fiscal_quarter')
+        - Dimension('opportunity_commission__is_previous_fiscal_quarter')
+      where:
+        - "{{ Dimension('opportunity_commission__is_last_9_fiscal_quarters') }} = True"
+    exports:
+      - name: gtm_bookings_total_l9fq
+        config:
+          export_as: table
+    config:
+      cache:
+        enabled: false

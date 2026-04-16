@@ -1,0 +1,1 @@
+Convert my order_metrics saved query to LookML. The semantic model is in orders_semantic_model.yml and the saved query is in order_metrics_saved_query.yml. I'm on Snowflake, database JAFFLE_SHOP, schema MARTS. Connection is snowflake_prod. Include saved queries. Output to current directory.

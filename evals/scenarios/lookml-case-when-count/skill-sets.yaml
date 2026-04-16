@@ -1,0 +1,19 @@
+sets:
+  - name: no-skills
+    skills: []
+    allowed_tools:
+      - Read
+      - Glob
+      - Grep
+      - Write
+      - Bash(uvx:*)
+
+  - name: with-lookml-skill
+    skills:
+      - skills/dbt-extras/skills/generating-lookml-from-dbt-models
+    allowed_tools:
+      - Read
+      - Glob
+      - Grep
+      - Write
+      - Bash(uvx:*)

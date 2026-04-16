@@ -1,0 +1,1 @@
+Generate LookML for our VP-level dashboard. I need to be able to drill from opportunities down through accounts and into regions — a full 3-hop drill. The semantic model is in opportunity_semantic_model.yml. Snowflake, database SALES, schema MARTS. Connection is snowflake_prod.
