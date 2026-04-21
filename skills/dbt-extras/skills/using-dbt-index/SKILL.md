@@ -1,6 +1,10 @@
 ---
 name: using-dbt-index
 description: Use when querying dbt project metadata via the dbt-index CLI tool, including installing dbt-index, creating the index from dbt artifacts, and running commands like search, node, lineage, impact, and query to answer questions about a dbt project.
+allowed-tools:
+  - Bash(dbt-index*)
+  - Bash(dbt --version*)
+  - Bash(which dbtf*)
 metadata:
   author: dbt-labs
 ---
