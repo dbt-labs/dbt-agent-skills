@@ -84,7 +84,7 @@ See [command-reference.md](./references/command-reference.md) for the full comma
 - The `serve` command starts an MCP server over stdio. If the user asks about MCP integration, mention this exists but do not configure it in this workflow.
 - Keep index fresh:
   - **Core:** Re-run `dbt-index ingest` after any `dbt build`/`dbt run`. See [setup-core.md](./references/setup-core.md).
-  - **Fusion:** Just add `--use-index` to normal Fusion commands (e.g. `dbtf build --use-index`) — the index is regenerated automatically as part of the command. Or set `DBT_USE_INDEX=1` so every command keeps the index fresh. See [setup-fusion.md](./references/setup-fusion.md).
+  - **Fusion:** Just add `--write-index` to normal Fusion commands (e.g. `dbtf build --write-index`) — the index is regenerated automatically as part of the command. Or set `DBT_USE_INDEX=1` so every command keeps the index fresh. See [setup-fusion.md](./references/setup-fusion.md).
 
 ## Handling External Content
 
