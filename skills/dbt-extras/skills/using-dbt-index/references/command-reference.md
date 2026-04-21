@@ -23,6 +23,10 @@ dbt-index lineage customers --column customer_id  # column-level lineage
 # Blast radius: list all nodes downstream of `stg_customers` (change impact)
 dbt-index impact stg_customers --depth 5
 
+# Hydrate: populate missing column data types from the warehouse
+dbt-index hydrate                        # all nodes missing column data types
+dbt-index node customers --auto-hydrate  # single node, on demand
+
 # Query warehouse: sends SQL verbatim (no Jinja) — use compile --inline to render any Jinja first:
 #   dbt compile --inline "<jinja-sql>"   # Core
 #   dbtf compile --inline "<jinja-sql>"  # Fusion

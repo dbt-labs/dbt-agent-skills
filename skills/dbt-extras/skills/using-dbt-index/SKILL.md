@@ -63,6 +63,7 @@ Always run `dbt-index status` first to understand the project shape (node counts
 | Check index integrity and completeness | `doctor` | `--name <check>` to run a specific check |
 | Refresh the index after a new dbt run (Core path) | `ingest` | `--full-refresh` to bypass content hashing and force a full re-read of all artifacts |
 | Update or uninstall dbt-index itself | `system` | `update`, `uninstall` |
+| Fill in any missing column data types | `hydrate` | Queries the warehouse to populate missing column data types for all nodes; use `node <name> --auto-hydrate` for a single node on demand |
 | Anything the above can't answer | `query` | Raw SQL escape hatch; SELECT-only by default; use `schema` first to discover table structure |
 | Query your data warehouse directly | `query-warehouse` | Sends SQL verbatim — no Jinja; use `dbt[f] compile --inline "<jinja-sql>"` to render any Jinja (refs, macros, etc.), then pass the compiled SQL |
 
