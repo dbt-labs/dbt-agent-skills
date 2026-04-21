@@ -64,8 +64,12 @@ Always run `dbt-index status` first to understand the project shape (node counts
 | Refresh the index after a new dbt run (Core path) | `ingest` | `--full-refresh` to bypass content hashing and force a full re-read of all artifacts |
 | Update or uninstall dbt-index itself | `system` | `update`, `uninstall` |
 | Fill in any missing column data types | `hydrate` | Queries the warehouse to populate missing column data types for all nodes; use `node <name> --auto-hydrate` for a single node on demand |
-| Anything the above can't answer | `query` | Raw SQL escape hatch; SELECT-only by default; use `schema` first to discover table structure |
+| Anything the above can't answer | `query` | Raw SQL escape hatch; SELECT-only by default; **always run `dbt-index schema <table>` for every table you plan to reference before writing SQL — never guess column names** |
 | Query your data warehouse directly | `query-warehouse` | Sends SQL verbatim — no Jinja; use `dbt[f] compile --inline "<jinja-sql>"` to render any Jinja (refs, macros, etc.), then pass the compiled SQL |
+
+#### Before using `query`
+
+Always run `dbt-index schema <table>` for every table you plan to reference before writing any SQL. Never assume column names — the index schema does not follow assumed dbt naming conventions (e.g. the join key in `dbt.node_columns` is `unique_id`, not `node_unique_id`; DAG edges use `parent_unique_id`/`child_unique_id`, not `from_unique_id`/`to_unique_id`). If you haven't seen the schema for a table in the current session, run `schema` first.
 
 #### Global flags
 
