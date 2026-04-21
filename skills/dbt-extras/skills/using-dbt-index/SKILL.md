@@ -20,7 +20,7 @@ Ensure `dbt-index` is installed, up-to-date, the dbt flavor is known, and an ind
 #### Step 1 — Install and update `dbt-index`
 
 1. Run `dbt-index --version`
-2. If not found: install via `curl -fsSL https://public.staging.cdn.getdbt.com/fs/install/install-index.sh | sh`
+2. If not found: install via `curl -fsSL https://public.cdn.getdbt.com/fs/install/install-index.sh | sh`
 3. If found (or after install): run `dbt-index system update` to ensure it's up-to-date
 4. Verify with `dbt-index --version`
 
