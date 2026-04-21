@@ -30,11 +30,15 @@ Ensure `dbt-index` is installed, up-to-date, the dbt flavor is known, and an ind
 
 #### Step 2 — Detect dbt flavor (Core vs Fusion)
 
-1. Run `dbt --version`
-2. If output contains "Fusion" → use Fusion
-3. Else, check if `dbtf` binary exists (`which dbtf`)
-   - If exists → ask the user whether they want to use Fusion or Core
-   - If not found → use Core
+1. Run both commands together:
+   ```
+   dbt --version && which dbtf
+   ```
+2. If `dbt --version` output contains "Fusion" → use Fusion
+3. If `which dbtf` finds the binary → ask the user whether they want to use Fusion or Core
+4. If neither → use Core
+
+> **Never conclude Core without running `which dbtf`** — the binary may exist even when `dbt --version` shows Core.
 
 #### Step 3 — Ensure index exists
 
