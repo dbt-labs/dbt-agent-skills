@@ -64,6 +64,7 @@ Always run `dbt-index status` first to understand the project shape (node counts
 | Refresh the index after a new dbt run (Core path) | `ingest` | `--full-refresh` to bypass content hashing and force a full re-read of all artifacts |
 | Update or uninstall dbt-index itself | `system` | `update`, `uninstall` |
 | Anything the above can't answer | `query` | Raw SQL escape hatch; SELECT-only by default; use `schema` first to discover table structure |
+| Query your data warehouse directly | `query-warehouse` | Sends SQL verbatim — no Jinja; use `dbt[f] compile --inline "<jinja-sql>"` to render any Jinja (refs, macros, etc.), then pass the compiled SQL |
 
 #### Global flags
 

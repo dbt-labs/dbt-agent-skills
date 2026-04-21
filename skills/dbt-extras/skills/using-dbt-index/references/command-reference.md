@@ -23,6 +23,11 @@ dbt-index lineage customers --column customer_id  # column-level lineage
 # Blast radius: list all nodes downstream of `stg_customers` (change impact)
 dbt-index impact stg_customers --depth 5
 
+# Query warehouse: sends SQL verbatim (no Jinja) — use compile --inline to render any Jinja first:
+#   dbt compile --inline "<jinja-sql>"   # Core
+#   dbtf compile --inline "<jinja-sql>"  # Fusion
+dbt-index query-warehouse "SELECT count(*) FROM my_schema.my_table"
+
 # Raw SQL: escape hatch for anything the structured commands can't answer
 dbt-index query "SELECT n.name, unnest(n.tags) AS tag FROM dbt.nodes n WHERE n.resource_type = 'model'"
 
