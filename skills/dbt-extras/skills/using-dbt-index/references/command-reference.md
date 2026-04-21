@@ -70,6 +70,11 @@ dbt-index diff --type model
 # Doctor: check index integrity and completeness (errors = structural problems, warnings = incomplete enrichment)
 dbt-index doctor
 
+# System: update or uninstall dbt-index itself
+dbt-index system update                           # installs the latest version
+dbt-index system update --version 1.0.0-beta.40   # installs a specific version
+dbt-index system uninstall --yes                  # --yes required in non-TTY environments
+
 # Re-ingest: pick up new artifacts after a dbt run (Core path only)
 dbt-index ingest
 

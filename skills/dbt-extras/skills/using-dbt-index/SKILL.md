@@ -1,6 +1,6 @@
 ---
 name: using-dbt-index
-description: Use when querying dbt project metadata via the dbt-index CLI tool, including installing dbt-index, creating the index from dbt artifacts, and running commands like search, node, lineage, impact, and query to answer questions about a dbt project.
+description: Use when querying dbt project metadata via the dbt-index CLI tool, including installing, updating, or uninstalling dbt-index, creating the index from dbt artifacts, and running commands like search, node, lineage, impact, and query to answer questions about a dbt project.
 allowed-tools:
   - Bash(dbt-index*)
   - Bash(dbt --version*)
@@ -67,7 +67,7 @@ Always run `dbt-index status` first to understand the project shape (node counts
 | Export tables as parquet | `export` | `--table` to select specific tables |
 | Check index integrity and completeness | `doctor` | `--name <check>` to run a specific check |
 | Refresh the index after a new dbt run (Core path) | `ingest` | `--full-refresh` to bypass content hashing and force a full re-read of all artifacts |
-| Update or uninstall dbt-index itself | `system` | `update`, `uninstall` |
+| Update or uninstall dbt-index itself | `system` | `update`; `uninstall --yes` to remove the binary |
 | Fill in any missing column data types | `hydrate` | Queries the warehouse to populate missing column data types for all nodes; use `node <name> --auto-hydrate` for a single node on demand |
 | Anything the above can't answer | `query` | Raw SQL escape hatch; SELECT-only by default; **always run `dbt-index schema <table>` for every table you plan to reference before writing SQL — never guess column names** |
 | Query your data warehouse directly | `query-warehouse` | Sends SQL verbatim — no Jinja; use `dbt[f] compile --inline "<jinja-sql>"` to render any Jinja (refs, macros, etc.), then pass the compiled SQL |
