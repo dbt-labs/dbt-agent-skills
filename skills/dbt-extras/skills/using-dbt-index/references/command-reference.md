@@ -12,16 +12,42 @@ dbt-index search "revenue"
 dbt-index search --type model --tag pii  # narrow by resource type and tag
 dbt-index search --tag pii --columns unique_id,name,description,tags  # select specific output columns (see `dbt-index schema dbt.nodes` for options)
 
-# Deep-dive: inspect a specific node (columns, SQL, tests, lineage)
-dbt-index node customers --detail
-dbt-index node model.my_project.fct_orders --sql --columns
+# Deep-dive: inspect a specific node
+dbt-index node customers --detail                          # all sections
+dbt-index node customers --detail sql                      # compiled SQL
+dbt-index node customers --detail columns                  # column names, types, descriptions
+dbt-index node customers --detail tests                    # test details
+dbt-index node customers --detail lineage                  # parents/children node lists
+dbt-index node customers --detail column-lineage           # column-level lineage
+dbt-index node customers --detail catalog                  # warehouse catalog metadata (requires hydrate)
+dbt-index node customers --detail sql,columns,lineage      # combine sections comma-separated
+dbt-index node model.my_project.fct_orders --detail
 
-# DAG traversal: walk the dependency graph up to 5 layers upstream of `customers`
+# DAG traversal: walk the dependency graph
 dbt-index lineage customers --upstream --depth 5
-dbt-index lineage customers --column customer_id  # column-level lineage
+dbt-index lineage customers --column customer_id           # column-level lineage
+dbt-index lineage customers --detail                       # enrich output with file paths and statistics
+dbt-index lineage customers --downstream --format tree     # render as indented tree instead of flat table
 
-# Blast radius: list all nodes downstream of `stg_customers` (change impact)
+# Blast radius: list all nodes downstream of `stg_customers` (severity-based, with column-level impact)
 dbt-index impact stg_customers --depth 5
+
+# Hydrate: populate missing column data types from the warehouse
+dbt-index hydrate                        # all nodes missing column data types
+dbt-index node customers --auto-hydrate  # single node, on demand
+
+# Query warehouse: sends SQL verbatim (no Jinja) — use compile --inline to render any Jinja first:
+#   dbt compile --inline "<jinja-sql>"   # Core
+#   dbtf compile --inline "<jinja-sql>"  # Fusion
+dbt-index query-warehouse "SELECT count(*) FROM my_schema.my_table"
+
+# Semantic layer: discover, compile, and execute metric queries locally
+dbt-index sl list metrics                                    # list all metrics
+dbt-index sl list metrics --search revenue                   # filter by name
+dbt-index sl describe --metrics revenue                      # see queryable dimensions/entities
+dbt-index sl run --metrics revenue --group-by metric_time:day  # execute against warehouse
+dbt-index sl run --metrics revenue --group-by metric_time:day --dry-run  # preview SQL only
+dbt-index sl run --saved-query weekly_revenue_report         # run a saved query
 
 # Raw SQL: escape hatch for anything the structured commands can't answer
 dbt-index query "SELECT n.name, unnest(n.tags) AS tag FROM dbt.nodes n WHERE n.resource_type = 'model'"
@@ -30,11 +56,24 @@ dbt-index query "SELECT n.name, unnest(n.tags) AS tag FROM dbt.nodes n WHERE n.r
 dbt-index schema
 dbt-index schema dbt.nodes
 
-# Compare environments: show nodes added in dev vs prod
-dbt-index diff --base prod.duckdb --only added
+# Sync production state from dbt platform (feeds into diff)
+dbt-index cloud-sync                          # auto-detects environment ID
+dbt-index cloud-sync --environment-id 12345
+dbt-index cloud-sync --skip-discovery         # faster: artifacts only, no Discovery API
+
+# Compare local vs dbt platform production (auto-runs cloud-sync if needed)
+dbt-index diff
+dbt-index diff --sync                         # force a fresh cloud-sync first
+dbt-index diff --only added
+dbt-index diff --type model
 
 # Doctor: check index integrity and completeness (errors = structural problems, warnings = incomplete enrichment)
 dbt-index doctor
+
+# System: update or uninstall dbt-index itself
+dbt-index system update                           # installs the latest version
+dbt-index system update --version 1.0.0-beta.40   # installs a specific version
+dbt-index system uninstall --yes                  # --yes required in non-TTY environments
 
 # Re-ingest: pick up new artifacts after a dbt run (Core path only)
 dbt-index ingest
