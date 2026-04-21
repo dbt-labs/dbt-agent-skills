@@ -71,6 +71,10 @@ Always run `dbt-index status` first to understand the project shape (node counts
 | Anything the above can't answer | `query` | Raw SQL escape hatch; SELECT-only by default; **always run `dbt-index schema <table>` for every table you plan to reference before writing SQL — never guess column names** |
 | Query your data warehouse directly | `query-warehouse` | Sends SQL verbatim — no Jinja; use `dbt[f] compile --inline "<jinja-sql>"` to render any Jinja (refs, macros, etc.), then pass the compiled SQL |
 
+#### Before using `query-warehouse`
+
+Always run `dbt-index node <model> --detail columns` for every model you plan to query before writing SQL. If column metadata is missing, run `dbt-index node <model> --auto-hydrate` to pull it from the warehouse on demand. Never guess column names.
+
 #### Before using `query`
 
 Always run `dbt-index schema <table>` for every table you plan to reference before writing any SQL. Never assume column names — the index schema does not follow assumed dbt naming conventions (e.g. the join key in `dbt.node_columns` is `unique_id`, not `node_unique_id`; DAG edges use `parent_unique_id`/`child_unique_id`, not `from_unique_id`/`to_unique_id`). If you haven't seen the schema for a table in the current session, run `schema` first.
