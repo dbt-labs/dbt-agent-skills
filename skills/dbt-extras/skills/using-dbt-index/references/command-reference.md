@@ -12,15 +12,24 @@ dbt-index search "revenue"
 dbt-index search --type model --tag pii  # narrow by resource type and tag
 dbt-index search --tag pii --columns unique_id,name,description,tags  # select specific output columns (see `dbt-index schema dbt.nodes` for options)
 
-# Deep-dive: inspect a specific node (columns, SQL, tests, lineage)
-dbt-index node customers --detail
-dbt-index node model.my_project.fct_orders --sql --columns
+# Deep-dive: inspect a specific node
+dbt-index node customers --detail                          # all sections
+dbt-index node customers --detail sql                      # compiled SQL
+dbt-index node customers --detail columns                  # column names, types, descriptions
+dbt-index node customers --detail tests                    # test details
+dbt-index node customers --detail lineage                  # parents/children node lists
+dbt-index node customers --detail column-lineage           # column-level lineage
+dbt-index node customers --detail catalog                  # warehouse catalog metadata (requires hydrate)
+dbt-index node customers --detail sql,columns,lineage      # combine sections comma-separated
+dbt-index node model.my_project.fct_orders --detail
 
-# DAG traversal: walk the dependency graph up to 5 layers upstream of `customers`
+# DAG traversal: walk the dependency graph
 dbt-index lineage customers --upstream --depth 5
-dbt-index lineage customers --column customer_id  # column-level lineage
+dbt-index lineage customers --column customer_id           # column-level lineage
+dbt-index lineage customers --detail                       # enrich output with file paths and statistics
+dbt-index lineage customers --downstream --format tree     # render as indented tree instead of flat table
 
-# Blast radius: list all nodes downstream of `stg_customers` (change impact)
+# Blast radius: list all nodes downstream of `stg_customers` (severity-based, with column-level impact)
 dbt-index impact stg_customers --depth 5
 
 # Hydrate: populate missing column data types from the warehouse

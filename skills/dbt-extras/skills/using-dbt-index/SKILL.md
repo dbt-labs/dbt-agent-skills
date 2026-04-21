@@ -54,8 +54,8 @@ Always run `dbt-index status` first to understand the project shape (node counts
 | User intent | Command | Key flags |
 |---|---|---|
 | Find a model/source/node by name or keyword | `search` | `--type`, `--tag`, `--where` to narrow |
-| Deep-dive into a specific node (columns, SQL, tests) | `node` | `-D` for full detail, or `--sql`, `--columns`, `--tests`, `--lineage` individually |
-| Trace upstream/downstream dependencies | `lineage` | `--upstream`, `--downstream`, `--depth`, `--column` for column-level |
+| Deep-dive into a specific node (columns, SQL, tests) | `node` | `--detail` for full detail; composable comma-separated: `--detail sql,columns` or `--detail tests,lineage` |
+| Trace upstream/downstream dependencies | `lineage` | `--upstream`, `--downstream`, `--depth`, `--column` for column-level; `--detail` for file paths and stats |
 | Assess blast radius before changing a model | `impact` | `--depth` to control hops |
 | Discover what tables/columns exist in the index | `schema` | Pass a table name for column details, `--tables-only` for just table list |
 | Compare dev vs prod | `diff` | `--base <prod-index>`, `--only added\|removed\|modified`, `--type model\|source\|test\|...` to filter |
