@@ -56,8 +56,16 @@ dbt-index query "SELECT n.name, unnest(n.tags) AS tag FROM dbt.nodes n WHERE n.r
 dbt-index schema
 dbt-index schema dbt.nodes
 
-# Compare environments: show nodes added in dev vs prod
-dbt-index diff --base prod.duckdb --only added
+# Sync production state from dbt platform (feeds into diff)
+dbt-index cloud-sync                          # auto-detects environment ID
+dbt-index cloud-sync --environment-id 12345
+dbt-index cloud-sync --skip-discovery         # faster: artifacts only, no Discovery API
+
+# Compare local vs dbt platform production (auto-runs cloud-sync if needed)
+dbt-index diff
+dbt-index diff --sync                         # force a fresh cloud-sync first
+dbt-index diff --only added
+dbt-index diff --type model
 
 # Doctor: check index integrity and completeness (errors = structural problems, warnings = incomplete enrichment)
 dbt-index doctor
