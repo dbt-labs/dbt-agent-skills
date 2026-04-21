@@ -41,6 +41,14 @@ dbt-index node customers --auto-hydrate  # single node, on demand
 #   dbtf compile --inline "<jinja-sql>"  # Fusion
 dbt-index query-warehouse "SELECT count(*) FROM my_schema.my_table"
 
+# Semantic layer: discover, compile, and execute metric queries locally
+dbt-index sl list metrics                                    # list all metrics
+dbt-index sl list metrics --search revenue                   # filter by name
+dbt-index sl describe --metrics revenue                      # see queryable dimensions/entities
+dbt-index sl run --metrics revenue --group-by metric_time:day  # execute against warehouse
+dbt-index sl run --metrics revenue --group-by metric_time:day --dry-run  # preview SQL only
+dbt-index sl run --saved-query weekly_revenue_report         # run a saved query
+
 # Raw SQL: escape hatch for anything the structured commands can't answer
 dbt-index query "SELECT n.name, unnest(n.tags) AS tag FROM dbt.nodes n WHERE n.resource_type = 'model'"
 

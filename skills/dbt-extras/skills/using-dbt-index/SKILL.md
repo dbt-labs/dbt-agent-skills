@@ -70,6 +70,7 @@ Always run `dbt-index status` first to understand the project shape (node counts
 | Fill in any missing column data types | `hydrate` | Queries the warehouse to populate missing column data types for all nodes; use `node <name> --auto-hydrate` for a single node on demand |
 | Anything the above can't answer | `query` | Raw SQL escape hatch; SELECT-only by default; **always run `dbt-index schema <table>` for every table you plan to reference before writing SQL — never guess column names** |
 | Query your data warehouse directly | `query-warehouse` | Sends SQL verbatim — no Jinja; use `dbt[f] compile --inline "<jinja-sql>"` to render any Jinja (refs, macros, etc.), then pass the compiled SQL |
+| Query semantic layer metrics locally | `sl` | `list metrics` to discover; `describe --metrics <name>` to see queryable dimensions; `run --metrics <name> --group-by metric_time:day` to execute; `--dry-run` to see generated SQL without running |
 
 #### Before using `query-warehouse`
 
