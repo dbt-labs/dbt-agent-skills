@@ -106,8 +106,8 @@ Always run `dbt-index status` first to understand the project shape (node counts
 
 | User intent | Command | Key flags |
 |---|---|---|
-| Compare local index vs dbt Cloud production | `diff` | `--only added|removed|modified`, `--type model|source|test|...` |
-| Sync production artifacts from dbt Cloud | `cloud-sync` | |
+| Sync production artifacts from dbt Cloud | `cloud-sync` | Run this first before `diff` |
+| Compare local index vs dbt Cloud production | `diff` | `--only added|removed|modified`, `--type model|source|test|...`. Requires `cloud-sync` first |
 | Build performance analysis | `timings` | Subcommands: `summary`, `slowest`, `bottlenecks`, `phases`, `queries`, `export-html` |
 | Refresh the index after a new dbt run (Core path) | `ingest` | `--full-refresh` to force re-read; `--auto-reingest` on query commands to auto-refresh |
 | Start MCP server for AI assistants | `serve` | `--db /path/to/index` |

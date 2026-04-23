@@ -36,7 +36,8 @@ dbt-index metrics describe --metrics revenue
 dbt-index metrics run --metrics revenue --group-by metric_time:day
 dbt-index metrics run --metrics revenue --group-by metric_time:day --dry-run
 
-# Diff vs production
+# Diff vs production (run cloud-sync first to fetch prod data)
+dbt-index cloud-sync
 dbt-index diff
 dbt-index diff --only added --type model
 
