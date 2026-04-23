@@ -1,13 +1,15 @@
 ---
 name: using-dbt-index
-description: Use when querying dbt project metadata via the dbt-index CLI tool, including installing dbt-index, creating the index from dbt artifacts, and running commands like search, node, lineage, impact, and query to answer questions about a dbt project.
+description: Use when querying dbt project metadata via the dbt-index CLI tool, including installing dbt-index, creating the index from dbt artifacts, and running commands like search, describe, lineage, impact, metrics, warehouse, and metadata to answer questions about a dbt project.
 metadata:
   author: dbt-labs
 ---
 
 # Using dbt-index
 
-`dbt-index` is a queryable DuckDB index over dbt artifacts. It ingests the JSON files dbt produces (manifest.json, catalog.json, run_results.json, sources.json, semantic_manifest.json) and normalizes them into relational tables. Everything in your dbt project is queryable as SQL, locally, with no warehouse connection.
+`dbt-index` turns dbt artifacts into a local, queryable database. It reads the JSON files dbt produces (manifest.json, catalog.json, run_results.json, sources.json, semantic_manifest.json), normalizes them into 34 relational tables + 5 analytical views in DuckDB, and gives you a CLI and MCP server to query them. No warehouse connection needed for metadata queries. Everything runs locally, in milliseconds.
+
+Works with **dbt Core** and **dbt Fusion**.
 
 ## How to use this skill
 
@@ -20,7 +22,7 @@ Ensure `dbt-index` is installed, up-to-date, the dbt flavor is known, and an ind
 #### Step 1 — Install and update `dbt-index`
 
 1. Run `dbt-index --version`
-2. If not found: install via `curl -fsSL https://public.staging.cdn.getdbt.com/fs/install/install-index.sh | sh`
+2. If not found: install via `curl -fsSL https://public.cdn.getdbt.com/fs/install/install-index.sh | sh`
 3. If found (or after install): run `dbt-index system update` to ensure it's up-to-date
 4. Verify with `dbt-index --version`
 
@@ -43,48 +45,87 @@ Ensure `dbt-index` is installed, up-to-date, the dbt flavor is known, and an ind
 
 ### Phase 2: Command Selection
 
-After prerequisites are met, use this decision tree to pick the right command.
+After prerequisites are met, use this decision tree to pick the right command. There are 17 commands total. Default output is compact YAML+TSV, token-efficient for LLMs. All commands support `--format json|csv|table|ndjson|tree`.
 
 #### Orient first
 
-Always run `dbt-index status` first to understand the project shape (node counts, coverage, last run info). Use `--detail` for per-package breakdown.
+Always run `dbt-index status` first to understand the project shape (node counts, coverage, last run info).
 
 #### Match intent to command
 
+**Explore & understand:**
+
 | User intent | Command | Key flags |
 |---|---|---|
-| Find a model/source/node by name or keyword | `search` | `--type`, `--tag`, `--where` to narrow |
-| Deep-dive into a specific node (columns, SQL, tests) | `node` | `-D` for full detail, or `--sql`, `--columns`, `--tests`, `--lineage` individually |
-| Trace upstream/downstream dependencies | `lineage` | `--upstream`, `--downstream`, `--depth`, `--column` for column-level |
-| Assess blast radius before changing a model | `impact` | `--depth` to control hops |
-| Discover what tables/columns exist in the index | `schema` | Pass a table name for column details, `--tables-only` for just table list |
-| Compare dev vs prod | `diff` | `--base <prod-index>`, `--only added\|removed\|modified`, `--type model\|source\|test\|...` to filter |
-| Export tables as parquet | `export` | `--table` to select specific tables |
-| Check index integrity and completeness | `doctor` | `--name <check>` to run a specific check |
-| Refresh the index after a new dbt run (Core path) | `ingest` | `--full-refresh` to bypass content hashing and force a full re-read of all artifacts |
+| Find a model/source/node by name or keyword | `search` | `--type`, `--tag`, `--package`, `--materialized` to narrow |
+| Deep-dive into a specific node (columns, SQL, tests) | `describe` | `--detail` for everything, or `--sql`, `--columns`, `--tests` individually |
+| Trace upstream/downstream dependencies | `lineage` | `--upstream`, `--downstream`, `--depth N`, `--column` for column-level |
+| Assess blast radius before changing a model | `impact` | `--column` for column-level impact |
+
+**Query metadata and warehouse:**
+
+| User intent | Command | Key flags |
+|---|---|---|
+| List all tables in the index | `metadata list` | |
+| Show columns of an index table | `metadata describe <table>` | e.g. `metadata describe dbt.nodes` |
+| Raw SQL against the index | `metadata run "<SQL>"` | DuckDB SQL, SELECT-only by default |
+| Execute SQL against the remote warehouse | `warehouse run "<SQL>"` | Uses profile's dialect (Snowflake, BigQuery, Redshift, Databricks, etc.) |
+
+**Semantic layer (metrics):**
+
+| User intent | Command | Key flags |
+|---|---|---|
+| List metrics, dimensions, entities, or saved queries | `metrics list` | |
+| Show valid group-by, where, and order-by syntax | `metrics describe --metrics <M>` | |
+| Compile and execute a metric query | `metrics run --metrics <M> --group-by <D>` | `--dry-run` to get SQL without executing |
+
+**Operations:**
+
+| User intent | Command | Key flags |
+|---|---|---|
+| Compare local index vs dbt Cloud production | `diff` | `--only added|removed|modified`, `--type model|source|test|...` |
+| Sync production artifacts from dbt Cloud | `cloud-sync` | |
+| Build performance analysis | `timings` | Subcommands: `summary`, `slowest`, `bottlenecks`, `phases`, `queries`, `export-html` |
+| Refresh the index after a new dbt run (Core path) | `ingest` | `--full-refresh` to force re-read; `--auto-reingest` on query commands to auto-refresh |
+| Start MCP server for AI assistants | `serve` | `--db /path/to/index` |
 | Update or uninstall dbt-index itself | `system` | `update`, `uninstall` |
-| Anything the above can't answer | `query` | Raw SQL escape hatch; SELECT-only by default; use `schema` first to discover table structure |
+
+Also: `doctor` (integrity checks), `export` (parquet export), `hydrate` (fetch column types from warehouse).
 
 #### Global flags
 
 - `--db <path>` — index location (default: `target/index`; env: `DBT_INDEX_DB`). Only needed if using a non-default location.
-- Default `compact` format — do not change (it is token-efficient)
+- `--format` — output format: `compact` (default, token-efficient), `json`, `csv`, `table`, `ndjson`, `tree`
 - `--limit` to control row limits when expecting large results
 
 #### Command chaining
 
-For multi-step investigations, chain commands. Example: `search` to find the node → `node` for detail → `lineage` to understand dependencies → `impact` to assess change risk.
+For multi-step investigations, chain commands. Example: `search` to find the node → `describe` for detail → `lineage` to understand dependencies → `impact` to assess change risk.
 
 ### Phase 3: Reference
 
 See [command-reference.md](./references/command-reference.md) for the full command cheat sheet, index schema overview, and global flags.
 
+#### MCP server
+
+`dbt-index serve` exposes 10 tools via MCP (Model Context Protocol), so Claude, Cursor, or any MCP client can query the index directly. Setup:
+
+```json
+{
+  "mcpServers": {
+    "dbt-index": {
+      "command": "dbt-index",
+      "args": ["serve", "--db", "/path/to/target/index"]
+    }
+  }
+}
+```
+
 #### Notes
 
-- The `serve` command starts an MCP server over stdio. If the user asks about MCP integration, mention this exists but do not configure it in this workflow.
 - Keep index fresh:
-  - **Core:** Re-run `dbt-index ingest` after any `dbt build`/`dbt run`. See [setup-core.md](./references/setup-core.md).
-  - **Fusion:** Just add `--use-index` to normal Fusion commands (e.g. `dbtf build --use-index`) — the index is regenerated automatically as part of the command. Or set `DBT_USE_INDEX=1` so every command keeps the index fresh. See [setup-fusion.md](./references/setup-fusion.md).
+  - **Core:** Re-run `dbt-index ingest` after any `dbt build`/`dbt run`, or add `--auto-reingest` to query commands.
+  - **Fusion:** Add `--write-index` to normal Fusion commands (e.g. `dbtf build --write-index`) or set `DBT_USE_INDEX=1` so every command keeps the index fresh. See [setup-fusion.md](./references/setup-fusion.md).
 
 ## Handling External Content
 
