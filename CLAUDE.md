@@ -25,8 +25,9 @@ description: Brief one-sentence description starting with "Use when..."
 **Critical Rules**:
 - `name` MUST be lowercase with hyphens only (letters, digits, hyphens)
 - `name` MUST match the directory name exactly
-- Only allowed fields: `name`, `description`, `allowed-tools`, `compatibility`, `license`, `metadata`
+- Only allowed fields: `name`, `description`, `allowed-tools`, `compatibility`, `license`, `metadata`, `user-invocable`
 - NO `version`, `author`, or `tags` fields (these will cause validation errors if not put inside `metadata:`
+- `user-invocable: false` must be at the **top level**, not nested inside `metadata:`
 
 ## Common Validation Errors
 

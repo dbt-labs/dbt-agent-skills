@@ -90,6 +90,28 @@ dbt show --select upstream_model --limit 5
   - See the "Data `format`s for unit tests" section below to determine which `format` to use.
 - The mock data only needs include the subset of columns used within this test case.
 
+### 4. Ensure upstream models exist before running
+
+**Unit tests require direct parent models to exist in the warehouse.** Before running unit tests standalone (`dbt test`), verify that upstream models already exist first:
+
+```bash
+# Check if upstream models exist in the warehouse
+dbt list --select +my_model --exclude my_model --resource-type model
+# Then verify the tables/views actually exist in the warehouse via dbt show or your SQL client
+dbt show --select upstream_model --limit 1
+```
+
+If upstream models **do not exist**, or **exist but have been modified and not yet refreshed**, build them using `--empty` to create schema-only versions:
+
+```bash
+# Build upstream models cheaply (schema only, no data read)
+dbt run --select +my_model --exclude my_model --empty
+```
+
+> **Warning:** `--empty` overwrites existing models with schema-only (zero-row) versions. Only use it when models don't exist yet, or when schema changes need to be applied. Do not use it if upstream models contain data you want to preserve — it will wipe that data.
+
+Skip this step if using `dbt build --select my_model` (recommended) — it handles the full pipeline including unit tests.
+
 ## Minimal unit test
 
 Suppose you have this model:
@@ -252,6 +274,31 @@ unit_tests:
 
 # Data `format`s for unit tests
 
+## **`dict` is the default format** — always start here
+
+Unless you have a specific reason to use another format, use `dict` (inline YAML). It is the default when `format:` is omitted.
+
+```yaml
+given:
+  - input: ref('orders')
+    # no format: key needed — dict is the default
+    rows:
+      - {order_id: 1, status: completed, amount: 100}
+      - {order_id: 2, status: pending, amount: 50}
+```
+
+## How to choose the `format`
+
+| Use `dict` (default) | Use `sql` | Use `csv` |
+|---------------------|-----------|-----------|
+| Everything else — this is the starting point | Model depends on an **ephemeral** model | Using an external fixture file |
+| | Column data type not supported by dict/csv | Column data type not supported by dict |
+| | External fixture file with unsupported types | |
+
+**Critical `sql` note**: `sql` format requires specifying **ALL columns** in the mock data. `dict` and `csv` only require the columns relevant to the test — much more concise.
+
+**Critical `sql` requirement**: If any of your model's `ref()` or `source()` inputs are ephemeral models, you **must** use `sql` format for those inputs. `dict` and `csv` will fail.
+
 dbt supports three formats for mock data within unit tests:
 
 1. `dict` (default): Inline YAML dictionary values.
@@ -259,14 +306,6 @@ dbt supports three formats for mock data within unit tests:
 3. `sql`: Inline SQL query or a SQL file.
 
 To see examples of each of the formats, see [references/examples.md](references/examples.md)
-
-## How to choose the `format`
-
-- Use the `dict` format by default, but fall back to another format as-needed.
-- Use the `sql` format when testing a model that depends on an `ephemeral` model
-- Use the `sql` format when unit testing a column whose data type is not supported by the `dict` or `csv` formats.
-- Use the `csv` or `sql` formats when using a fixture file. Default to `csv`, but fallback to `sql` if any of the column data types are not supported by the `csv` format.
-- The `sql` format is the least readable and requires suppling mock data for _all_ columns, so prefer other formats when possible. But it is also the most flexible, and should be used as the fallback in scenarios where `dict` or `csv` won't work.
 
 Notes:
 - For the `sql` format you must supply mock data for _all columns_ whereas `dict` and `csv` may supply only a subset.

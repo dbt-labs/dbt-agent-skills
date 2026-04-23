@@ -1,7 +1,7 @@
 {
   "name": "dbt-extras",
   "description": "Miscellaneous skills for dbt.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": {
     "name": "dbt Labs"
   },
