@@ -54,6 +54,32 @@ dbt-index ingest
 dbt-index export --table dbt.nodes
 ```
 
+## What hydrates what
+
+Different dbt commands produce different artifacts, and each artifact populates different parts of the index. Use this matrix to know what to run to get the data you need.
+
+### Core: artifact → index tables
+
+| Artifact | Produced by | Index tables populated |
+|---|---|---|
+| `manifest.json` | `dbt parse`, `dbt compile`, `dbt run`, `dbt build` | `nodes`, `edges`, `node_columns` (declared types only), `test_metadata`, `semantic_models`, `metrics`, `macros`, `exposures`, `groups`, `docs`, `project`, `packages` |
+| `catalog.json` | `dbt docs generate` | `catalog_tables`, `catalog_stats`, `column_stats`, `node_columns.catalog_type` |
+| `run_results.json` | `dbt run`, `dbt build`, `dbt test` | `invocations`, `run_results`, `test_failures`, `adapter_queries` |
+| `sources.json` | `dbt source freshness` | `source_freshness` |
+| `semantic_manifest.json` | `dbt parse`, `dbt compile` (with semantic layer configured) | `semantic_entities`, `semantic_measures`, `semantic_dimensions`, `saved_queries`, `time_spines` |
+
+After producing artifacts, run `dbt-index ingest` (or use `--auto-reingest`) to populate the index.
+
+### Fusion: command → index tables
+
+| Command | What it populates | Warehouse needed? |
+|---|---|---|
+| `dbtf compile --write-index --static-analysis strict` | All manifest tables + `column_lineage` + inferred column types (`node_columns.inferred_type`) | Yes (to fetch source schema information) |
+| `dbtf build --write-index` | All of the above + `invocations`, `run_results`, `test_failures`, `adapter_queries` | Yes (executes models) |
+| `dbtf compile --write-index --write-catalog` | All manifest tables + `catalog_tables`, `catalog_stats`, `column_stats`, `node_columns.catalog_type` | Yes (fetches column types from warehouse) |
+
+`--write-catalog` is an alternative to `--static-analysis strict` for getting column type information — it fetches types from the warehouse rather than inferring them at compile time. Users who don't run `dbtf compile --write-index --static-analysis strict` can use `--write-catalog` to get column information instead.
+
 ## Index schema overview
 
 Two schemas. The `unique_id` column is the primary join key across most tables.
