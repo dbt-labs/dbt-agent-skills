@@ -123,6 +123,19 @@ See [command-reference.md](./references/command-reference.md) for the full comma
 }
 ```
 
+Tool | What it does
+-- | --
+status | Project overview — the first tool an agent should call
+search | Find nodes by name, description, tags
+describe | Inspect a node in detail (columns, SQL, tests, lineage)
+lineage | Walk the DAG upstream/downstream
+impact | Blast radius before modifying a model
+metadata | Query the index: list tables, describe columns, run SQL
+metrics | Discover, describe, and execute metric queries. Use dry_run=true to get compiled SQL for composing with analytical queries via warehouse
+warehouse | Execute SQL against the remote warehouse
+timings | Build performance analysis
+diff | Compare local vs. dbt Cloud production
+
 #### Notes
 
 - The `serve` command starts an MCP server over stdio. If the user asks about MCP integration, mention this exists but do not configure it in this workflow.
