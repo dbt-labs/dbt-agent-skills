@@ -56,7 +56,7 @@ dbt-index query "SELECT n.name, unnest(n.tags) AS tag FROM dbt.nodes n WHERE n.r
 dbt-index schema
 dbt-index schema dbt.nodes
 
-# Sync production state from dbt platform (feeds into diff)
+# Sync production state from dbt platform (run `cloud-sync` before `diff` to fetch state to compare to)
 dbt-index cloud-sync                          # auto-detects environment ID
 dbt-index cloud-sync --environment-id 12345
 dbt-index cloud-sync --skip-discovery         # faster: artifacts only, no Discovery API

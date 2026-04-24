@@ -66,8 +66,8 @@ Always run `dbt-index status` first to understand the project shape (node counts
 | Trace upstream/downstream dependencies | `lineage` | `--upstream`, `--downstream`, `--depth`, `--column` for column-level; `--detail` for file paths and stats |
 | Assess blast radius before changing a model | `impact` | `--depth` to control hops |
 | Discover what tables/columns exist in the index | `schema` | Pass a table name for column details, `--tables-only` for just table list |
-| Sync production state from dbt platform | `cloud-sync` | `--environment-id` (auto-detected if omitted); `--skip-discovery` for faster artifact-only sync |
-| Compare local vs dbt platform production | `diff` | auto-runs `cloud-sync` internally if cloud data not loaded — `--skip-discovery` and other `cloud-sync` flags must be passed via a separate `cloud-sync` call first; `--sync` to force a fresh sync; `--only added\|removed\|modified`; `--type` to filter by resource type |
+| Sync production state from dbt platform | `cloud-sync` | Run this first before `diff`; `--environment-id` (auto-detected if omitted); `--skip-discovery` for faster artifact-only sync |
+| Compare local vs dbt platform production | `diff` | auto-runs `cloud-sync` internally if cloud state not loaded — `--skip-discovery` and other `cloud-sync` flags must be passed via a separate `cloud-sync` call first; `--sync` to force a fresh sync; `--only added\|removed\|modified`; `--type` to filter by resource type |
 | Export tables as parquet | `export` | `--table` to select specific tables |
 | Check index integrity and completeness | `doctor` | `--name <check>` to run a specific check |
 | Refresh the index after a new dbt run (Core path) | `ingest` | `--full-refresh` to bypass content hashing and force a full re-read of all artifacts |
