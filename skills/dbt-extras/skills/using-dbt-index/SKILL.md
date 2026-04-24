@@ -67,7 +67,7 @@ Always run `dbt-index status` first to understand the project shape (node counts
 | Assess blast radius before changing a model | `impact` | `--depth` to control hops |
 | Discover what tables/columns exist in the index | `metadata` | `list` for all tables; `describe <table>` for column details |
 | Sync production state from dbt platform | `cloud-sync` | Run this first before `diff`; `--environment-id` (auto-detected if omitted); `--skip-discovery` for faster artifact-only sync |
-| Compare local vs dbt platform production | `diff` | auto-runs `cloud-sync` internally if cloud state not loaded — `--skip-discovery` and other `cloud-sync` flags must be passed via a separate `cloud-sync` call first; `--sync` to force a fresh sync; `--only added\|removed\|modified`; `--type` to filter by resource type |
+| Compare local vs dbt platform state | `diff` | auto-runs `cloud-sync` internally if cloud state not loaded — `--skip-discovery` and other `cloud-sync` flags must be passed via a separate `cloud-sync` call first; `--sync` to force a fresh sync; `--only added\|removed\|modified`; `--type` to filter by resource type |
 | Export tables as parquet | `export` | `--table` to select specific tables |
 | Check index integrity and completeness | `doctor` | `--name <check>` to run a specific check |
 | Refresh the index after a new dbt run (Core path) | `ingest` | `--full-refresh` to bypass content hashing and force a full re-read of all artifacts |
@@ -134,7 +134,7 @@ metadata | Query the index: list tables, describe columns, run SQL
 metrics | Discover, describe, and execute metric queries. Use dry_run=true to get compiled SQL for composing with analytical queries via warehouse
 warehouse | Execute SQL against the remote warehouse
 timings | Build performance analysis
-diff | Compare local vs. dbt Cloud production
+diff | Compare local vs. dbt platform environment state (production, development, etc.)
 
 #### Notes
 
