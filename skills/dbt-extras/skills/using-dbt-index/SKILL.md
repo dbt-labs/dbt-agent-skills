@@ -11,7 +11,9 @@ metadata:
 
 # Using dbt-index
 
-`dbt-index` is a queryable DuckDB index over dbt artifacts. It ingests the JSON files dbt produces (manifest.json, catalog.json, run_results.json, sources.json, semantic_manifest.json) and normalizes them into relational tables. Everything in your dbt project is queryable as SQL, locally, with no warehouse connection.
+`dbt-index` turns dbt artifacts into a local, queryable database. It reads the JSON files dbt produces (manifest.json, catalog.json, run_results.json, sources.json, semantic_manifest.json), normalizes them into relational tables + analytical views in DuckDB, and gives you a CLI and MCP server to query them. No warehouse connection needed for metadata queries -- everything runs locally, in milliseconds.
+
+Works with **dbt Core** and **dbt Fusion**.
 
 ## How to use this skill
 
