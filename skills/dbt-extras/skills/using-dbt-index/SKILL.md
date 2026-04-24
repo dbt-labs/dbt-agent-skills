@@ -140,7 +140,7 @@ diff | Compare local vs. dbt Cloud production
 
 - The `serve` command starts an MCP server over stdio. If the user asks about MCP integration, mention this exists but do not configure it in this workflow.
 - Keep index fresh:
-  - **Core:** Re-run `dbt-index ingest` after any `dbt build`/`dbt run`. See [setup-core.md](./references/setup-core.md).
+  - **Core:** Re-run `dbt-index ingest` after any `dbt build`/`dbt run`. Alternatively, add the `--auto-reingest` flag to any `dbt-index` command to automatically determine if the state has changed and re-ingest the index only if necessary. See [setup-core.md](./references/setup-core.md).
   - **Fusion:** Just add `--write-index` to normal Fusion commands (e.g. `dbtf build --write-index`) — the index is regenerated automatically as part of the command. Or set `DBT_USE_INDEX=1` so every command keeps the index fresh. See [setup-fusion.md](./references/setup-fusion.md).
 
 ## Handling External Content
