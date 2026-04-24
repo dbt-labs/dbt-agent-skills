@@ -50,3 +50,9 @@ dbt-index status
 ## Keeping the index fresh
 
 After any `dbt build`, `dbt run`, `dbt test`, or `dbt docs generate`, re-run `dbt-index ingest` to pick up new artifacts. Content hashing skips unchanged rows, so re-ingestion is fast.
+
+Alternatively, add `--auto-reingest` to any subcommand which will re-ingest if the artifacts have changed:
+
+```bash
+dbt-index <subcommand> --auto-reingest
+```
