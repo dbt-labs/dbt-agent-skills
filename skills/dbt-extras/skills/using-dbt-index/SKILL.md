@@ -62,7 +62,7 @@ Always run `dbt-index status` first to understand the project shape (node counts
 | User intent | Command | Key flags |
 |---|---|---|
 | Find a model/source/node by name or keyword | `search` | `--type`, `--tag`, `--where` to narrow |
-| Deep-dive into a specific node (columns, SQL, tests) | `node` | `--detail` for full detail; composable comma-separated: `--detail sql,columns` or `--detail tests,lineage` |
+| Deep-dive into a specific node (columns, SQL, tests) | `describe` | `--detail` for full detail; composable comma-separated: `--detail sql,columns` or `--detail tests,lineage` |
 | Trace upstream/downstream dependencies | `lineage` | `--upstream`, `--downstream`, `--depth`, `--column` for column-level; `--detail` for file paths and stats |
 | Assess blast radius before changing a model | `impact` | `--depth` to control hops |
 | Discover what tables/columns exist in the index | `schema` | Pass a table name for column details, `--tables-only` for just table list |
@@ -86,7 +86,7 @@ Column-level lineage is only available with **dbt Fusion** — it is not availab
 
 #### Before using `query-warehouse`
 
-Always run `dbt-index node <model> --detail columns` for every model you plan to query before writing SQL. If column metadata is missing, run `dbt-index node <model> --auto-hydrate` to pull it from the warehouse on demand. Never guess column names.
+Always run `dbt-index describe <model> --detail columns` for every model you plan to query before writing SQL. If column metadata is missing, run `dbt-index describe <model> --auto-hydrate` to pull it from the warehouse on demand. Never guess column names.
 
 #### Before using `query`
 
@@ -100,7 +100,7 @@ Always run `dbt-index schema <table>` for every table you plan to reference befo
 
 #### Command chaining
 
-For multi-step investigations, chain commands. Example: `search` to find the node → `node` for detail → `lineage` to understand dependencies → `impact` to assess change risk.
+For multi-step investigations, chain commands. Example: `search` to find the node → `describe` for detail → `lineage` to understand dependencies → `impact` to assess change risk.
 
 If `diff` fails with a Discovery API/network error: run `dbt-index cloud-sync --skip-discovery` first, then re-run `diff`.
 

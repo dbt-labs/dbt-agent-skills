@@ -13,15 +13,15 @@ dbt-index search --type model --tag pii  # narrow by resource type and tag
 dbt-index search --tag pii --columns unique_id,name,description,tags  # select specific output columns (see `dbt-index schema dbt.nodes` for options)
 
 # Deep-dive: inspect a specific node
-dbt-index node customers --detail                          # all sections
-dbt-index node customers --detail sql                      # compiled SQL
-dbt-index node customers --detail columns                  # column names, types, descriptions
-dbt-index node customers --detail tests                    # test details
-dbt-index node customers --detail lineage                  # parents/children node lists
-dbt-index node customers --detail column-lineage           # column-level lineage
-dbt-index node customers --detail catalog                  # warehouse catalog metadata (requires hydrate)
-dbt-index node customers --detail sql,columns,lineage      # combine sections comma-separated
-dbt-index node model.my_project.fct_orders --detail
+dbt-index describe customers --detail                          # all sections
+dbt-index describe customers --detail sql                      # compiled SQL
+dbt-index describe customers --detail columns                  # column names, types, descriptions
+dbt-index describe customers --detail tests                    # test details
+dbt-index describe customers --detail lineage                  # parents/children node lists
+dbt-index describe customers --detail column-lineage           # column-level lineage
+dbt-index describe customers --detail catalog                  # warehouse catalog metadata (requires hydrate)
+dbt-index describe customers --detail sql,columns,lineage      # combine sections comma-separated
+dbt-index describe model.my_project.fct_orders --detail
 
 # DAG traversal: walk the dependency graph
 dbt-index lineage customers --upstream --depth 5
@@ -34,7 +34,7 @@ dbt-index impact stg_customers --depth 5
 
 # Hydrate: populate missing column data types from the warehouse
 dbt-index hydrate                        # all nodes missing column data types
-dbt-index node customers --auto-hydrate  # single node, on demand
+dbt-index describe customers --auto-hydrate  # single node, on demand
 
 # Query warehouse: sends SQL verbatim (no Jinja) — use compile --inline to render any Jinja first:
 #   dbt compile --inline "<jinja-sql>"   # Core
