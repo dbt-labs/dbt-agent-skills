@@ -163,6 +163,6 @@ Use `dbt-index schema` to list all tables. Use `dbt-index schema <table>` to see
 
 - `--db <path>` — index location (default: `target/index`; env: `DBT_INDEX_DB`). Only needed if using a non-default location.
 - `--auto-reingest` — update the index only if the artifacts have changed
-- `--format compact` — default output format: YAML envelope with metadata keys + embedded CSV `data` block, token-efficient for LLMs (do not change)
-- `--raw` — only meaningful with `compact`: strips the YAML envelope, leaving just the CSV `data` block
+- `--format` — `compact` (default, YAML envelope + embedded TSV body. Token-efficient for LLMs), `json`, `csv`, `table` (human), `ndjson`, `tree` (lineage).
+- `--raw` — strips the YAML envelope AND converts the body from TSV to CSV. (Same output as `--format csv`.)
 - `--limit <n>` — max rows returned (default 100, use 0 for unlimited)
