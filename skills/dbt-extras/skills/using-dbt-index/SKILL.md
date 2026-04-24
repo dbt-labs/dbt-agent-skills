@@ -81,7 +81,7 @@ Always run `dbt-index status` first to understand the project shape (node counts
 
 Column-level lineage is only available with **dbt Fusion** — it is not available with dbt Core. Fusion's compile-time static analysis is what populates `dbt.column_lineage`.
 
-- **Fusion users:** ensure the index was built with `dbtf compile --with-index` (or any Fusion command with `--write-index`, or `DBT_USE_INDEX=1` set). If `dbt.column_lineage` is empty, re-run with one of those flags.
+- **Fusion users:** ensure the index was built with **both** `--write-index` and `--static-analysis strict` (e.g. `dbtf compile --write-index --static-analysis strict`). Equivalent env vars: `DBT_USE_INDEX=1` and `DBT_STATIC_ANALYSIS=strict`. If `dbt.column_lineage` is empty, re-run with these flags.
 - **Core users:** column-level lineage is not available. If the user asks, explain this limitation and suggest switching to Fusion if column lineage is needed.
 
 #### Before using `warehouse run`
