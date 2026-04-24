@@ -108,6 +108,21 @@ If `diff` fails with a Discovery API/network error: run `dbt-index cloud-sync --
 
 See [command-reference.md](./references/command-reference.md) for the full command cheat sheet, index schema overview, and global flags.
 
+#### MCP server
+
+`dbt-index serve` exposes 10 tools via MCP (Model Context Protocol), so any MCP client (like Claude, Cursor, etc) can query the index directly. Setup:
+
+```json
+{
+  "mcpServers": {
+    "dbt-index": {
+      "command": "dbt-index",
+      "args": ["serve", "--db", "/path/to/target/index"]
+    }
+  }
+}
+```
+
 #### Notes
 
 - The `serve` command starts an MCP server over stdio. If the user asks about MCP integration, mention this exists but do not configure it in this workflow.
