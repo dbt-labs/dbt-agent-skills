@@ -123,7 +123,7 @@ Two schemas with 39 tables/views total. The `unique_id` column is the primary jo
 
 Use `dbt-index metadata list` to list all tables. Use `dbt-index metadata describe <table>` to see column details for a specific table.
 
-### `dbt.*` — Project metadata (30 tables + 2 views)
+### `dbt.*` — Project metadata (28 tables)
 
 #### Core node tables
 
@@ -137,13 +137,6 @@ Use `dbt-index metadata list` to list all tables. Use `dbt-index metadata descri
 | `node_input_files` | Files contributing to each node | `unique_id`, `file_path`, `file_hash`, `input_kind` | `nodes.unique_id` |
 | `sample_data` | Sample rows per node | `unique_id`, `sample_rows` (JSON) | `nodes.unique_id` |
 | `unit_tests` | Unit test definitions | `unique_id`, `name`, `model`, `given` (JSON), `expect` (JSON), `depends_on_nodes` | `model` → `nodes.unique_id` |
-
-#### Enriched views
-
-| View | Description | Key columns |
-|---|---|---|
-| `nodes_enriched` | Nodes joined with latest run status and catalog metadata | All `nodes` columns + `last_run_status`, `last_execution_time`, `catalog_table_type`, `catalog_owner` |
-| `tests_enriched` | Tests joined with metadata and latest results | `unique_id`, `test_name`, `test_type`, `attached_node`, `column_name`, `severity`, `last_run_status`, `last_run_failures`, `failure_rows` |
 
 #### Semantic layer tables
 
@@ -180,19 +173,26 @@ Use `dbt-index metadata list` to list all tables. Use `dbt-index metadata descri
 | `exposures` | Exposure definitions | `unique_id`, `name`, `exposure_type`, `owner_name`, `depends_on_nodes` |
 | `source_freshness` | Source freshness results | `unique_id`, `status`, `max_loaded_at`, `snapshotted_at` |
 
-### `dbt_rt.*` — Runtime data (6 tables + 3 views)
+### `dbt_rt.*` — Runtime data (6 tables)
 
-| Table/View | Type | Description | Key columns | Joins to |
-|---|---|---|---|---|
-| `invocations` | table | One row per dbt run/test/build | `invocation_id`, `command`, `dbt_version`, `generated_at`, `elapsed_time`, `args` (JSON) | Primary key: `invocation_id` |
-| `invocation_nodes` | table | Which nodes were part of each invocation | `invocation_id`, `unique_id` | `invocations.invocation_id` + `nodes.unique_id` |
-| `run_results` | table | Per-node execution results | `unique_id`, `invocation_id`, `status`, `execution_time`, `message`, `failures` | `nodes.unique_id` + `invocations.invocation_id` |
-| `test_failures` | table | Failing test rows as JSON | `unique_id`, `invocation_id`, `failure_rows` (JSON) | `nodes.unique_id` + `invocations.invocation_id` |
-| `adapter_queries` | table | Actual SQL sent to warehouse | `unique_id`, `invocation_id`, `query_sql`, `rows_affected`, `bytes_scanned` | `nodes.unique_id` + `invocations.invocation_id` |
-| `diagnostics` | table | Warnings and errors from dbt | `unique_id`, `invocation_id`, `severity`, `code`, `message` | `nodes.unique_id` + `invocations.invocation_id` |
-| `run_results_latest` | view | Latest execution result per node | Same as `run_results` | `nodes.unique_id` |
-| `dag_validity` | view | Whether parents were built before children | `unique_id`, `status`, `parent_unique_id`, `parent_is_fresh` | `nodes.unique_id` |
-| `node_status` | view | Lifecycle status per node (parsed → compiled → run) | `unique_id`, `name`, `resource_type`, `run_status`, `effective_phase`, `is_stale` | `nodes.unique_id` |
+| Table | Description | Key columns | Joins to |
+|---|---|---|---|
+| `invocations` | One row per dbt run/test/build | `invocation_id`, `command`, `dbt_version`, `generated_at`, `elapsed_time`, `args` (JSON) | Primary key: `invocation_id` |
+| `invocation_nodes` | Which nodes were part of each invocation | `invocation_id`, `unique_id` | `invocations.invocation_id` + `nodes.unique_id` |
+| `run_results` | Per-node execution results | `unique_id`, `invocation_id`, `status`, `execution_time`, `message`, `failures` | `nodes.unique_id` + `invocations.invocation_id` |
+| `test_failures` | Failing test rows as JSON | `unique_id`, `invocation_id`, `failure_rows` (JSON) | `nodes.unique_id` + `invocations.invocation_id` |
+| `adapter_queries` | Actual SQL sent to warehouse | `unique_id`, `invocation_id`, `query_sql`, `rows_affected`, `bytes_scanned` | `nodes.unique_id` + `invocations.invocation_id` |
+| `diagnostics` | Warnings and errors from dbt | `unique_id`, `invocation_id`, `severity`, `code`, `message` | `nodes.unique_id` + `invocations.invocation_id` |
+
+### Analytical views (5 — 2 in `dbt.*`, 3 in `dbt_rt.*`)
+
+| View | Schema | Description | Key columns |
+|---|---|---|---|
+| `nodes_enriched` | `dbt` | Nodes joined with latest run status and catalog metadata | All `nodes` columns + `last_run_status`, `last_execution_time`, `catalog_table_type`, `catalog_owner` |
+| `tests_enriched` | `dbt` | Tests joined with metadata and latest results | `unique_id`, `test_name`, `test_type`, `attached_node`, `column_name`, `severity`, `last_run_status`, `last_run_failures`, `failure_rows` |
+| `run_results_latest` | `dbt_rt` | Latest execution result per node | Same as `run_results` |
+| `node_status` | `dbt_rt` | Lifecycle status per node (parsed → compiled → run) | `unique_id`, `name`, `resource_type`, `run_status`, `effective_phase`, `is_stale` |
+| `dag_validity` | `dbt_rt` | Whether parents were built before children | `unique_id`, `status`, `parent_unique_id`, `parent_is_fresh` |
 
 ## Global flags
 
