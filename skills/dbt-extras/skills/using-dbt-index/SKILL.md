@@ -49,6 +49,29 @@ Ensure `dbt-index` is installed, up-to-date, the dbt flavor is known, and an ind
    - **Fusion path:** See [setup-fusion.md](./references/setup-fusion.md) for detailed instructions
 4. After creation, verify with `dbt-index status`
 
+#### What hydrates what
+
+Different commands and artifacts populate different parts of the index. See [command-reference.md](./references/command-reference.md) for the full matrix. Summary:
+
+**Core** (requires `dbt-index ingest` or `--auto-reingest` after each command):
+
+| Command | What you get in the index |
+|---|---|
+| `dbt parse` / `dbt compile` | Nodes, edges, columns (declared types), tests, semantic layer, project metadata |
+| `dbt run` / `dbt build` | Above + run results, test failures, execution timing |
+| `dbt docs generate` | Catalog: warehouse column types, stats, profiling |
+| `dbt source freshness` | Source freshness results |
+
+**Fusion** (no separate ingest — index written directly with `--write-index`):
+
+| Command | What you get in the index | Warehouse needed? |
+|---|---|---|
+| `dbtf compile --write-index --static-analysis strict` | All manifest tables + column lineage + inferred column types | Yes (to fetch source schema information) |
+| `dbtf build --write-index` | Above + run results, test failures, execution timing | Yes |
+| `dbtf compile --write-index --write-catalog` | Manifest tables + catalog column types from warehouse | Yes |
+
+`--write-catalog` is an alternative to `--static-analysis strict` for column type information — it fetches types from the warehouse instead of inferring them at compile time.
+
 ### Phase 2: Command Selection
 
 After prerequisites are met, use this decision tree to pick the right command.
