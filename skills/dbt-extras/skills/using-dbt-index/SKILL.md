@@ -74,7 +74,7 @@ Always run `dbt-index status` first to understand the project shape (node counts
 | Update or uninstall dbt-index itself | `system` | `update`; `uninstall --yes` to remove the binary |
 | Fill in any missing column data types | `hydrate` | Queries the warehouse to populate missing column data types for all nodes; use `node <name> --auto-hydrate` for a single node on demand |
 | Anything the above can't answer | `metadata run` | Raw SQL escape hatch; SELECT-only by default; **always run `dbt-index metadata describe <table>` for every table you plan to reference before writing SQL — never guess column names** |
-| Query your data warehouse directly | `query-warehouse` | Sends SQL verbatim — no Jinja; use `dbt[f] compile --inline "<jinja-sql>"` to render any Jinja (refs, macros, etc.), then pass the compiled SQL |
+| Query your data warehouse directly | `warehouse run` | Sends SQL verbatim — no Jinja; use `dbt[f] compile --inline "<jinja-sql>"` to render any Jinja (refs, macros, etc.), then pass the compiled SQL |
 | Query semantic layer metrics locally | `metrics` | `list` to discover (or `list --saved-queries`); `describe --metrics <name>` to see queryable dimensions; `run --metrics <name> --group-by metric_time:day` to execute; `--dry-run` to see generated SQL without running |
 
 #### Before using `--column` (column-level lineage)
@@ -84,7 +84,7 @@ Column-level lineage is only available with **dbt Fusion** — it is not availab
 - **Fusion users:** ensure the index was built with `dbtf compile --with-index` (or any Fusion command with `--write-index`, or `DBT_USE_INDEX=1` set). If `dbt.column_lineage` is empty, re-run with one of those flags.
 - **Core users:** column-level lineage is not available. If the user asks, explain this limitation and suggest switching to Fusion if column lineage is needed.
 
-#### Before using `query-warehouse`
+#### Before using `warehouse run`
 
 Always run `dbt-index describe <model> --detail columns` for every model you plan to query before writing SQL. If column metadata is missing, run `dbt-index describe <model> --auto-hydrate` to pull it from the warehouse on demand. Never guess column names.
 

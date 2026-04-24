@@ -39,7 +39,7 @@ dbt-index describe customers --auto-hydrate  # single node, on demand
 # Query warehouse: sends SQL verbatim (no Jinja) — use compile --inline to render any Jinja first:
 #   dbt compile --inline "<jinja-sql>"   # Core
 #   dbtf compile --inline "<jinja-sql>"  # Fusion
-dbt-index query-warehouse "SELECT count(*) FROM my_schema.my_table"
+dbt-index warehouse run "SELECT count(*) FROM my_schema.my_table"
 
 # Semantic layer: discover, compile, and execute metric queries locally
 dbt-index metrics list                                       # list all metrics
