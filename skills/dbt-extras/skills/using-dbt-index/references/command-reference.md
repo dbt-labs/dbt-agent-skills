@@ -10,7 +10,7 @@ dbt-index status --detail  # per-package breakdown
 # Find: full-text search across node names, descriptions, and unique_ids
 dbt-index search "revenue"
 dbt-index search --type model --tag pii  # narrow by resource type and tag
-dbt-index search --tag pii --columns unique_id,name,description,tags  # select specific output columns (see `dbt-index schema dbt.nodes` for options)
+dbt-index search --tag pii --columns unique_id,name,description,tags  # select specific output columns (see `dbt-index metadata describe dbt.nodes` for options)
 
 # Deep-dive: inspect a specific node
 dbt-index describe customers --detail                          # all sections
@@ -51,11 +51,11 @@ dbt-index metrics run --metrics revenue --group-by metric_time:day --dry-run  # 
 dbt-index metrics run --saved-query weekly_revenue_report    # run a saved query
 
 # Raw SQL: escape hatch for anything the structured commands can't answer
-dbt-index query "SELECT n.name, unnest(n.tags) AS tag FROM dbt.nodes n WHERE n.resource_type = 'model'"
+dbt-index metadata run "SELECT n.name, unnest(n.tags) AS tag FROM dbt.nodes n WHERE n.resource_type = 'model'"
 
 # Schema discovery: list all tables in the index, then inspect columns of a specific table (use before writing queries)
-dbt-index schema
-dbt-index schema dbt.nodes
+dbt-index metadata list
+dbt-index metadata describe dbt.nodes
 
 # Sync production state from dbt platform (run `cloud-sync` before `diff` to fetch state to compare to)
 dbt-index cloud-sync                          # auto-detects environment ID
@@ -87,7 +87,7 @@ dbt-index export --table dbt.nodes
 
 Two schemas with 39 tables/views total. The `unique_id` column is the primary join key across most tables.
 
-Use `dbt-index schema` to list all tables. Use `dbt-index schema <table>` to see column details for a specific table.
+Use `dbt-index metadata list` to list all tables. Use `dbt-index metadata describe <table>` to see column details for a specific table.
 
 ### `dbt.*` — Project metadata (30 tables + 2 views)
 
