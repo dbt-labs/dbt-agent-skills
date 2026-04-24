@@ -71,6 +71,14 @@ dbt-index diff --type model
 # Doctor: check index integrity and completeness (errors = structural problems, warnings = incomplete enrichment)
 dbt-index doctor
 
+# Timings: profile build performance (OTel trace data gives full detail; run_results wall-clock is fallback)
+dbt-index timings                         # compact build summary
+dbt-index timings slowest                 # top 20 nodes by wall-clock time
+dbt-index timings phases                  # wall-clock per execution phase (OTel only)
+dbt-index timings bottlenecks             # nodes ranked by warehouse load (OTel only)
+dbt-index timings node customers          # detail for a specific node
+dbt-index timings export-html out.html    # interactive HTML waterfall (OTel only)
+
 # System: update or uninstall dbt-index itself
 dbt-index system update                           # installs the latest version
 dbt-index system update --version 1.0.0-beta.40   # installs a specific version
