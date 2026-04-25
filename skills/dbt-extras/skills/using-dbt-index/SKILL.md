@@ -80,13 +80,13 @@ After prerequisites are met, use this decision tree to pick the right command.
 
 #### Orient first
 
-Always run `dbt-index status` first to understand the project shape (node counts, coverage, last run info). Use `--detail` for per-package breakdown.
+Always run `dbt-index status` first to understand the project shape (node counts, coverage, last run info).
 
 #### Match intent to command
 
 **Explore & understand:**
 
-| User intent | Command | Key flags |
+| User intent | Command | Key flags / notes |
 |---|---|---|
 | Find a model/source/node by name or keyword | `search` | `--type`, `--tag`, `--where` to narrow |
 | Deep-dive into a specific node (columns, SQL, tests) | `describe` | `--detail` for full detail; composable comma-separated: `--detail sql,columns` or `--detail tests,lineage` |
@@ -95,21 +95,24 @@ Always run `dbt-index status` first to understand the project shape (node counts
 
 **Query metadata and warehouse:**
 
-| User intent | Command | Key flags |
+| User intent | Command | Key flags / notes |
 |---|---|---|
-| Discover what tables/columns exist in the index | `metadata` | `list` for all tables; `describe <table>` for column details |
-| Query your data warehouse directly | `warehouse run` | Sends SQL verbatim — no Jinja; use `dbt[f] compile --inline "<jinja-sql>"` to render any Jinja (refs, macros, etc.), then pass the compiled SQL |
-| Anything the above can't answer | `metadata run` | Raw SQL escape hatch; SELECT-only by default; **always run `dbt-index metadata describe <table>` for every table you plan to reference before writing SQL — never guess column names** |
+| List all tables in the index | `metadata list` | |
+| Show columns of an index table | `metadata describe <table>` | e.g. `metadata describe dbt.nodes` |
+| Raw SQL against the index | `metadata run "<SQL>"` | DuckDB raw SQL escape hatch; SELECT-only by default; **always run `dbt-index metadata describe <table>` for every table you plan to reference before writing SQL — never guess column names** |
+| Execute SQL against the remote warehouse | `warehouse run "<SQL>"` | Sends SQL verbatim — no Jinja; use `dbt[f] compile --inline "<jinja-sql>"` to render any Jinja (refs, macros, etc.), then pass the compiled SQL |
 
 **Semantic layer (metrics):**
 
-| User intent | Command | Key flags |
+| User intent | Command | Key flags / notes |
 |---|---|---|
-| Query semantic layer metrics locally | `metrics` | `list` to discover (or `list --saved-queries`); `describe --metrics <name>` to see queryable dimensions; `run --metrics <name> --group-by metric_time:day` to execute; `--dry-run` to see generated SQL without running |
+| List metrics, dimensions, entities, or saved queries | `metrics list` | |
+| Show valid group-by, where, and order-by syntax | `metrics describe --metrics <M>` | |
+| Compile and execute a metric query | `metrics run --metrics <M> --group-by <D>` | `--dry-run` to get SQL without executing |
 
 **Operations:**
 
-| User intent | Command | Key flags |
+| User intent | Command | Key flags / notes |
 |---|---|---|
 | Sync production state from dbt platform | `cloud-sync` | Run this first before `diff`; `--environment-id` (auto-detected if omitted); `--skip-discovery` for faster artifact-only sync |
 | Compare local vs dbt platform state | `diff` | auto-runs `cloud-sync` internally if cloud state not loaded — `--skip-discovery` and other `cloud-sync` flags must be passed via a separate `cloud-sync` call first; `--sync` to force a fresh sync; `--only added\|removed\|modified`; `--type` to filter by resource type |
