@@ -84,13 +84,33 @@ Always run `dbt-index status` first to understand the project shape (node counts
 
 #### Match intent to command
 
+**Explore & understand:**
+
 | User intent | Command | Key flags |
 |---|---|---|
 | Find a model/source/node by name or keyword | `search` | `--type`, `--tag`, `--where` to narrow |
 | Deep-dive into a specific node (columns, SQL, tests) | `describe` | `--detail` for full detail; composable comma-separated: `--detail sql,columns` or `--detail tests,lineage` |
 | Trace upstream/downstream dependencies | `lineage` | `--upstream`, `--downstream`, `--depth`, `--column` for column-level; `--detail` for file paths and stats |
 | Assess blast radius before changing a model | `impact` | `--depth` to control hops |
+
+**Query metadata and warehouse:**
+
+| User intent | Command | Key flags |
+|---|---|---|
 | Discover what tables/columns exist in the index | `metadata` | `list` for all tables; `describe <table>` for column details |
+| Query your data warehouse directly | `warehouse run` | Sends SQL verbatim — no Jinja; use `dbt[f] compile --inline "<jinja-sql>"` to render any Jinja (refs, macros, etc.), then pass the compiled SQL |
+| Anything the above can't answer | `metadata run` | Raw SQL escape hatch; SELECT-only by default; **always run `dbt-index metadata describe <table>` for every table you plan to reference before writing SQL — never guess column names** |
+
+**Semantic layer (metrics):**
+
+| User intent | Command | Key flags |
+|---|---|---|
+| Query semantic layer metrics locally | `metrics` | `list` to discover (or `list --saved-queries`); `describe --metrics <name>` to see queryable dimensions; `run --metrics <name> --group-by metric_time:day` to execute; `--dry-run` to see generated SQL without running |
+
+**Operations:**
+
+| User intent | Command | Key flags |
+|---|---|---|
 | Sync production state from dbt platform | `cloud-sync` | Run this first before `diff`; `--environment-id` (auto-detected if omitted); `--skip-discovery` for faster artifact-only sync |
 | Compare local vs dbt platform state | `diff` | auto-runs `cloud-sync` internally if cloud state not loaded — `--skip-discovery` and other `cloud-sync` flags must be passed via a separate `cloud-sync` call first; `--sync` to force a fresh sync; `--only added\|removed\|modified`; `--type` to filter by resource type |
 | Export tables as parquet | `export` | `--table` to select specific tables |
@@ -99,9 +119,6 @@ Always run `dbt-index status` first to understand the project shape (node counts
 | Refresh the index after a new dbt run (Core path) | `ingest` | `--full-refresh` to bypass content hashing and force a full re-read of all artifacts |
 | Update or uninstall dbt-index itself | `system` | `update`; `uninstall --yes` to remove the binary |
 | Fill in any missing column data types | `hydrate` | Queries the warehouse to populate missing column data types for all nodes; use `node <name> --auto-hydrate` for a single node on demand |
-| Anything the above can't answer | `metadata run` | Raw SQL escape hatch; SELECT-only by default; **always run `dbt-index metadata describe <table>` for every table you plan to reference before writing SQL — never guess column names** |
-| Query your data warehouse directly | `warehouse run` | Sends SQL verbatim — no Jinja; use `dbt[f] compile --inline "<jinja-sql>"` to render any Jinja (refs, macros, etc.), then pass the compiled SQL |
-| Query semantic layer metrics locally | `metrics` | `list` to discover (or `list --saved-queries`); `describe --metrics <name>` to see queryable dimensions; `run --metrics <name> --group-by metric_time:day` to execute; `--dry-run` to see generated SQL without running |
 
 #### Before using `--column` (column-level lineage)
 
