@@ -127,6 +127,21 @@ Run `dbt-index metadata describe <table>` for every table you reference. Column 
 - **Core:** Re-run `dbt-index ingest` after any `dbt build`/`dbt run`. See [setup-core.md](./references/setup-core.md).
 - **Fusion:** Add `--write-index` to normal commands or set `DBT_USE_INDEX=1`. See [setup-fusion.md](./references/setup-fusion.md).
 
+## MCP server
+
+To use dbt-index as an MCP server (so Claude, Cursor, or any MCP client can query the index directly), add this to your MCP config:
+
+```json
+{
+  "mcpServers": {
+    "dbt-index": {
+      "command": "dbt-index",
+      "args": ["serve", "--db", "/path/to/target/index"]
+    }
+  }
+}
+```
+
 ## Quirks
 
 - **`--format tree`** only works for lineage/impact output. Other commands will error.
