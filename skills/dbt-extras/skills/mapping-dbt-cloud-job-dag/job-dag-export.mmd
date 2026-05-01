@@ -1,0 +1,55 @@
+%% Job completion DAG — paste into https://mermaid.live %%
+%%{init: {"flowchart": {"defaultRenderer": "elk", "htmlLabels": true, "nodeSpacing": 40, "rankSpacing": 25, "padding": 12, "useMaxWidth": false}}}%%
+flowchart LR
+  %% Color classes %%
+  classDef projectA stroke:#2dd4bf,fill:#f0fdfa
+  classDef projectB stroke:#a78bfa,fill:#f5f3ff
+
+  %% Project: Pats Snowflake Sandbox | 89074 (projectA) %%
+  subgraph proj_89074["Pats Snowflake Sandbox | 89074"]
+    direction TB
+    job_83771["Nightly Build | 83771"]
+    job_672441["Run on Merge | 672441"]
+    job_386784["dbt run | 386784"]
+    job_686312["SL Exports | 686312"]
+    job_83779["dbt_artifacts | 83779"]
+    job_84515["adhoc query | 84515"]
+    job_106479["Full Refresh | 106479"]
+    job_106484["dbt_artifacts setup | 106484"]
+    job_287898["ad hoc dev | 287898"]
+    job_399799["run 1.4 | 399799"]
+    job_468356["Pull Request Job | 468356"]
+    job_552987["Slim CI test prod | 552987"]
+    job_658456["steps override example | 658456"]
+    job_698005["job that fails | 698005"]
+    job_823893["prod - daily | 823893"]
+    job_872492["staging build | 872492"]
+    job_1015560["parse | 1015560"]
+  end
+
+  %% Project: Pats Snowflake Sandbox - Downstream | 323716 (projectB) %%
+  subgraph proj_323716["Pats Snowflake Sandbox - Downstream | 323716"]
+    direction TB
+    job_876837["Nightly Build | 876837"]
+    job_876828["dbt_artifacts | 876828"]
+    job_876829["steps override example | 876829"]
+    job_876830["SL Exports | 876830"]
+    job_876831["adhoc query | 876831"]
+    job_876832["dbt run | 876832"]
+    job_876833["dbt_artifacts setup | 876833"]
+    job_876834["job that fails | 876834"]
+    job_876835["run 1.4 | 876835"]
+    job_876836["Full Refresh | 876836"]
+    job_876838["Run on Merge | 876838"]
+    job_876839["Slim CI test prod | 876839"]
+    job_882106["Nightly Build | 882106"]
+  end
+
+  %% Completion-trigger dependencies %%
+  job_672441 --> job_386784
+  job_83771 --> job_686312
+  job_83771 -. "triggers downstream project job" .-> job_876837
+
+  %% Apply styles %%
+  class proj_89074,job_83771,job_672441,job_386784,job_686312,job_83779,job_84515,job_106479,job_106484,job_287898,job_399799,job_468356,job_552987,job_658456,job_698005,job_823893,job_872492,job_1015560 projectA
+  class proj_323716,job_876837,job_876828,job_876829,job_876830,job_876831,job_876832,job_876833,job_876834,job_876835,job_876836,job_876838,job_876839,job_882106 projectB
