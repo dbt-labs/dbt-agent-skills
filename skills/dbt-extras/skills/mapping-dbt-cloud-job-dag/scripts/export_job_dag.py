@@ -9,6 +9,12 @@ import re
 import subprocess
 import sys
 from collections import defaultdict
+from datetime import datetime
+from pathlib import Path
+
+# Skill directory (parent of scripts/)
+_SKILL_DIR = Path(__file__).resolve().parent.parent
+_DEFAULT_EXPORT_DIR = _SKILL_DIR / "exports"
 
 # Subgraph + node styling (cycle for 3+ projects). Matches Mermaid Live-friendly palette.
 STYLE_CLASSES = (
@@ -111,8 +117,12 @@ def main() -> int:
     ap.add_argument(
         "-o",
         "--output",
-        required=True,
-        help="Path to write .mmd (UTF-8).",
+        default=None,
+        help=(
+            "Output path. If omitted, writes exports/job-dag-export-<timestamp>.mmd under this skill. "
+            "If set to a path ending in .mmd, writes that exact file (no timestamp). "
+            "Otherwise treats the value as a directory and writes job-dag-export-<timestamp>.mmd there."
+        ),
     )
     ap.add_argument(
         "--renderer",
@@ -127,6 +137,14 @@ def main() -> int:
     )
     args = ap.parse_args()
     dbtp = os.environ.get("DBTP_PATH", "dbtp")
+
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    stamped_name = f"job-dag-export-{ts}.mmd"
+    if args.output is None:
+        out_path = _DEFAULT_EXPORT_DIR / stamped_name
+    else:
+        p = Path(args.output).expanduser()
+        out_path = p if p.suffix.lower() == ".mmd" else p / stamped_name
 
     projects: dict[int, str] = {}
     jobs_by_proj: dict[int, list] = {}
@@ -238,12 +256,10 @@ def main() -> int:
         lines.append(f"  class {ids} {cls}")
 
     out = "\n".join(lines) + "\n"
-    out_dir = os.path.dirname(os.path.abspath(args.output))
-    if out_dir:
-        os.makedirs(out_dir, exist_ok=True)
-    with open(args.output, "w", encoding="utf-8") as f:
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "w", encoding="utf-8") as f:
         f.write(out)
-    print(args.output, file=sys.stderr)
+    print(str(out_path), file=sys.stderr)
     return 0
 
 

@@ -183,17 +183,20 @@ flowchart LR
   class proj_2,job_20 projectB
 ```
 
-**C. `.mmd` file (optional)** — For [Mermaid Live](https://mermaid.live) or CLI renderers: write **UTF-8** plain text of the diagram only (no markdown code fence). A `%%` comment at the top is fine. From the `dbt-agent-skills` repo root you can run:
+**C. `.mmd` file (optional)** — For [Mermaid Live](https://mermaid.live) or CLI renderers: **UTF-8** plain text (no markdown fence). A committed **shape reference** lives at [`job-dag-example.mmd`](./job-dag-example.mmd) (fictional ids); real exports go under **`exports/`**, which is **gitignored**.
+
+From the `dbt-agent-skills` repo root, each run creates **`exports/job-dag-export-<timestamp>.mmd`** (local time, `YYYYMMDD-HHMMSS`) so iterations do not overwrite each other:
 
 ```bash
 python3 skills/dbt-extras/skills/mapping-dbt-cloud-job-dag/scripts/export_job_dag.py \
   --project-id 89074 --project-id 323716 \
-  -o skills/dbt-extras/skills/mapping-dbt-cloud-job-dag/job-dag-export.mmd \
   --renderer elk \
   --cross-project-label "triggers downstream project job"
 ```
 
-(`DBT_TOKEN`, `DBT_ACCOUNT_ID`, `DBT_HOST` must be set; **`dbtp`** installed from **dbt-rust-sdk** and on `PATH`. Override binary with env `DBTP_PATH` if needed.)
+To pin an exact path (no timestamp): `-o /tmp/my-graph.mmd`. To only choose the directory: `-o /tmp` → writes `/tmp/job-dag-export-<timestamp>.mmd`.
+
+(`DBT_TOKEN`, `DBT_ACCOUNT_ID`, `DBT_HOST` must be set; **`dbtp`** from **dbt-rust-sdk** on `PATH`; optional `DBTP_PATH`.)
 
 If the graph is large, still emit every node; add prose **after** the diagram unless the user asks for a filtered view.
 
