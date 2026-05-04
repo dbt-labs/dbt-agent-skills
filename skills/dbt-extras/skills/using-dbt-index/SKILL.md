@@ -61,7 +61,7 @@ Match the user's question to the right command. Chain commands for multi-step in
 
 | User question | Command |
 |---|---|
-| "Find a model / source named X" or "find models tagged Y" | `search "X"` or `search --type model --tag Y` |
+| "Find a model / source named X" or "find models tagged Y" | `search "X"` or `search --type model --tag Y`; use `--where` for SQL predicates on node fields |
 | "What does this model do? Show me its columns, SQL, tests" | `describe <node> --detail sql,columns,tests` |
 | "Search the business context, glossary, fiscal calendar, compliance docs" | `context "X"` |
 
@@ -80,7 +80,7 @@ Match the user's question to the right command. Chain commands for multi-step in
 
 | User question | Command |
 |---|---|
-| "Run SQL against the warehouse" | `warehouse run "<SQL>"` — describe columns first, never guess |
+| "Run SQL against the warehouse" | `warehouse run "<SQL>"` — describe columns first, never guess; `warehouse run` sends SQL verbatim (no Jinja) — use `dbt[f] compile --inline "<jinja-sql>"` to render refs/macros first |
 | "Show me metric X / query the semantic layer" | `metrics describe --metrics X` then `metrics run --metrics X --group-by <dim>` |
 | "Write a custom query against project metadata" | `metadata run "<SQL>"` — describe the table first, never guess column names |
 
@@ -92,6 +92,8 @@ Match the user's question to the right command. Chain commands for multi-step in
 | "Find slow models or build bottlenecks" | `timings slowest` or `timings bottlenecks` |
 | "How does my local project differ from production?" | `diff` (auto-syncs cloud state; use `--sync` to force refresh) |
 | "Is the index valid and complete?" | `doctor` |
+| "Export index data for use outside dbt-index" | `export --table <table>` e.g. `export --table dbt.nodes` |
+| "Force a full re-ingest (index in bad state)" | `ingest --full-refresh` (Core only — bypasses content hashing) |
 
 ## Critical rules
 
@@ -115,7 +117,11 @@ dbt-index describe <model> --detail columns   # add --auto-hydrate if columns ar
 
 ### Before `metadata run`
 
-Always inspect the table schema before writing SQL. The index does not follow assumed dbt naming conventions (e.g. join key in `dbt.node_columns` is `unique_id`; DAG edges use `parent_unique_id`/`child_unique_id`).
+Always inspect the table schema before writing SQL. The index does not follow assumed dbt naming conventions — common traps:
+- Join key in `dbt.node_columns` is `unique_id`, not `node_unique_id`
+- DAG edges use `parent_unique_id`/`child_unique_id`, not `from_unique_id`/`to_unique_id`
+
+If you haven't seen the schema for a table in the current session, always run `metadata describe` first.
 
 ```bash
 dbt-index metadata list                     # list all available tables
