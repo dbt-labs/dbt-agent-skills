@@ -77,6 +77,11 @@ Three CLIs exist. **Ask the user which one if unsure.**
 
 Valid types: `model`, `test`, `unit_test`, `snapshot`, `seed`, `source`, `exposure`, `metric`, `semantic_model`, `saved_query`, `analysis`
 
+> **Fusion:** `--resource-type` is **not supported with `dbt test`** ([dbt-fusion#1628](https://github.com/dbt-labs/dbt-fusion/issues/1628)). To run unit tests in Fusion:
+> - `dbt build --select model_name` — builds the model first, then runs all tests including unit tests
+> - `dbt build --select unit_test_name` — targets a specific unit test by name
+> - `dbt list --resource-type unit_test` — lists unit test names for use in selectors
+
 ## List
 
 Use `dbt list` to preview what will be selected before running. Helpful for validating complex selectors.
@@ -163,5 +168,6 @@ dbt run --static-analysis=unsafe
 | Running without `--select` | Always specify what to run |
 | Using `--quiet` without warn-error | Add `--warn-error-options '{"error": ["NoNodesForSelectionCriteria"]}'` |
 | Running `dbt` expecting Fusion when we are in a venv | Use `dbtf` or `~/.local/bin/dbt` |
+| Schema errors after changing files in Fusion | Run `dbt clean` to clear the stale schema cache, then re-run |
 | Adding LIMIT to SQL in `dbt_show` | Use `limit` parameter instead |
 | Vars with special characters | Pass as simple string, no `\` or `\n` |
