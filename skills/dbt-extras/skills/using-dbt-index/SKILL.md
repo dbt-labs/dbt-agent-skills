@@ -81,7 +81,8 @@ Match the user's question to the right command. Chain commands for multi-step in
 | User question | Command |
 |---|---|
 | "Run SQL against the warehouse" | `warehouse run "<SQL>"` — describe columns first, never guess; `warehouse run` sends SQL verbatim (no Jinja) — use `dbt[f] compile --inline "<jinja-sql>"` to render refs/macros first |
-| "Show me metric X / query the semantic layer" | `metrics describe --metrics X` then `metrics run --metrics X --group-by <dim>` |
+| "Show me metric X / query the semantic layer" | `metrics list --search X`; `metrics describe --metrics X`; `metrics run --metrics X --group-by <dim>`; add `--dry-run` to preview SQL without executing |
+| "Run a saved query" | `metrics list --saved-queries` to list; `metrics run --saved-query <name>` to execute |
 | "Write a custom query against project metadata" | `metadata run "<SQL>"` — describe the table first, never guess column names |
 
 ### Operations and health
