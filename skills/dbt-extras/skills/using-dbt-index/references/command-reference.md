@@ -29,8 +29,10 @@ dbt-index lineage customers --column customer_id           # column-level lineag
 dbt-index lineage customers --detail                       # enrich output with file paths and statistics
 dbt-index lineage customers --downstream --format tree     # render as indented tree instead of flat table
 
-# Blast radius: list all nodes downstream of `stg_customers` (severity-based, with column-level impact)
-dbt-index impact stg_customers --depth 5
+# Blast radius: severity-ranked downstream impact of changing `stg_customers`
+dbt-index impact stg_customers            # summary with severity
+dbt-index impact stg_customers --detail   # full downstream node list
+dbt-index impact stg_customers --column customer_id  # narrow to a single column
 
 # Hydrate: populate missing column data types from the warehouse
 dbt-index hydrate                        # all nodes missing column data types
