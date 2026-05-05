@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: tesslio/publish@dcef29a61e77d536ca82c7582d5225361862a644 # latest commit as of 2026-02-20
+      - uses: tesslio/setup-tessl@25ec223fc0da33b41b8044ff5ab2b85235f4f91e # v2
         with:
           token: ${{ secrets.TESSL_API_TOKEN }}
+      - run: tessl tile publish
