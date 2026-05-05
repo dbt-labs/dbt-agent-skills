@@ -35,3 +35,5 @@ The Claude marketplace automatically scans this repository — no manual action 
 
 [Tessl](https://tessl.io) has a GitHub Action configured in this repo that handles submission automatically on merge to `main`. Skills are evaluated against Tessl's quality standards and added to their open registry.
 
+If the action fails with `401 Unauthorized`, the `TESSL_API_TOKEN` secret has expired. Doug Beatty or Benoit Perigaud can generate a new token at tessl.io and update the secret in the repo settings.
+
