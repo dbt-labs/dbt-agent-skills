@@ -35,6 +35,43 @@ Add the dbt skills marketplace and install the plugins:
 /plugin install dbt-migration@dbt-agent-marketplace
 ```
 
+### Cortex Code (Snowflake)
+
+Add the skills from this repository to your `~/.snowflake/cortex/skills.json` configuration:
+
+```json
+{
+  "remote": [
+    {
+      "source": "https://github.com/dbt-labs/dbt-agent-skills",
+      "ref": "main",
+      "skills": [
+        { "name": "using-dbt-for-analytics-engineering" },
+        { "name": "adding-dbt-unit-test" },
+        { "name": "building-dbt-semantic-layer" },
+        { "name": "answering-natural-language-questions-with-dbt" },
+        { "name": "working-with-dbt-mesh" },
+        { "name": "running-dbt-commands" },
+        { "name": "fetching-dbt-docs" },
+        { "name": "troubleshooting-dbt-job-errors" },
+        { "name": "configuring-dbt-mcp-server" },
+        { "name": "migrating-dbt-core-to-fusion" },
+        { "name": "migrating-dbt-project-across-platforms" },
+        { "name": "creating-mermaid-dbt-dag" },
+        { "name": "using-dbt-index" }
+      ]
+    }
+  ]
+}
+```
+
+Alternatively, if you clone this repo alongside your dbt project, the skills are automatically available via the `.cortex/skills/` directory:
+
+```bash
+git clone https://github.com/dbt-labs/dbt-agent-skills.git
+# Skills are available as project-level skills when running Cortex Code from within this directory
+```
+
 ### Other AI Clients
 
 #### Vercel Skills CLI
@@ -86,7 +123,7 @@ Browse the tile on the [Tessl registry](https://tessl.io/registry/dbt-labs/dbt-a
 
 ### Compatible Agents
 
-These skills work with AI agents that support the [Agent Skills](https://agentskills.io/home) format.
+These skills work with AI agents that support the [Agent Skills](https://agentskills.io/home) format, including Cortex Code (Snowflake), Claude Code, Cursor, Cline, GitHub Copilot, and others.
 
 ## Available Skills
 
