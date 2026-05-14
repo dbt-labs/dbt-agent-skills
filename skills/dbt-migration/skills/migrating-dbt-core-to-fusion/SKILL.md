@@ -59,6 +59,8 @@ dbt debug
 - **profiles.yml found**: Is it loading the correct profile/target?
 - **Dependencies**: Are packages installed?
 
+**Credential safety:** When reviewing `profiles.yml` or `dbt debug` output, check only connection status and profile/target names — do not read, display, log, or echo password, token, or secret fields.
+
 ### If `dbt debug` fails:
 - **Connection/auth errors**: Help the user fix their `profiles.yml` and credentials before proceeding. Migration triage can't begin until the connection works.
 - **Profile not found**: Help locate or configure the correct profile for Fusion
@@ -268,4 +270,3 @@ Next: [What to do next]
 - **After each fix, validate**: Re-run the repro command and check for cascading errors
 - **Success = progress**: Not reaching 100% in one pass is expected — many issues need Fusion fixes
 - **Consider `dbt debug` first**: If you see connection or credential errors during triage, suggest running `dbt debug` to verify the environment
-- **Focus on errors**: For `dbt1065` package version compatibility warnings specifically (e.g. `Package '<package_name>' requires dbt version [>=1.2.0, <2.0.0]`) — ignore these. Autofix upgrades packages that need it; if `dbt1065` warnings remain after autofix, no manual package updates are needed.
