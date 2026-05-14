@@ -19,13 +19,10 @@ Ensure `dbt-index` is installed, up-to-date, the dbt flavor is known, and an ind
 
 #### Step 1 — Install and update `dbt-index`
 
-`dbt-index` is a first-party tool maintained by dbt Labs ([source](https://github.com/dbt-labs/dbt-index)). Install it using the official installer from the dbt Labs CDN.
+`dbt-index` is a first-party tool maintained by dbt Labs ([source](https://github.com/dbt-labs/dbt-index)).
 
 1. Run `dbt-index --version`
-2. If not found: install via the official installer — see the [dbt-index installation guide](https://github.com/dbt-labs/dbt-index#installation) or run:
-   ```bash
-   curl -fsSL https://public.staging.cdn.getdbt.com/fs/install/install-index.sh | sh
-   ```
+2. If not found: follow the [dbt-index installation guide](https://github.com/dbt-labs/dbt-index#installation) to install it
 3. If found (or after install): run `dbt-index system update` to ensure it's up-to-date
 4. Verify with `dbt-index --version`
 
