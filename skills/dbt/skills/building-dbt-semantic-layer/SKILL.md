@@ -55,6 +55,69 @@ Look for existing semantic layer configuration in the project:
 
 Once you know which spec to use, follow the corresponding guide's implementation workflow (Steps 1-4) for all YAML authoring. The guides are self-contained with full examples.
 
+**Minimal latest spec example** (dbt Core 1.12+ / Fusion) — use this as your starting point to avoid guessing the structure:
+
+```yaml
+# models/fct_orders.yml
+models:
+  - name: fct_orders
+    semantic_model:
+      agg_time_dimension: order_date
+      entities:
+        - name: order
+          type: primary
+          expr: order_id
+        - name: customer
+          type: foreign
+          expr: customer_id
+      dimensions:
+        - name: order_date
+          type: time
+          type_params:
+            time_granularity: day
+        - name: status
+          type: categorical
+      measures:
+        - name: revenue
+          agg: sum
+          expr: amount
+    metrics:
+      - name: total_revenue
+        type: simple
+        label: Total Revenue
+        type_params:
+          measure: revenue
+```
+
+**Minimal legacy spec example** (dbt Core 1.6–1.11) — use this if the project is on an older version:
+
+```yaml
+# models/sem_orders.yml
+semantic_models:
+  - name: orders
+    model: ref('fct_orders')
+    entities:
+      - name: order
+        type: primary
+        expr: order_id
+    dimensions:
+      - name: order_date
+        type: time
+        type_params:
+          time_granularity: day
+    measures:
+      - name: revenue
+        agg: sum
+        expr: amount
+
+metrics:
+  - name: total_revenue
+    type: simple
+    label: Total Revenue
+    type_params:
+      measure: revenue
+```
+
 ## Entry Points
 
 Users may ask questions related to building metrics with the semantic layer in a few different ways. Here are the common entry points to look out for:

@@ -2,7 +2,7 @@
 name: creating-mermaid-dbt-dag
 description: Generates a Mermaid flowchart diagram of dbt model lineage using MCP tools, manifest.json, or direct code parsing as fallbacks. Use when visualizing dbt model lineage and dependencies as a Mermaid diagram in markdown format.
 user-invocable: false
-allowed-tools: "mcp__dbt__get_lineage_dev, mcp__dbt__get_lineage"
+allowed-tools: "mcp__dbt__get_lineage_dev, mcp__dbt__get_lineage, Read, Glob, Grep, Bash(jq *)"
 metadata:
   author: dbt-labs
 ---
@@ -54,16 +54,17 @@ Follow this hierarchy. Use the first available method:
 ## Formatting Guidelines
 
 - Use the `graph LR` directive to define a left-to-right graph.
-- Color nodes as follows:
-  - selected node: Purple
+- Color nodes by **resource type first**, with "selected node" meaning the focal model the user requested lineage for:
   - source nodes: Blue
-  - staging nodes: Bronze
-  - intermediate nodes: Silver
-  - mart nodes: Gold
+  - staging nodes (stg_*): Bronze
+  - intermediate nodes (int_*): Silver
+  - mart / fact / dimension nodes: Gold
   - seeds: Green
   - exposures: Orange
   - tests: Yellow
+  - selected/focal node (the specific model whose lineage was requested): Purple — only use this when a specific model was identified as the focal point by an MCP tool
   - undefined nodes: Grey
+- **Important**: When generating a diagram from a user's description (not via MCP tools), color nodes by resource type only — do not designate any node as "selected" unless an MCP tool explicitly identified it as such.
 - Represent each model as a node in the graph.
 - Include a legend explaining the color coding used in the diagram.
 - Make sure the text contrasts well with the background colors for readability.

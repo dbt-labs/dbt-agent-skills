@@ -1,9 +1,9 @@
 ---
 name: working-with-dbt-mesh
 description: Implements dbt Mesh governance features (model contracts, access modifiers, groups, versioning) and multi-project collaboration with cross-project refs. Use when implementing dbt Mesh governance, setting up cross-project refs with dependencies.yml, disambiguating similarly-named models across projects, or splitting a monolithic dbt project into multiple mesh projects.
+user-invocable: false
 metadata:
   author: dbt-labs
-  user-invocable: false
 ---
 
 # Working with dbt Mesh

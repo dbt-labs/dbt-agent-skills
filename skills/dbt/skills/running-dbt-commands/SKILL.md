@@ -11,7 +11,7 @@ metadata:
 ## Preferences
 
 1. **Use MCP tools if available** (`dbt_build`, `dbt_run`, `dbt_show`, etc.) - they handle paths, timeouts, and formatting automatically
-2. **Use `build` instead of `run` or `test`** - `test` doesn't refresh the model, so testing a model change requires `build`. `build` does a `run` and a `test` of each node (model, seed, snapshot) in the order of the DAG
+2. **Always use `build` — even when users say "run"** - When a user asks to "run" a model, recommend `dbt build` instead. `build` = `run` + `test` in one step, so it catches data quality issues immediately. `dbt run` alone is almost never the right answer during development.
 3. **Always use `--quiet`** with `--warn-error-options '{"error": ["NoNodesForSelectionCriteria"]}'` to reduce output while catching selector typos
 4. **Always use `--select`** - never run the entire project without explicit user approval
 
@@ -76,6 +76,11 @@ Three CLIs exist. **Ask the user which one if unsure.**
 ```
 
 Valid types: `model`, `test`, `unit_test`, `snapshot`, `seed`, `source`, `exposure`, `metric`, `semantic_model`, `saved_query`, `analysis`
+
+> **Fusion:** `--resource-type` is **not supported with `dbt test`** ([dbt-fusion#1628](https://github.com/dbt-labs/dbt-fusion/issues/1628)). To run unit tests in Fusion:
+> - `dbt build --select model_name` — builds the model first, then runs all tests including unit tests
+> - `dbt build --select unit_test_name` — targets a specific unit test by name
+> - `dbt list --resource-type unit_test` — lists unit test names for use in selectors
 
 ## List
 
@@ -163,5 +168,6 @@ dbt run --static-analysis=unsafe
 | Running without `--select` | Always specify what to run |
 | Using `--quiet` without warn-error | Add `--warn-error-options '{"error": ["NoNodesForSelectionCriteria"]}'` |
 | Running `dbt` expecting Fusion when we are in a venv | Use `dbtf` or `~/.local/bin/dbt` |
+| Schema errors after changing files in Fusion | Run `dbt clean` to clear the stale schema cache, then re-run |
 | Adding LIMIT to SQL in `dbt_show` | Use `limit` parameter instead |
 | Vars with special characters | Pass as simple string, no `\` or `\n` |

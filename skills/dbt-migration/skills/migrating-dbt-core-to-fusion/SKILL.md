@@ -128,6 +128,7 @@ Use the 4-category framework to triage errors. For the full pattern catalog see 
 **Can fix automatically with HIGH confidence**
 
 - Quote nesting in config (dbt1000) — use single quotes outside: `warn_if='{{ "text" }}'`
+- Static analysis errors in `analyses/` files (dbt0209, dbt0404, or other codes < 1000) — analyses are optional query files, not production models. The correct fix is to add `{{ config(static_analysis='off') }}` at the top of the analysis SQL file. Do **not** rewrite the SQL or remove content — just disable static analysis for that file.
 
 ### Category B: Guided Fixes (Need Approval)
 **Can fix with user approval — show diffs first**
@@ -163,7 +164,7 @@ When an error is Category D:
 
 Category D signals:
 - Fusion engine gaps — MiniJinja differences, parser gaps, missing implementations, wrong materialization dispatch
-- Known GitHub issues — check `github.com/dbt-labs/dbt-fusion/issues`
+- Known GitHub issues — **always search proactively**: use `WebFetch` with URL `https://api.github.com/search/issues?q=repo:dbt-labs/dbt-fusion+<error_code>+<keywords>&type=issues` to find existing issues. Don't tell the user to search manually — do it yourself.
 - Engine crashes — `panic!`, `internal error`, `RUST_BACKTRACE`
 - Adapter methods not implemented — `not yet implemented: Adapter::method`
 
