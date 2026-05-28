@@ -152,3 +152,8 @@ See [LICENSE](LICENSE) for details.
 ## Skill Evaluation
 
 See [evals/README.md](evals/README.md) for the A/B testing tool to compare skill variations.
+
+
+## Kiro
+
+This repository also supports the [Kiro Power](https://kiro.dev/docs/powers/) format via a `POWER.md` file at the repository root. Kiro uses keyword-based activation to automatically load the relevant skill based on your work context. See the [Kiro Powers documentation](https://kiro.dev/docs/powers/create/) for details.
