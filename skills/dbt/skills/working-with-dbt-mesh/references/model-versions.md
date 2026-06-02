@@ -113,10 +113,109 @@ versions:
 
 | Version State | Default Relation Name |
 |---------------|----------------------|
-| Latest version | `fct_orders` (via `alias`) or `fct_orders_v{N}` |
+| Latest version | `fct_orders_v{N}` (or `fct_orders` via `alias`) |
 | Non-latest version | `fct_orders_v{N}` |
+| Latest version pointer | `fct_orders` — view resolving to the latest version (built-in `latest_version_pointer` on v1.12+; `create_latest_version_view` post-hook on <1.12) |
 
-Use `config.alias` on the latest version to maintain the original table name for backward compatibility.
+To keep consumers querying an **unsuffixed** name (e.g. `fct_orders`) that always resolves to the latest version, use a *latest version pointer* — see [Latest version pointer](#latest-version-pointer) below. (`config.alias` is a different tool: it pins *one specific version* to a fixed relation name, e.g. anchoring a non-latest version at the unsuffixed name during a migration. It is not a moving "latest" pointer.)
+
+## Latest Version Pointer
+
+A *latest version pointer* is an unsuffixed relation (e.g. `fct_orders`) that always resolves to the model's latest version (e.g. `fct_orders_v2`). It gives consumers querying outside dbt the same "latest unless pinned" behavior that `ref()` gives inside dbt: no suffix → latest; `_vN` suffix → that specific version. **How you create it depends on your dbt version.**
+
+**Three objects from two files:** a versioned model defined by two SQL files — `fct_orders_v1.sql` and `fct_orders_v2.sql` (latest) — produces **three** database relations once a pointer exists: `fct_orders_v1`, `fct_orders_v2`, and the pointer relation `fct_orders`.
+
+### dbt Core v1.12+ / Fusion (recommended): built-in `latest_version_pointer`
+
+On v1.12+ (and the Fusion engine), use the built-in `latest_version_pointer` config — there is no reason to hand-roll a post-hook. After the version with `is_latest_version = true` materializes successfully, dbt automatically creates the pointer view. The feature is **opt-in** (default off).
+
+> The config is named "pointer" rather than "view" because future adapter-specific optimizations may use a different relation type. In v1.12 the implementation is always a view.
+
+Enable per model:
+
+```yaml
+models:
+  - name: fct_orders
+    latest_version: 2
+    config:
+      latest_version_pointer:
+        enabled: true
+    versions:
+      - v: 1
+      - v: 2
+```
+
+Enable project-wide with a flag in `dbt_project.yml`, or for a directory of models (overridable per model):
+
+```yaml
+# dbt_project.yml
+flags:
+  latest_version_pointer_enabled_by_default: true
+
+models:
+  my_project:
+    marts:
+      +latest_version_pointer:
+        enabled: true
+```
+
+**Customize the pointer name.** By default the pointer uses the unsuffixed model name (`fct_orders`). Either set `alias` under `latest_version_pointer` for a single model, or override the dispatched `generate_latest_version_pointer_alias` macro for a project-wide convention (the `alias` sub-field is passed in as `custom_alias_name`):
+
+```yaml
+models:
+  - name: fct_orders
+    config:
+      latest_version_pointer:
+        enabled: true
+        alias: fct_orders_current
+```
+
+```sql
+-- macros/generate_latest_version_pointer_alias.sql
+{% macro generate_latest_version_pointer_alias(custom_alias_name=none, node=none) %}
+    {%- if custom_alias_name -%}
+        {{ custom_alias_name | trim }}
+    {%- else -%}
+        {{ node.name ~ "_latest" }}
+    {%- endif -%}
+{% endmacro %}
+```
+
+The pointer view is created **only** when the latest version materializes successfully. If the latest version's own `alias` already equals the pointer name, dbt raises a clear collision error — pick a distinct pointer `alias`, or rely on the default unsuffixed name.
+
+### dbt Core < 1.12: `create_latest_version_view` post-hook
+
+Before v1.12 there is no built-in pointer, so create one yourself with a custom macro run as a post-hook. The macro is a no-op except on the latest version, where it creates (or replaces) a view at the unsuffixed name pointing to the current relation:
+
+```sql
+-- macros/create_latest_version_view.sql
+{% macro create_latest_version_view() %}
+    -- this hook runs only if the model is versioned AND is the latest version; otherwise it's a no-op
+    {% if model.get('version') and model.get('version') == model.get('latest_version') %}
+        {% set new_relation = this.incorporate(path={"identifier": model['name']}) %}
+        {% set existing_relation = load_relation(new_relation) %}
+        {% if existing_relation and not existing_relation.is_view %}
+            {{ drop_relation_if_exists(existing_relation) }}
+        {% endif %}
+        {% set create_view_sql -%}
+            -- this syntax may vary by data platform
+            create or replace view {{ new_relation }} as select * from {{ this }}
+        {%- endset %}
+        {% do log("Creating view " ~ new_relation ~ " pointing to " ~ this, info = true) if execute %}
+        {{ return(create_view_sql) }}
+    {% else %}
+        -- no-op
+        select 1 as id
+    {% endif %}
+{% endmacro %}
+```
+
+```yaml
+# dbt_project.yml
+models:
+  +post-hook:
+    - "{{ create_latest_version_view() }}"
+```
 
 ## Referencing Versioned Models
 
@@ -180,6 +279,6 @@ unit_tests:
 |---------|-----|
 | Versioning for additive changes | New columns are non-breaking — just add them to the contract |
 | Bumping `latest_version` before consumers migrate | Keep `latest_version` on the old version until migration is complete |
-| Forgetting `config.alias` on latest version | Without alias, the relation name includes the version suffix |
+| Leaving no pointer to the latest version | The unsuffixed name won't follow `latest_version` when you bump it, breaking consumers querying outside dbt. v1.12+: enable `latest_version_pointer`. <1.12: add the `create_latest_version_view` post-hook. (`config.alias` only pins one chosen version to a name — it is not a moving pointer.) |
 | Not creating a SQL file for the new version | Each version needs its own SQL file (or a `defined_in` reference) |
 | Removing old version too quickly | Set a deprecation date and give consumers a migration window |
