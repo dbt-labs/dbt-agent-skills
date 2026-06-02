@@ -167,6 +167,7 @@ models:
 ```yaml
 models:
   - name: fct_orders
+    # ... latest_version: and versions: omitted for brevity (see the full example above)
     config:
       latest_version_pointer:
         enabled: true
@@ -175,6 +176,8 @@ models:
 
 ```sql
 -- macros/generate_latest_version_pointer_alias.sql
+-- Override example. The default implementation returns node.name (the unsuffixed name);
+-- this version appends a "_latest" suffix instead.
 {% macro generate_latest_version_pointer_alias(custom_alias_name=none, node=none) %}
     {%- if custom_alias_name -%}
         {{ custom_alias_name | trim }}
@@ -193,7 +196,8 @@ Before v1.12 there is no built-in pointer, so create one yourself with a custom 
 ```sql
 -- macros/create_latest_version_view.sql
 {% macro create_latest_version_view() %}
-    -- this hook runs only if the model is versioned AND is the latest version; otherwise it's a no-op
+    -- applied as a project-wide post-hook, this macro runs on every model, but the CREATE VIEW
+    -- below executes only for the latest version of a versioned model; otherwise it's a no-op
     {% if model.get('version') and model.get('version') == model.get('latest_version') %}
         {% set new_relation = this.incorporate(path={"identifier": model['name']}) %}
         {% set existing_relation = load_relation(new_relation) %}
