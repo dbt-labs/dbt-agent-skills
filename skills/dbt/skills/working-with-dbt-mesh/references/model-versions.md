@@ -115,7 +115,7 @@ versions:
 |---------------|----------------------|
 | Latest version | `fct_orders_v{N}` (or `fct_orders` via `alias`) |
 | Non-latest version | `fct_orders_v{N}` |
-| Latest version pointer | `fct_orders` — view resolving to the latest version (built-in `latest_version_pointer` on v1.12+; `create_latest_version_view` post-hook on <1.12) |
+| Latest version pointer (opt-in) | `fct_orders` — view resolving to the latest version (built-in `latest_version_pointer` on v1.12+; `create_latest_version_view` post-hook on <1.12) |
 
 To keep consumers querying an **unsuffixed** name (e.g. `fct_orders`) that always resolves to the latest version, use a *latest version pointer* — see [Latest version pointer](#latest-version-pointer) below. (`config.alias` is a different tool: it pins *one specific version* to a fixed relation name, e.g. anchoring a non-latest version at the unsuffixed name during a migration. It is not a moving "latest" pointer.)
 
@@ -127,7 +127,7 @@ A *latest version pointer* is an unsuffixed relation (e.g. `fct_orders`) that al
 
 ### dbt Core v1.12+ / Fusion (recommended): built-in `latest_version_pointer`
 
-On v1.12+ (and the Fusion engine), use the built-in `latest_version_pointer` config — there is no reason to hand-roll a post-hook. After the version with `is_latest_version = true` materializes successfully, dbt automatically creates the pointer view. The feature is **opt-in** (default off).
+On v1.12+ (and the Fusion engine), use the built-in `latest_version_pointer` config — there is no reason to hand-roll a post-hook. After the latest version (the one whose `v` matches `latest_version:`) materializes successfully, dbt automatically creates the pointer view. The feature is **opt-in** (default off).
 
 > The config is named "pointer" rather than "view" because future adapter-specific optimizations may use a different relation type. In v1.12 the implementation is always a view.
 
@@ -145,13 +145,16 @@ models:
       - v: 2
 ```
 
-Enable project-wide with a flag in `dbt_project.yml`, or for a directory of models (overridable per model):
+Enable project-wide one of two ways (use whichever fits — they are alternatives, not both required):
 
 ```yaml
-# dbt_project.yml
+# dbt_project.yml — Option A: turn it on for the whole project
 flags:
   latest_version_pointer_enabled_by_default: true
+```
 
+```yaml
+# dbt_project.yml — Option B: turn it on for a directory of models (overridable per model)
 models:
   my_project:
     marts:
@@ -279,6 +282,6 @@ unit_tests:
 |---------|-----|
 | Versioning for additive changes | New columns are non-breaking — just add them to the contract |
 | Bumping `latest_version` before consumers migrate | Keep `latest_version` on the old version until migration is complete |
-| Leaving no pointer to the latest version | The unsuffixed name won't follow `latest_version` when you bump it, breaking consumers querying outside dbt. v1.12+: enable `latest_version_pointer`. <1.12: add the `create_latest_version_view` post-hook. (`config.alias` only pins one chosen version to a name — it is not a moving pointer.) |
+| Leaving no pointer to the latest version | Consumers querying the unsuffixed name break when you bump `latest_version`. v1.12+: enable `latest_version_pointer`; <1.12: use the `create_latest_version_view` post-hook (see [Latest Version Pointer](#latest-version-pointer)). `config.alias` pins one version to a name — it is not a moving pointer. |
 | Not creating a SQL file for the new version | Each version needs its own SQL file (or a `defined_in` reference) |
 | Removing old version too quickly | Set a deprecation date and give consumers a migration window |
