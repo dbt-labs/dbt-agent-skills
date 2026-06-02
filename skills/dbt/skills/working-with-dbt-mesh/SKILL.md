@@ -113,7 +113,7 @@ dbt Mesh includes four governance features. These work independently and can be 
 | **Model Contracts** | Guarantee column names, types, and constraints at build time | `contract: {enforced: true}` | [references/model-contracts.md](references/model-contracts.md) |
 | **Groups** | Organize models by team/domain ownership | `group: finance` | [references/groups-and-access.md](references/groups-and-access.md) |
 | **Access Modifiers** | Control which models can `ref` yours | `access: public / protected / private` | [references/groups-and-access.md](references/groups-and-access.md) |
-| **Model Versions** | Manage breaking changes with migration windows | `versions:` with `latest_version:` | [references/model-versions.md](references/model-versions.md) |
+| **Model Versions** | Manage breaking changes with migration windows | `versions:` with `latest_version:`; v1.12+ adds opt-in `latest_version_pointer` to auto-point the unsuffixed name at the latest version | [references/model-versions.md](references/model-versions.md) |
 
 ### YAML placement rule
 
