@@ -1,0 +1,6 @@
+kind: Features
+body: Update working-with-dbt-mesh to recommend latest_version_pointer (dbt Core v1.12+) for automatically pointing the unsuffixed versioned-model name at its latest version
+time: 2026-06-02T00:00:00.000000Z
+custom:
+    Author: dbeatty10
+    Issue: "119"
