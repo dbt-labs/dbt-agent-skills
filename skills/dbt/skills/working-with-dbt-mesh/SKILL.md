@@ -157,7 +157,7 @@ This applies to property YAML files only. In `dbt_project.yml`, use the `+` pref
 
 - **Groups & Access** — no schema changes needed, start here
 - **Contracts** — require declaring every column and data type in YAML
-- **Versions** — only needed when a contracted model must introduce a breaking change
+- **Versions** — needed when a model must introduce a breaking change that consumers need time to migrate to (an enforced contract is recommended alongside, but not required)
 - **Cross-Project Refs** — require **dbt Cloud Enterprise or Enterprise+** and a successful upstream production job. Do not set up cross-project refs if you cannot confirm the plan level is Enterprise or higher.
 
 ## Contracts vs. Tests
@@ -193,13 +193,14 @@ Do NOT add a contract when:
 ### Should this model be versioned?
 
 Version a model when:
-- It has an enforced contract AND you need to introduce a breaking change (column removal, rename, type change)
-- Downstream consumers need a migration window before the old shape goes away
+- You need to make a **breaking change** (column removal, rename, or type change) to a model that consumers depend on — **whether or not it has an enforced contract.** A contract makes the break a build-time error; *without* one the break is silent and ships straight to downstream models and dashboards, so a migration window matters even more. Don't let "there's no contract" talk you out of versioning a breaking change.
+- Consumers need a migration window before the old shape goes away — **including consumers you can't update atomically:** other teams' models, exposures, dashboards, and BI tools that read the table directly.
 
 Do NOT version a model:
 - For additive changes (new columns) — these are non-breaking
 - For bug fixes — fix in place
 - Preemptively "just in case" — version only when a breaking change is actually needed
+- When you can update every consumer in the same change and nothing reads the table outside dbt (no exposures, no BI tools, no other projects) — a plain in-place rename is fine
 
 ### What access level should this model have?
 
