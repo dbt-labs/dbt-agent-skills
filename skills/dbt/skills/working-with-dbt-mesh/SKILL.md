@@ -1,6 +1,6 @@
 ---
 name: working-with-dbt-mesh
-description: Implements dbt Mesh governance features (model contracts, access modifiers, groups, versioning) and multi-project collaboration with cross-project refs. Use when implementing dbt Mesh governance, setting up cross-project refs with dependencies.yml, disambiguating similarly-named models across projects, or splitting a monolithic dbt project into multiple mesh projects.
+description: Use when changing a dbt model in a way that could break its consumers — renaming, removing, or retyping a column, or changing a model that downstream models, exposures, dashboards, or BI tools depend on — to judge whether the change is breaking and who it affects. Also use when versioning a model (model versions, latest_version, latest_version_pointer, deprecation_date, migration windows), enforcing contracts, setting access or groups, or doing multi-project dbt Mesh work (cross-project refs via dependencies.yml, disambiguating similarly-named models, splitting a monolith). Covers single- and multi-project, and planning or advising as well as implementing.
 user-invocable: false
 metadata:
   author: dbt-labs
@@ -12,9 +12,11 @@ metadata:
 
 ## When to Use
 
+- Making a potentially breaking change to a model — renaming, removing, or retyping a column — **especially when other models, exposures, or BI tools depend on it.** Assess the blast radius *before* changing it, and reach for model versions rather than editing in place.
+- Versioning a model (`versions:`, `latest_version`, `latest_version_pointer`, `deprecation_date`) — this applies in a **single project**, not just multi-project setups
+- Adding model contracts, access modifiers, or groups
 - Working in a dbt project that references models from other dbt projects
 - Resolving ambiguity when multiple upstream projects have similarly-named models (e.g. multiple `stg_` models)
-- Adding model contracts, access modifiers, groups, or versioning
 - Setting up cross-project references with `dependencies.yml`
 - Splitting a monolithic dbt project into multiple mesh projects
 
