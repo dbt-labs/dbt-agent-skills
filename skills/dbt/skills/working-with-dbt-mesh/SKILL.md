@@ -200,7 +200,26 @@ Do NOT version a model:
 - For additive changes (new columns) — these are non-breaking
 - For bug fixes — fix in place
 - Preemptively "just in case" — version only when a breaking change is actually needed
-- When you can update every consumer in the same change and nothing reads the table outside dbt (no exposures, no BI tools, no other projects) — a plain in-place rename is fine
+- Only skip versioning if **nothing reads this model outside dbt** — no exposures, no BI tools, no other projects. If even one exists, version it.
+
+#### Versioning alone does NOT create the migration window — `latest_version` does
+
+Adding the new version and promoting it to `latest_version` are **two separate deploys, separated by the migration window — never the same change.** This is the single most common way a "safe" versioned change still breaks a dashboard.
+
+External consumers (BI tools, reverse ETL, dashboards) read a physical relation **by name** — almost always the unsuffixed `model_name` (the latest-version pointer view, or the plain model when unversioned). That name resolves to whatever `latest_version` points at. So:
+
+- **Deploy 1 — introduce:** add the new version (e.g. `v2`) with the new shape, but **keep `latest_version` on the OLD version (`v1`).** The unsuffixed relation keeps serving the old columns; the new shape is available at `model_v2` for consumers to migrate against. Internal consumers you control can migrate early by pinning: `ref('model', v=2)`.
+- **Deploy 2 — promote (later):** only after every external consumer confirms migration, bump `latest_version` to `2` and set `deprecation_date` on `v1`.
+
+**Bumping `latest_version` is itself the breaking release for unsuffixed consumers.** If you introduce the new version *as* latest (or bump latest in the same change), the migration window is zero and the dashboard breaks immediately. The new version always starts as **non-latest**.
+
+After Deploy 1, verify the window is actually open — the consumer's relation must still return the old columns:
+
+```bash
+dbt show --inline "select <old_col> from {{ target.schema }}.<unsuffixed_relation>"
+```
+
+A `column does not exist` error means `latest_version` was promoted too early and the consumer is already broken.
 
 ### What access level should this model have?
 
@@ -228,6 +247,7 @@ Is it referenced cross-project?
 | Making all models `public` | Exposes internal implementation details cross-project | Only mark models `public` that are intentional APIs for other teams |
 | Skipping contracts on public models | Downstream consumers can break silently when schema changes | Always enforce contracts on `access: public` models |
 | Versioning for non-breaking changes | Creates unnecessary maintenance burden and warehouse cost | Only version for breaking changes (column removal, type change, rename) |
+| Introducing the new version *as* `latest_version` (or bumping latest in the same change) | The unsuffixed/pointer relation immediately serves the new shape, breaking BI tools and reverse ETL that read it by name — the migration window is zero | Introduce the new version with `latest_version` still on the OLD version; bump only after consumers confirm migration |
 | Forgetting `dependencies.yml` | Cross-project refs fail without declaring the upstream project | Add upstream project to `dependencies.yml` before using two-argument `ref()` |
 | Referencing non-public models cross-project | Only `public` models are available to other projects | Set `access: public` on models intended for cross-project consumption |
 | Placing `access`, `group`, or `contract` as top-level model properties in YAML | Breaks Fusion engine parsing; top-level placement is not valid config | Always nest under `config:` — e.g. `config: { access: public }` |

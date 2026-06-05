@@ -123,6 +123,8 @@ To keep consumers querying an **unsuffixed** name (e.g. `fct_orders`) that alway
 
 A *latest version pointer* is an unsuffixed relation (e.g. `fct_orders`) that always resolves to the model's latest version (e.g. `fct_orders_v2`). It gives consumers querying outside dbt the same "latest unless pinned" behavior that `ref()` gives inside dbt: no suffix → latest; `_vN` suffix → that specific version. **How you create it depends on your dbt version.**
 
+> ⚠️ **The pointer always tracks `latest_version` — it does NOT shield unsuffixed consumers from a breaking shape change.** Enabling the pointer re-points every unsuffixed consumer to the new shape the instant you bump `latest_version`. It protects against version *suffixes* changing, not against the *shape* changing. During a migration, **keep `latest_version` on the old version** so the pointer keeps serving the old shape; promote to the new version only after consumers have migrated. See "Versioning alone does NOT create the migration window" in SKILL.md.
+
 **Three objects from two files:** a versioned model defined by two SQL files — `fct_orders_v1.sql` and `fct_orders_v2.sql` (latest) — produces **three** database relations once a pointer exists: `fct_orders_v1`, `fct_orders_v2`, and the pointer relation `fct_orders`.
 
 ### dbt Core v1.12+ / Fusion (recommended): built-in `latest_version_pointer`
@@ -254,18 +256,25 @@ dbt run -s fct_orders,version:latest
 
 ## Migration Workflow
 
-1. **Add the new version** with `columns` changes but keep `latest_version` pointing to the old version
+**Introducing the new version and promoting it to `latest_version` are two separate deploys, separated by the migration window — never the same change.** The new version always starts as non-latest.
+
+1. **Add the new version** with `columns` changes but keep `latest_version` pointing to the old version — **do NOT make the new version latest yet.** This is what keeps the unsuffixed relation (and the pointer view) serving the old shape so external consumers don't break.
 2. **Create the SQL file** for the new version
 3. **Deploy** — both versions now exist in the warehouse
-4. **Notify consumers** to migrate their `ref()` calls to the new version (or pin to the old one)
-5. **Bump `latest_version`** to the new version once consumers have migrated
-6. **Set deprecation date** on the old version (optional):
+4. **Verify the migration window is open** — the consumer's relation must still return the old columns:
+   ```bash
+   dbt show --inline "select <old_col> from {{ target.schema }}.<unsuffixed_relation>"
+   ```
+   A `column does not exist` error means `latest_version` was promoted too early and the consumer is already broken.
+5. **Notify consumers** to migrate their `ref()` calls to the new version (or pin to the old one)
+6. **Bump `latest_version`** to the new version once consumers have migrated — this is a breaking release for any unsuffixed consumer that hasn't migrated, so confirm migration first
+7. **Set deprecation date** on the old version (optional):
    ```yaml
    versions:
      - v: 1
        deprecation_date: 2025-06-01 00:00:00.00+00:00
    ```
-7. **Remove the old version** after the deprecation window has passed
+8. **Remove the old version** after the deprecation window has passed
 
 ## Unit Tests and Versions
 
