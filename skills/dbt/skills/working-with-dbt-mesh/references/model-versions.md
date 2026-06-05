@@ -115,9 +115,9 @@ versions:
 |---------------|----------------------|
 | Latest version | `fct_orders_v{N}` (or `fct_orders` via `alias`) |
 | Non-latest version | `fct_orders_v{N}` |
-| Latest version pointer (opt-in) | `fct_orders` — view resolving to the latest version (built-in `latest_version_pointer` on v1.12+; `create_latest_version_view` post-hook on <1.12) |
+| Latest version pointer (opt-in) | `fct_orders` — view resolving to the latest version (built-in `latest_version_pointer` on v1.12+, currently **beta**; `create_latest_version_view` post-hook on ≤1.11) |
 
-To keep consumers querying an **unsuffixed** name (e.g. `fct_orders`) that always resolves to the latest version, use a *latest version pointer* — see [Latest version pointer](#latest-version-pointer) below. (`config.alias` is a different tool: it pins *one specific version* to a fixed relation name, e.g. anchoring a non-latest version at the unsuffixed name during a migration. It is not a moving "latest" pointer.)
+To keep consumers querying an **unsuffixed** name (e.g. `fct_orders`) that always resolves to the latest version, use a *latest version pointer* — see [Latest version pointer](#latest-version-pointer) below. **This is the recommended default for breaking-change migrations**, in both version ranges. (`config.alias` is a different tool: it pins *one specific version* to a fixed relation name, e.g. anchoring a non-latest version at the unsuffixed name during a migration. It is not a moving "latest" pointer, so it's a **manual fallback only** — reach for it only when neither pointer mechanism is available or the user explicitly declines.)
 
 ## Latest Version Pointer
 
@@ -128,6 +128,8 @@ A *latest version pointer* is an unsuffixed relation (e.g. `fct_orders`) that al
 **Three objects from two files:** a versioned model defined by two SQL files — `fct_orders_v1.sql` and `fct_orders_v2.sql` (latest) — produces **three** database relations once a pointer exists: `fct_orders_v1`, `fct_orders_v2`, and the pointer relation `fct_orders`.
 
 ### dbt Core v1.12+ / Fusion (recommended): built-in `latest_version_pointer`
+
+> ⚠️ **Lifecycle: `latest_version_pointer` is currently `beta` in dbt's documentation.** It is the recommended mechanism on v1.12+, but confirm it's available and behaving as expected for the user's exact version before relying on it in production.
 
 On v1.12+ (and the Fusion engine), use the built-in `latest_version_pointer` config — there is no reason to hand-roll a post-hook. After the latest version (the one whose `v` matches `latest_version:`) materializes successfully, dbt automatically creates the pointer view. The feature is **opt-in** (default off).
 
@@ -191,9 +193,9 @@ models:
 
 The pointer view is created **only** when the latest version materializes successfully. If the latest version's own `alias` already equals the pointer name, dbt raises a clear collision error — pick a distinct pointer `alias`, or rely on the default unsuffixed name.
 
-### dbt Core < 1.12: `create_latest_version_view` post-hook
+### dbt Core ≤ 1.11: `create_latest_version_view` post-hook (dbt's recommended pattern)
 
-Before v1.12 there is no built-in pointer, so create one yourself with a custom macro run as a post-hook. The macro is a no-op except on the latest version, where it creates (or replaces) a view at the unsuffixed name pointing to the current relation:
+On ≤1.11 there is no built-in pointer. **dbt's own docs recommend this pattern** ("Configuring database location with `alias`" in the [model-versions docs](https://docs.getdbt.com/docs/mesh/govern/model-versions?version=1.11&name=Core)): create the canonical-name relation yourself with a custom macro run as a post-hook. Prefer this over `config.alias` — it gives consumers the same "no suffix → latest, `_vN` → pinned" behavior outside dbt that `ref()` gives inside dbt. The macro is a no-op except on the latest version, where it creates (or replaces) a view at the unsuffixed name pointing to the current relation. Note this is wired as a **project-wide** `post-hook`, so it runs (as a no-op) on every model, not just the versioned one:
 
 ```sql
 -- macros/create_latest_version_view.sql
@@ -259,6 +261,7 @@ dbt run -s fct_orders,version:latest
 **Introducing the new version and promoting it to `latest_version` are two separate deploys, separated by the migration window — never the same change.** The new version always starts as non-latest.
 
 1. **Add the new version** with `columns` changes but keep `latest_version` pointing to the old version — **do NOT make the new version latest yet.** This is what keeps the unsuffixed relation (and the pointer view) serving the old shape so external consumers don't break.
+   - **Ensure a canonical-name pointer exists** (the recommended default): on **≥1.12** enable `latest_version_pointer`; on **≤1.11** wire the `create_latest_version_view` post-hook. With `latest_version` still on the old version, the pointer serves the old shape now and auto-re-points when you bump it in step 6 — no relation rename. Use `config.alias` on the old version only as a fallback (manual rewiring required at promotion).
 2. **Create the SQL file** for the new version
 3. **Deploy** — both versions now exist in the warehouse
 4. **Verify the migration window is open** — the consumer's relation must still return the old columns:
@@ -295,6 +298,7 @@ unit_tests:
 |---------|-----|
 | Versioning for additive changes | New columns are non-breaking — just add them to the contract |
 | Bumping `latest_version` before consumers migrate | Keep `latest_version` on the old version until migration is complete |
-| Leaving no pointer to the latest version | Consumers querying the unsuffixed name break when you bump `latest_version`. v1.12+: enable `latest_version_pointer`; <1.12: use the `create_latest_version_view` post-hook (see [Latest Version Pointer](#latest-version-pointer)). `config.alias` pins one version to a name — it is not a moving pointer. |
+| Leaving no pointer to the latest version | Consumers querying the unsuffixed name break when you bump `latest_version`. ≥1.12: enable `latest_version_pointer` (currently **beta**); ≤1.11: use the `create_latest_version_view` post-hook (see [Latest Version Pointer](#latest-version-pointer)). `config.alias` pins one version to a name — it is not a moving pointer. |
+| Using `config.alias` as the default canonical-name mechanism | It collapses to 2 relations and forces manual un-aliasing + rewiring when you bump `latest_version`. Default to the version-appropriate pointer (`latest_version_pointer` ≥1.12, `create_latest_version_view` post-hook ≤1.11); use `config.alias` only as a fallback. |
 | Not creating a SQL file for the new version | Each version needs its own SQL file (or a `defined_in` reference) |
 | Removing old version too quickly | Set a deprecation date and give consumers a migration window |

@@ -208,8 +208,18 @@ Adding the new version and promoting it to `latest_version` are **two separate d
 
 External consumers (BI tools, reverse ETL, dashboards) read a physical relation **by name** — almost always the unsuffixed `model_name` (the latest-version pointer view, or the plain model when unversioned). That name resolves to whatever `latest_version` points at. So:
 
-- **Deploy 1 — introduce:** add the new version (e.g. `v2`) with the new shape, but **keep `latest_version` on the OLD version (`v1`).** The unsuffixed relation keeps serving the old columns; the new shape is available at `model_v2` for consumers to migrate against. Internal consumers you control can migrate early by pinning: `ref('model', v=2)`.
-- **Deploy 2 — promote (later):** only after every external consumer confirms migration, bump `latest_version` to `2` and set `deprecation_date` on `v1`.
+- **Deploy 1 — introduce:** add the new version (e.g. `v2`) with the new shape, but **keep `latest_version` on the OLD version (`v1`).** So external consumers keep reading the old columns by name, **maintain a canonical (unsuffixed) relation that tracks the latest version** — with `latest_version` still on `v1`, that canonical relation serves the old shape (mechanism table below). The new shape is available at `model_v2` for consumers to migrate against; internal consumers you control can migrate early by pinning `ref('model', v=2)`.
+- **Deploy 2 — promote (later):** only after every external consumer confirms migration, bump `latest_version` to `2` and set `deprecation_date` on `v1`. The canonical relation then auto-re-points to the new shape — no relation rename needed.
+
+**Keep the canonical relation serving the old shape — pick ONE mechanism (never two):**
+
+| dbt version | Default mechanism | Result |
+|---|---|---|
+| **≥ 1.12 / Fusion** | built-in `latest_version_pointer` (currently **beta**) | `model_v1`, `model_v2`, pointer view `model` (3 relations) |
+| **≤ 1.11** | `create_latest_version_view()` macro + project `post-hook` (dbt's officially recommended pattern) | `model_v1`, `model_v2`, canonical view `model` (3 relations) |
+| either — **fallback only** | `config.alias` pinning the OLD version to the unsuffixed name | 2 relations; forces manual un-aliasing + rewiring at Deploy 2 |
+
+Always prefer the version-appropriate pointer; reach for `config.alias` only when neither pointer is available or the user explicitly declines. Never combine a pointer/view with `alias` on the same name (collision error). See [model-versions.md](references/model-versions.md#latest-version-pointer).
 
 **Bumping `latest_version` is itself the breaking release for unsuffixed consumers.** If you introduce the new version *as* latest (or bump latest in the same change), the migration window is zero and the dashboard breaks immediately. The new version always starts as **non-latest**.
 
@@ -248,6 +258,7 @@ Is it referenced cross-project?
 | Skipping contracts on public models | Downstream consumers can break silently when schema changes | Always enforce contracts on `access: public` models |
 | Versioning for non-breaking changes | Creates unnecessary maintenance burden and warehouse cost | Only version for breaking changes (column removal, type change, rename) |
 | Introducing the new version *as* `latest_version` (or bumping latest in the same change) | The unsuffixed/pointer relation immediately serves the new shape, breaking BI tools and reverse ETL that read it by name — the migration window is zero | Introduce the new version with `latest_version` still on the OLD version; bump only after consumers confirm migration |
+| Reaching for `config.alias` to hold the unsuffixed name when a version-appropriate pointer is available | Collapses to 2 relations and forces manual un-aliasing + rewiring at promotion instead of an automatic re-point | Default to `latest_version_pointer` (≥1.12) or the `create_latest_version_view` post-hook (≤1.11); use `alias` only as a fallback |
 | Forgetting `dependencies.yml` | Cross-project refs fail without declaring the upstream project | Add upstream project to `dependencies.yml` before using two-argument `ref()` |
 | Referencing non-public models cross-project | Only `public` models are available to other projects | Set `access: public` on models intended for cross-project consumption |
 | Placing `access`, `group`, or `contract` as top-level model properties in YAML | Breaks Fusion engine parsing; top-level placement is not valid config | Always nest under `config:` — e.g. `config: { access: public }` |
