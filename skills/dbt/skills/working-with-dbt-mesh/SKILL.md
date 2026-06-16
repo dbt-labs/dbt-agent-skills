@@ -14,9 +14,9 @@ metadata:
 
 - Making a potentially breaking change to a model — renaming, removing, or retyping a column — **especially when other models, exposures, or BI tools depend on it.** Assess the blast radius *before* changing it, and reach for model versions rather than editing in place.
 - Versioning a model (`versions:`, `latest_version`, `latest_version_pointer`, `deprecation_date`) — this applies in a **single project**, not just multi-project setups
-- Adding model contracts, access modifiers, or groups
 - Working in a dbt project that references models from other dbt projects
 - Resolving ambiguity when multiple upstream projects have similarly-named models (e.g. multiple `stg_` models)
+- Adding model contracts, access modifiers, or groups
 - Setting up cross-project references with `dependencies.yml`
 - Splitting a monolithic dbt project into multiple mesh projects
 
