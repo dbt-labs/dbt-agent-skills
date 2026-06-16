@@ -1,0 +1,6 @@
+kind: Features
+body: Recommend the `latest_version_pointer` workflow (dbt Core v1.12+) and reliably trigger on breaking model changes.
+time: 2026-06-16T10:11:33.121075-06:00
+custom:
+    Author: dbeatty10
+    Issue: "119"

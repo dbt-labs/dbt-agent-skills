@@ -1,6 +1,0 @@
-kind: Fixes
-body: Route breaking model changes (column rename/remove/retype on a model with consumers) from using-dbt-for-analytics-engineering to working-with-dbt-mesh, and decouple the "should this model be versioned?" guidance from requiring an enforced contract so external/BI consumers (exposures) trigger versioning
-time: 2026-06-04T00:00:01.000000Z
-custom:
-    Author: dbeatty10
-    Issue: "119"
