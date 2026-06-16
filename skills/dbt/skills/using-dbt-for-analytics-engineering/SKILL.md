@@ -11,6 +11,8 @@ metadata:
 
 **Core principle:** Apply software engineering discipline (DRY, modularity, testing) to data transformation work through dbt's abstraction layer.
 
+**STOP — is this a breaking change to a model with consumers?** Renaming, removing, or retyping a column — on a model that downstream models, exposures, or external/BI consumers depend on — is a **breaking change**. Do **not** edit it in place (that breaks those consumers the moment it deploys). **REQUIRED SUB-SKILL:** Use the `working-with-dbt-mesh` skill to roll it out with model versions (and a latest version pointer) so consumers get a migration window. Come back here for the SQL once the versioning approach is decided.
+
 ## When to Use
 
 - Building new dbt models, sources, or tests
@@ -22,6 +24,7 @@ metadata:
 **Do NOT use for:**
 
 - Querying the semantic layer (use the `answering-natural-language-questions-with-dbt` skill)
+- Breaking changes to a model with consumers (column rename/remove/retype) — use the `working-with-dbt-mesh` skill to version the model instead of editing in place
 
 ## Reference Guides
 

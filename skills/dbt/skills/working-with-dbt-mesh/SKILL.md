@@ -1,6 +1,6 @@
 ---
 name: working-with-dbt-mesh
-description: Implements dbt Mesh governance features (model contracts, access modifiers, groups, versioning) and multi-project collaboration with cross-project refs. Use when implementing dbt Mesh governance, setting up cross-project refs with dependencies.yml, disambiguating similarly-named models across projects, or splitting a monolithic dbt project into multiple mesh projects.
+description: Use when changing a dbt model in a way that could break its consumers — renaming, removing, or retyping a column, or changing a model that downstream models, exposures, dashboards, or BI tools depend on — to judge whether the change is breaking and who it affects. Also use when versioning a model (model versions, latest_version, latest_version_pointer, deprecation_date, migration windows), enforcing contracts, setting access or groups, or doing multi-project dbt Mesh work (cross-project refs via dependencies.yml, disambiguating similarly-named models, splitting a monolith). Covers single- and multi-project, and planning or advising as well as implementing.
 user-invocable: false
 metadata:
   author: dbt-labs
@@ -12,9 +12,11 @@ metadata:
 
 ## When to Use
 
+- Making a potentially breaking change to a model — renaming, removing, or retyping a column — **especially when other models, exposures, or BI tools depend on it.** Assess the blast radius *before* changing it, and reach for model versions rather than editing in place.
+- Versioning a model (`versions:`, `latest_version`, `latest_version_pointer`, `deprecation_date`) — this applies in a **single project**, not just multi-project setups
 - Working in a dbt project that references models from other dbt projects
 - Resolving ambiguity when multiple upstream projects have similarly-named models (e.g. multiple `stg_` models)
-- Adding model contracts, access modifiers, groups, or versioning
+- Adding model contracts, access modifiers, or groups
 - Setting up cross-project references with `dependencies.yml`
 - Splitting a monolithic dbt project into multiple mesh projects
 
@@ -113,7 +115,7 @@ dbt Mesh includes four governance features. These work independently and can be 
 | **Model Contracts** | Guarantee column names, types, and constraints at build time | `contract: {enforced: true}` | [references/model-contracts.md](references/model-contracts.md) |
 | **Groups** | Organize models by team/domain ownership | `group: finance` | [references/groups-and-access.md](references/groups-and-access.md) |
 | **Access Modifiers** | Control which models can `ref` yours | `access: public / protected / private` | [references/groups-and-access.md](references/groups-and-access.md) |
-| **Model Versions** | Manage breaking changes with migration windows | `versions:` with `latest_version:` | [references/model-versions.md](references/model-versions.md) |
+| **Model Versions** | Manage breaking changes with migration windows | `versions:` with `latest_version:` and `latest_version_pointer` (v1.12+) | [references/model-versions.md](references/model-versions.md) |
 
 ### YAML placement rule
 
@@ -155,7 +157,7 @@ This applies to property YAML files only. In `dbt_project.yml`, use the `+` pref
 
 - **Groups & Access** — no schema changes needed, start here
 - **Contracts** — require declaring every column and data type in YAML
-- **Versions** — only needed when a contracted model must introduce a breaking change
+- **Versions** — needed when a model must introduce a breaking change that consumers need time to migrate to (an enforced contract is recommended alongside, but not required)
 - **Cross-Project Refs** — require **dbt Cloud Enterprise or Enterprise+** and a successful upstream production job. Do not set up cross-project refs if you cannot confirm the plan level is Enterprise or higher.
 
 ## Contracts vs. Tests
@@ -191,13 +193,43 @@ Do NOT add a contract when:
 ### Should this model be versioned?
 
 Version a model when:
-- It has an enforced contract AND you need to introduce a breaking change (column removal, rename, type change)
-- Downstream consumers need a migration window before the old shape goes away
+- You need to make a **breaking change** (column removal, rename, or type change) to a model that consumers depend on — **whether or not it has an enforced contract.** A contract makes the break a build-time error; *without* one the break is silent and ships straight to downstream models and dashboards, so a migration window matters even more. Don't let "there's no contract" talk you out of versioning a breaking change.
+- Consumers need a migration window before the old shape goes away — **including consumers you can't update atomically:** other teams' models, exposures, dashboards, and BI tools that read the table directly.
 
 Do NOT version a model:
 - For additive changes (new columns) — these are non-breaking
 - For bug fixes — fix in place
 - Preemptively "just in case" — version only when a breaking change is actually needed
+- Only skip versioning if **nothing reads this model outside dbt** — no exposures, no BI tools, no other projects. If even one exists, version it.
+
+#### Versioning alone does NOT create the migration window — `latest_version` does
+
+Adding the new version and promoting it to `latest_version` are **two separate deploys, separated by the migration window — never the same change.** This is the single most common way a "safe" versioned change still breaks a dashboard.
+
+External consumers (BI tools, reverse ETL, dashboards) read a physical relation **by name** — almost always the unsuffixed `model_name` (the latest-version pointer view, or the plain model when unversioned). That name resolves to whatever `latest_version` points at. So:
+
+- **Deploy 1 — introduce:** add the new version (e.g. `v2`) with the new shape, but **keep `latest_version` on the OLD version (`v1`).** So external consumers keep reading the old columns by name, **maintain a canonical (unsuffixed) relation that tracks the latest version** — with `latest_version` still on `v1`, that canonical relation serves the old shape (mechanism table below). The new shape is available at `model_v2` for consumers to migrate against; internal consumers you control can migrate early by pinning `ref('model', v=2)`.
+- **Deploy 2 — promote (later):** only after every external consumer confirms migration, bump `latest_version` to `2` and set `deprecation_date` on `v1`. The canonical relation then auto-re-points to the new shape — no relation rename needed.
+
+**Keep the canonical relation serving the old shape — pick ONE mechanism (never two):**
+
+| dbt version | Default mechanism | Result |
+|---|---|---|
+| **≥ 1.12 / Fusion** | built-in `latest_version_pointer` (currently **beta**) | `model_v1`, `model_v2`, pointer view `model` (3 relations) |
+| **≤ 1.11** | `create_latest_version_view()` macro + project `post-hook` (dbt's officially recommended pattern) | `model_v1`, `model_v2`, canonical view `model` (3 relations) |
+| either — **fallback only** | `config.alias` pinning the OLD version to the unsuffixed name | 2 relations; forces manual un-aliasing + rewiring at Deploy 2 |
+
+Always prefer the version-appropriate pointer; reach for `config.alias` only when neither pointer is available or the user explicitly declines. Never combine a pointer/view with `alias` on the same name (collision error). See [model-versions.md](references/model-versions.md#latest-version-pointer).
+
+**Bumping `latest_version` is itself the breaking release for unsuffixed consumers.** If you introduce the new version *as* latest (or bump latest in the same change), the migration window is zero and the dashboard breaks immediately. The new version always starts as **non-latest**.
+
+After Deploy 1, verify the window is actually open — the consumer's relation must still return the old columns:
+
+```bash
+dbt show --inline "select <old_col> from {{ target.schema }}.<unsuffixed_relation>"
+```
+
+A `column does not exist` error means `latest_version` was promoted too early and the consumer is already broken.
 
 ### What access level should this model have?
 
@@ -225,6 +257,8 @@ Is it referenced cross-project?
 | Making all models `public` | Exposes internal implementation details cross-project | Only mark models `public` that are intentional APIs for other teams |
 | Skipping contracts on public models | Downstream consumers can break silently when schema changes | Always enforce contracts on `access: public` models |
 | Versioning for non-breaking changes | Creates unnecessary maintenance burden and warehouse cost | Only version for breaking changes (column removal, type change, rename) |
+| Introducing the new version *as* `latest_version` (or bumping latest in the same change) | The unsuffixed/pointer relation immediately serves the new shape, breaking BI tools and reverse ETL that read it by name — the migration window is zero | Introduce the new version with `latest_version` still on the OLD version; bump only after consumers confirm migration |
+| Reaching for `config.alias` to hold the unsuffixed name when a version-appropriate pointer is available | Collapses to 2 relations and forces manual un-aliasing + rewiring at promotion instead of an automatic re-point | Default to `latest_version_pointer` (≥1.12) or the `create_latest_version_view` post-hook (≤1.11); use `alias` only as a fallback |
 | Forgetting `dependencies.yml` | Cross-project refs fail without declaring the upstream project | Add upstream project to `dependencies.yml` before using two-argument `ref()` |
 | Referencing non-public models cross-project | Only `public` models are available to other projects | Set `access: public` on models intended for cross-project consumption |
 | Placing `access`, `group`, or `contract` as top-level model properties in YAML | Breaks Fusion engine parsing; top-level placement is not valid config | Always nest under `config:` — e.g. `config: { access: public }` |
