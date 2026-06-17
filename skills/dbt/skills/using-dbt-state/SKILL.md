@@ -1,6 +1,7 @@
 ---
 name: using-dbt-state
 description: Use when a user is enabling, configuring, optimizing, or debugging dbt State (the server-backed reuse mechanism that clones or skips nodes instead of rebuilding them). Use when they conflate dbt State with the `state:modified` selector or `--state` deferral. Use when asked about models rebuilding unexpectedly, views with `select *` rebuilding, volatile SQL (`current_timestamp()`, `random()`) rebuilding or not, cross-developer cloning, lag_tolerance.
+user-invocable: false
 metadata:
   author: dbt-labs
 ---
@@ -78,7 +79,7 @@ If asked about pricing details, refer the user to https://www.getdbt.com/product
 
 - **`lag_tolerance` per environment** — in dev, set it high (e.g. a week) so dbt does nothing when data is only slightly stale; cloning is cheap but doing nothing is cheaper. Example:
   ```yaml
-  #dbt_project.yml
+  # dbt_project.yml
   models:
     +state:
       lag_tolerance: "{{ '4h' if target.name == 'prod' else '7d' }}"
@@ -103,7 +104,7 @@ If asked about pricing details, refer the user to https://www.getdbt.com/product
 |---|---|---|---|
 | Install | `pip install dbt-state` required | Built in | Built in |
 
-- dbt v1.7-1.11 users must install the separate `dbt-state` package to use dbt State. 
+- dbt v1.7-1.11 users must install the separate `dbt-state` package to use dbt State.
 - dbt v1.12+ users have the `dbt-state` package included automatically.
 - dbt v2.0+ (either Core or Fusion distributions) have the Rust implementation of the client logic built in, so no separate install is needed.
 
