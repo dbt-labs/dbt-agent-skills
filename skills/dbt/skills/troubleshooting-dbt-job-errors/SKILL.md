@@ -40,10 +40,9 @@ A failing test is evidence of a problem. Changing the test to pass hides the pro
 ```mermaid
 flowchart TD
     A[Job failure reported] --> B{MCP Admin API available?}
-    B -->|yes| C[Determine current project_id]
+    B -->|yes| C[list_jobs, filter to target project/env]
     B -->|no| D[Ask user for logs and run_results.json]
-    C --> C2[list_jobs, filter by project_id]
-    C2 --> E[list_jobs_runs by job_id, get_job_run_error]
+    C --> E[list_jobs_runs by job_id, get_job_run_error]
     D --> F[Classify error type]
     E --> F
     F --> G{Error type?}
@@ -60,36 +59,30 @@ flowchart TD
     M --> P[Document what was checked and next steps]
 ```
 
-## Step 0: Scope to the Current Project
-
-**The Admin API run tools are account-wide, not project-scoped.** `list_jobs_runs` without a `job_id` returns runs from *every* project in the account, so "the most recent run" may belong to a different project than the one you are investigating.
-
-1. Determine the current `project_id`. If unavailable, ask the user.
-2. Call `list_jobs` and keep only jobs whose `project_id` matches the current project (`list_jobs` returns `project_id` and `environment_id` per job).
-3. Only then call `list_jobs_runs(job_id=<id>, status="error", …)` for those jobs. Each returned run also carries `project_id` — discard any that don't match. Never select a run whose job isn't confirmed to belong to the current project.
-
 ## Step 1: Gather Job Run Information
 
 ### If dbt MCP Server Admin API Available
 
 Use these tools first - they provide the most comprehensive data:
 
+> **Note:** `list_jobs` and `list_jobs_runs` results may span multiple projects/environments depending on how the Admin API is configured. Each `list_jobs` entry carries `project_id` and `environment_id`; runs also carry `project_id`. When you have a target job, always pass `job_id` to `list_jobs_runs`. When selecting among jobs, filter to the project/environment you're investigating.
+
 | Tool | Purpose |
 |------|---------|
-| `list_jobs` | List jobs in the account; filter by `project_id` to scope to the current project |
+| `list_jobs` | List jobs; each entry carries `project_id` and `environment_id` for filtering to the target project/environment |
 | `list_jobs_runs` | Get recent run history for a specific job (always pass `job_id`) |
 | `get_job_run_error` | Get detailed error message and context |
 
 ```
-# Step 0: scope to current project (project_id = 1234 in this example)
+# List jobs and filter to the target project/environment (project_id = 1234 in this example)
 jobs = list_jobs()
-project_jobs = [j for j in jobs if j["project_id"] == 1234]
+target_jobs = [j for j in jobs if j["project_id"] == 1234]
 
-# Step 1: get recent failed runs for each project job
-for job in project_jobs:
+# Get recent failed runs for each job
+for job in target_jobs:
     list_jobs_runs(job_id=job["id"], status="error", limit=5)
 
-# Step 2: get error details for a specific run
+# Get error details for a specific run
 get_job_run_error(run_id=67890)
 ```
 
@@ -257,7 +250,7 @@ Commit this document to the repository so findings aren't lost.
 
 | Task | Tool/Command |
 |------|--------------|
-| Get job run history | `list_jobs_runs` (MCP) |
+| Get job run history | `list_jobs` (filter by project/env) → `list_jobs_runs(job_id=…)` (MCP) |
 | Get detailed error | `get_job_run_error` (MCP) |
 | Check recent git changes | `git log --oneline -20` |
 | Parse project | `dbt parse` |
