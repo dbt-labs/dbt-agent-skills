@@ -40,9 +40,10 @@ A failing test is evidence of a problem. Changing the test to pass hides the pro
 ```mermaid
 flowchart TD
     A[Job failure reported] --> B{MCP Admin API available?}
-    B -->|yes| C[Use list_jobs_runs to get history]
+    B -->|yes| C[Determine current project_id]
     B -->|no| D[Ask user for logs and run_results.json]
-    C --> E[Use get_job_run_error for details]
+    C --> C2[list_jobs, filter by project_id]
+    C2 --> E[list_jobs_runs by job_id, get_job_run_error]
     D --> F[Classify error type]
     E --> F
     F --> G{Error type?}
@@ -59,6 +60,14 @@ flowchart TD
     M --> P[Document what was checked and next steps]
 ```
 
+## Step 0: Scope to the Current Project
+
+**The Admin API run tools are account-wide, not project-scoped.** `list_jobs_runs` without a `job_id` returns runs from *every* project in the account, so "the most recent run" may belong to a different project than the one you are investigating.
+
+1. Determine the current `project_id`. If unavailable, ask the user.
+2. Call `list_jobs` and keep only jobs whose `project_id` matches the current project (`list_jobs` returns `project_id` and `environment_id` per job).
+3. Only then call `list_jobs_runs(job_id=<id>, status="error", …)` for those jobs. Each returned run also carries `project_id` — discard any that don't match. Never select a run whose job isn't confirmed to belong to the current project.
+
 ## Step 1: Gather Job Run Information
 
 ### If dbt MCP Server Admin API Available
@@ -67,14 +76,20 @@ Use these tools first - they provide the most comprehensive data:
 
 | Tool | Purpose |
 |------|---------|
-| `list_jobs_runs` | Get recent run history, identify patterns |
+| `list_jobs` | List jobs in the account; filter by `project_id` to scope to the current project |
+| `list_jobs_runs` | Get recent run history for a specific job (always pass `job_id`) |
 | `get_job_run_error` | Get detailed error message and context |
 
 ```
-# Example: Get recent runs for job 12345
-list_jobs_runs(job_id=12345, limit=10)
+# Step 0: scope to current project (project_id = 1234 in this example)
+jobs = list_jobs()
+project_jobs = [j for j in jobs if j["project_id"] == 1234]
 
-# Example: Get error details for specific run
+# Step 1: get recent failed runs for each project job
+for job in project_jobs:
+    list_jobs_runs(job_id=job["id"], status="error", limit=5)
+
+# Step 2: get error details for a specific run
 get_job_run_error(run_id=67890)
 ```
 
