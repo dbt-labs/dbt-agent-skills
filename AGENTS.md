@@ -33,7 +33,7 @@ description: Brief one-sentence description starting with "Use when..."
 ## Common Validation Errors
 
 | Error | Fix |
-| :------- | :----- |
+| :---- | :-- |
 | "Unexpected fields in frontmatter" | Remove `version`, `author`, `tags` or other non-allowed fields |
 | "Skill name must be lowercase" | Change `Run Incremental Models` to `run-incremental-models` |
 | "Directory name must match skill name" | If skill name is `run-models`, directory must be `run-models/` |
