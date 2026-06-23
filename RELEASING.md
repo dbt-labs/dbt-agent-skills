@@ -7,7 +7,7 @@ This document covers how updates to this repository are published to plugin mark
 Bump the `version` field in each plugin manifest that has changed:
 
 | Plugin | Manifest files |
-|--------|----------------|
+| :----- | :------------- |
 | dbt | `skills/dbt/.claude-plugin/plugin.json`, `skills/dbt/.cursor-plugin/plugin.json` |
 | dbt-migration | `skills/dbt-migration/.claude-plugin/plugin.json` |
 | dbt-extras | `skills/dbt-extras/.claude-plugin/plugin.json` |
@@ -21,7 +21,7 @@ The dbt Agent Skills plugins are listed in the [Cursor plugin marketplace](https
 
 After merging updates to `main`, notify the Cursor marketplace team so changes can be synced to the plugin listing:
 
-- Email: marketplace-publishing@cursor.com
+- Email: <marketplace-publishing@cursor.com>
 
 ## skills.sh
 
@@ -39,4 +39,3 @@ The Claude marketplace automatically scans this repository — no manual action 
 
 - `401 Unauthorized` — the `TESSL_API_TOKEN` secret has expired. Doug Beatty or Benoit Perigaud can generate a new token at tessl.io and update the secret in the repo settings.
 - Eval parse errors — the `evals/` directory is not Tessl-format evals; the workflow uses `--skip-evals` to bypass this.
-
