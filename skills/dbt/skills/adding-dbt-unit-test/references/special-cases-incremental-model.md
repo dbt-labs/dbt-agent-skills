@@ -1,8 +1,9 @@
-## Unit testing incremental models
+# Unit testing incremental models
 
 When configuring your unit test, you can override the output of macros, vars, or environment variables. This enables you to unit test your incremental models in "full refresh" and "incremental" modes.
 
-### Note
+## Note
+
 Incremental models need to exist in the database first before running unit tests. Use the `--empty` flag to build an empty version of the models to save warehouse spend. You can also optionally select only your incremental models using the `--select` flag.
 
   ```shell

@@ -1,6 +1,7 @@
 # Migration Triage References
 
 ## WHAT
+
 This directory contains reference material for the Fusion migration triage skill's 4-category classification framework.
 
 ## LAYOUT

@@ -3,6 +3,7 @@
 Detailed definitions for the 4-category triage framework used to classify dbt-core to Fusion migration errors.
 
 ## Contents
+
 - [Category A: Auto-Fixable (Safe)](#category-a-auto-fixable-safe)
 - [Category B: Guided Fixes (Need Approval)](#category-b-guided-fixes-need-approval)
 - [Category C: Needs Your Input](#category-c-needs-your-input)
@@ -17,10 +18,11 @@ These are low-risk changes where the fix is deterministic and well-understood. N
 ### Sub-patterns
 
 | Sub-pattern | Error Code | Signal | Fix | Risk |
-|-------------|------------|--------|-----|------|
+| :---------- | :--------- | :----- | :-- | :--- |
 | Quote nesting in config | `dbt1000` | `syntax error: unexpected identifier` with nested quotes | Use single quotes outside: `warn_if='{{ "text" }}'` | LOW — syntactic only |
 
 ### When to use Category A
+
 - The fix is a known, safe transformation
 - There is exactly one correct fix (no ambiguity)
 - The change has no semantic impact on the project
@@ -36,7 +38,7 @@ These fixes are well-understood but may change project behavior. Always show the
 ### Sub-patterns
 
 | Sub-pattern | Error Code | Signal | Fix | Risk |
-|-------------|------------|--------|-----|------|
+| :---------- | :--------- | :----- | :-- | :--- |
 | Config API deprecated | `dbt1501` | "Argument must be a string or a list. Received: (empty)" | `config.require('meta').key` to `config.meta_require('key')` | MEDIUM — API change |
 | Plain dict `.meta_get()` error | `dbt1501` | "unknown method: map has no method named meta_get" | `dict.meta_get()` to `dict.get()` | LOW — method name only |
 | Unused schema.yml entries | `dbt1005` | "Unused schema.yml entry for model 'ModelName'" | Remove orphaned YAML entry | LOW — just a warning |
@@ -51,6 +53,7 @@ These fixes are well-understood but may change project behavior. Always show the
 | Empty SELECT | `dbt0404` | "SELECT with no columns" | Add `SELECT 1` or actual column list | LOW — placeholder needed |
 
 ### When to use Category B
+
 - The fix is well-understood but requires a judgment call
 - Multiple files may be affected
 - The change could affect query behavior or project structure
@@ -67,11 +70,12 @@ These errors have more than one correct resolution. The skill should present opt
 ### Sub-patterns
 
 | Sub-pattern | Signal | Options |
-|-------------|--------|---------|
+| :---------- | :----- | :------ |
 | Permission errors — Hardcoded FQNs | Permission denied, access errors with `FROM database.schema.table` | (1) Replace with `{{ ref('table_name') }}` if dbt model, (2) Replace with `{{ source('schema', 'table_name') }}` if source, (3) Ensure credentials if external table |
 | Failing `analyses/` queries | Errors in `analyses/` directory | (1) Disable static analysis, (2) Delete the file, (3) Fix the query |
 
 ### When to use Category C
+
 - There are multiple valid fixes and the right one depends on project context
 - The user has information the agent doesn't (e.g., "Is this a source or a model?")
 - The decision involves tradeoffs the user should make
@@ -89,19 +93,22 @@ When an error is Category D, identify it as blocked, explain why, link the GitHu
 ### Sub-patterns
 
 | Sub-pattern | Signal | Message | Action |
-|-------------|--------|---------|--------|
+| :---------- | :----- | :------ | :----- |
 | Fusion engine gaps | MiniJinja filter differences, parser gaps, missing implementations, wrong materialization dispatch | "This requires a Fusion update (tracked in issue #XXXX)" | Search GitHub issues, link if found. Suggest alternatives with risk descriptions. |
 | Known GitHub issues | Incremental models with `on_schema_change='sync_all_columns'`, unsupported macro patterns, adapter-specific gaps | "Known limitation — tracked in issue #XXXX" | Link issue, check if closed (suggest Fusion upgrade). Suggest alternatives with risk descriptions. |
 | Engine crashes | `panic!`, `internal error`, `RUST_BACKTRACE`, `not yet implemented` | "This is a Fusion engine crash/missing implementation" | Document and report. Suggest alternatives if possible, with clear risk descriptions. |
 
 ### When to use Category D
+
 - The error is caused by a Fusion engine gap, not user code
 - No direct fix exists in the user's project — the root cause requires a Fusion update
 - The error involves internal dispatch, materialization routing, or adapter methods
 - Workarounds may exist but carry risks (fragility, breakage on future Fusion updates) — suggest them with clear risk descriptions and let the user decide
 
 ### GitHub issue search
+
 When you suspect a Fusion bug:
+
 1. Search: `site:github.com/dbt-labs/dbt-fusion/issues <error_code> <keywords>`
 2. If open issue exists: Link it and explain status
 3. If closed: Suggest updating Fusion version

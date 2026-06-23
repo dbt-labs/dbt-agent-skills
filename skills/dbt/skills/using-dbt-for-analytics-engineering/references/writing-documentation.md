@@ -16,7 +16,7 @@ models:
     description: All customers who are active
 ```
 
-Good: 
+Good:
 
 ```yml
 models:

@@ -37,6 +37,7 @@ get_lineage_dev(
 ## When to use
 
 Use this method when:
+
 - The `get_lineage_dev` MCP tool is available
 - You're working in a local development environment
 - You want the most current lineage (including uncommitted changes)

@@ -1,4 +1,4 @@
-### Postgres
+# Postgres
 
 Platform-specific data type examples:
 

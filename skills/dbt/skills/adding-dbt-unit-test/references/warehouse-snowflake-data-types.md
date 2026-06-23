@@ -1,4 +1,4 @@
-### Snowflake
+# Snowflake
 
 Platform-specific data type examples:
 
