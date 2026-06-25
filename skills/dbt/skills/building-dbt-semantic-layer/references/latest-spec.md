@@ -54,6 +54,7 @@ Entity types: `primary`, `foreign`, `unique`, `natural` (SCD Type II only).
 ### Step 3: Define Dimensions
 
 Scan columns for dimension candidates:
+
 - Time columns -> `dimension: type: time` with `granularity` at the column level
 - Categorical columns (strings, booleans) -> `dimension: type: categorical`
 
@@ -440,7 +441,7 @@ SCD Type II semantic models cannot contain simple metrics.
 ## Common Pitfalls
 
 | Pitfall | Fix |
-|---------|-----|
+| :------ | :-- |
 | Missing `agg_time_dimension` | Every semantic model needs a default time dimension |
 | `granularity` inside `dimension:` block | Must be at column level, not nested under `dimension:` |
 | Defining a column as both an entity and a dimension | A column can only be one or the other |

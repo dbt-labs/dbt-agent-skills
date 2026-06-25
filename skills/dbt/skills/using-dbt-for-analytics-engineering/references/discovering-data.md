@@ -16,7 +16,7 @@ Use `dbt show` to interactively explore raw data, understand table structures, a
 ## Rationalizations That Mean STOP
 
 | You're Thinking... | Reality |
-|-------------------|---------|
+| :----------------- | :------ |
 | "I don't have time for full discovery" | You don't have time for wrong models. |
 | "It's just a quick stakeholder briefing" | Quick briefings become "can you build a model from this?" You need to do full discovery before building anything. |
 | "I'll do proper discovery later" | You won't. Document now or create technical debt someone else inherits. |
@@ -28,6 +28,7 @@ Use `dbt show` to interactively explore raw data, understand table structures, a
 ## Red Flags - You're About to Skip Steps
 
 Stop if you catch yourself:
+
 - Running only `SELECT *` without grain analysis
 - Saying "the join worked" without checking orphan counts
 - Noting "some nulls" without quantifying null rates

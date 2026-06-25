@@ -1,4 +1,4 @@
-### Spark
+# Spark
 
 Platform-specific data type examples:
 

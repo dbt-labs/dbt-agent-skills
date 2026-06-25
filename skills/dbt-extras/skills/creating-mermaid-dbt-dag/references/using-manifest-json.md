@@ -13,6 +13,7 @@ This is the **second fallback method** when MCP lineage tools are not available.
    - Look for the target model in the `nodes` section
 
 3. Extract lineage from the manifest structure:
+
    ```json
    {
      "nodes": {
@@ -55,6 +56,7 @@ This is the **second fallback method** when MCP lineage tools are not available.
 ## When to use
 
 Use this method when:
+
 - Both `get_lineage_dev` and `get_lineage` MCP tools are NOT available
 - The manifest.json file exists and is reasonably sized (<10MB)
 - You need complete lineage information

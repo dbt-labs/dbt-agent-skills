@@ -27,7 +27,7 @@ For example: `https://hub.getdbt.com/api/v1/dbt-labs/dbt_utils.json`
 Use semantic versioning boundaries when installing:
 
 | Package Version | Install Boundary | Example |
-|-----------------|------------------|---------|
+| :-------------- | :--------------- | :------ |
 | 1.x or greater | Any minor version | `>=1.0.0,<2.0.0` |
 | 0.x.y | Any patch version | `>=0.9.0,<0.10.0` |
 

@@ -23,6 +23,7 @@ dbtf debug
 If `dbtf` is not found, follow the [official dbt Fusion installation guide](https://docs.getdbt.com/docs/fusion/install-fusion-cli) to install it.
 
 **Verify installation**:
+
 ```bash
 dbtf --version
 dbtf debug
@@ -38,6 +39,7 @@ dbtf debug
 ### Connection errors with dbtf debug
 
 If `dbtf debug` fails to connect:
+
 1. Verify your `profiles.yml` has the correct credentials
 2. Check that the target warehouse/cluster is running and accessible
 3. Ensure any required drivers are installed (e.g., Databricks ODBC/Simba driver)
@@ -46,11 +48,13 @@ If `dbtf debug` fails to connect:
 ### Fusion version compatibility
 
 If you encounter unexpected parsing or compilation behavior, ensure you're running a recent version of Fusion:
+
 ```bash
 dbtf --version
 ```
 
 If Fusion is already installed, you can updated it to the latest version with
+
 ```bash
 dbtf system update 
 ```

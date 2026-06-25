@@ -1,7 +1,7 @@
-## Environment Variable Reference
+# Environment Variable Reference
 
 | Variable | Required For | Description |
-|----------|--------------|-------------|
+| :------- | :----------- | :---------- |
 | `DBT_PROJECT_DIR` | CLI commands | Path to folder with `dbt_project.yml` |
 | `DBT_PATH` | CLI commands | Path to dbt executable |
 | `DBT_HOST` | Platform access | Default: `cloud.getdbt.com` |

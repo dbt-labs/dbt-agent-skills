@@ -4,7 +4,7 @@ This document covers conventions and patterns for working on the `skill-eval` CL
 
 ## Architecture Overview
 
-```
+```bash
 src/skill_eval/
 ├── cli.py       # Typer CLI commands (run, grade, report, review)
 ├── models.py    # Data models: Scenario, SkillSet, load_scenario()
@@ -26,12 +26,14 @@ We use [Typer](https://typer.tiangolo.com/) for the CLI.
 Use the appropriate output method based on context:
 
 **User-facing CLI output** (command results, prompts): Use `typer.echo()`
+
 ```python
 typer.echo(f"Run directory: {run_dir}")
 typer.echo("Error: file not found", err=True)
 ```
 
 **Progress logging** (during execution): Use `logger` from `logging.py`
+
 ```python
 from skill_eval.logging import logger
 
@@ -68,17 +70,20 @@ def mycommand(
 When modifying CLI commands that work with scenarios or skill sets, check if the underlying dataclasses need updates:
 
 **In `models.py`:**
+
 - `Grade` - grading result (success, score, tool_usage, notes, etc.)
 - `SkillSet` - skills, mcp_servers, allowed_tools
 - `Scenario` - name, path, prompt, skill_sets, description
 
 **In `runner.py`:**
+
 - `RunResult` - scenario results with output, success, tools_used, skills_invoked, etc.
 - `RunTask` - task definition for parallel execution (scenario, skill_set, run_dir)
 
 Use `dataclasses.asdict()` to convert dataclasses to dicts for YAML serialization.
 
 When modifying grading:
+
 1. Update `Grade` dataclass in `models.py` if adding new fields
 2. Update `GRADING_PROMPT_TEMPLATE` in `grader.py` if changing what Claude evaluates
 3. Update `parse_grade_response()` to extract new fields into Grade
@@ -142,6 +147,7 @@ uv run ty check src/
 ```
 
 Fix any type errors. Common issues:
+
 - Mixed dict types need explicit annotations
 - Optional fields need `| None` types
 - Use `list[str]` not `List[str]` (Python 3.11+)
@@ -161,6 +167,7 @@ uv run pytest -k "test_grade"    # by name pattern
 ### Test Requirements
 
 **Every new feature needs tests.** This includes:
+
 - New CLI commands
 - New options/flags on existing commands
 - Changes to data models
@@ -169,6 +176,7 @@ uv run pytest -k "test_grade"    # by name pattern
 ## Dependencies
 
 Key dependencies in `pyproject.toml`:
+
 - `typer` - CLI framework
 - `pyyaml` - YAML parsing
 - `claude-code-transcripts` - HTML transcript generation
@@ -176,5 +184,6 @@ Key dependencies in `pyproject.toml`:
 - `textual` - TUI for interactive selection
 
 Dev dependencies:
+
 - `pytest` - testing
 - `ty` - type checking

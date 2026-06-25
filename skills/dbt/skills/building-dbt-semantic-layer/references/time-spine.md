@@ -223,7 +223,7 @@ dbt sl query --metrics orders --group-by metric_time__fiscal_year
 ## Common Mistakes
 
 | Mistake | Fix |
-|---------|-----|
+| :------ | :-- |
 | Using `semantic_models:` instead of `time_spine:` | Use the `time_spine:` property under `models:` |
 | Missing `standard_granularity_column` | Required property to tell MetricFlow which column to use |
 | Missing `granularity` on columns | Each time column needs a `granularity:` attribute |

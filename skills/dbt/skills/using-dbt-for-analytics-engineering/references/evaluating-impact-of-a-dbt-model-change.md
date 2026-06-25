@@ -36,23 +36,26 @@ flowchart TD
 Check for these tools first - they provide richer lineage data:
 
 | Tool | Use For |
-|------|---------|
+| :--- | :------ |
 | `get_model_lineage_dev` | Model-level downstream dependencies |
 | `get_column_lineage` | Which downstream models reference specific columns |
 
 ### CLI Fallback (Worse data but always available)
 
 **List all downstream models:**
+
 ```bash
 dbt ls --select model_name+ --output name
 ```
 
 **Count downstream models:**
+
 ```bash
 dbt ls --select model_name+ --output name | wc -l
 ```
 
 **View as JSON with details:**
+
 ```bash
 dbt ls --select model_name+ --output json
 ```
@@ -75,7 +78,7 @@ With MCP tools, use `get_column_lineage` for precise tracking.
 ## Impact Classification
 
 | Level | Criteria | Action |
-|-------|----------|--------|
+| :---- | :------- | :----- |
 | **Low** | 1-5 downstream models | Proceed with `state:modified+` |
 | **Medium** | 6-15 downstream models | Consider limiting depth |
 | **High** | 16+ downstream models | Ask user about depth limit |
@@ -83,11 +86,13 @@ With MCP tools, use `get_column_lineage` for precise tracking.
 ## Recommending Build Commands
 
 **Standard (all downstream):**
+
 ```bash
 dbt build --select state:modified+
 ```
 
 **Limited depth (user choice):**
+
 ```bash
 # Only 1 level downstream
 dbt build --select state:modified+1
@@ -102,13 +107,14 @@ dbt build --select state:modified+3
 When impact is high, ask the user:
 
 > "This change affects N downstream models. Do you want to:
+>
 > 1. Build all downstream models with `state:modified+`
 > 2. Limit to a specific depth (e.g., `state:modified+2` for 2 levels)?"
 
 ## Quick Reference
 
 | Task | Command |
-|------|---------|
+| :--- | :------ |
 | List downstream | `dbt ls --select model_name+` |
 | Count downstream | `dbt ls --select model_name+ --output name \| wc -l` |
 | Build all affected | `dbt build --select state:modified+` |

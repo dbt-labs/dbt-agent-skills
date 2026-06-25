@@ -73,6 +73,7 @@ get_lineage(
 ## Traversing the graph
 
 **Finding upstream dependencies (parents):**
+
 ```python
 # What does this node depend on?
 target_node = find_node_by_id(result, "model.jaffle_shop.customers")
@@ -81,6 +82,7 @@ direct_parents = target_node["parentIds"]
 ```
 
 **Finding downstream dependents (children):**
+
 ```python
 # What depends on this node?
 target_id = "model.jaffle_shop.customers"
@@ -121,6 +123,7 @@ direct_children = [
 ## When to use
 
 Use this method when:
+
 - The `get_lineage` MCP tool is available
 - `get_lineage_dev` is NOT available
 - You want to see the production lineage (not local changes)

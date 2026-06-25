@@ -62,6 +62,7 @@ semantic_models:
 ### Step 3: Define Dimensions
 
 Scan columns for dimension candidates:
+
 - Time columns -> `type: time` with `type_params.time_granularity`
 - Categorical columns (strings, booleans) -> `type: categorical`
 
@@ -182,7 +183,7 @@ semantic_models:
 ### Measure Properties
 
 | Property | Description | Required |
-|----------|-------------|----------|
+| :------- | :---------- | :------- |
 | `name` | Unique across all semantic models | Yes |
 | `agg` | Aggregation type | Yes |
 | `description` | Human-readable explanation | No |
@@ -502,7 +503,7 @@ SCD Type II semantic models cannot contain measures.
 ## Common Pitfalls
 
 | Pitfall | Fix |
-|---------|-----|
+| :------ | :-- |
 | Missing `defaults.agg_time_dimension` | Every semantic model with measures needs a default time dimension |
 | `time_granularity` outside `type_params` | Must be nested under `type_params` for time dimensions |
 | Missing `model: ref('...')` | Required for every semantic model |

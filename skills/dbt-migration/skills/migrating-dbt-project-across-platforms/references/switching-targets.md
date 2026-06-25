@@ -63,6 +63,7 @@ sources:
 ```
 
 **Key differences by platform**:
+
 - **Snowflake**: Uses `database.schema` hierarchy
 - **Databricks**: Uses `catalog.schema` hierarchy (Unity Catalog) — the `database` key in dbt maps to the catalog
 - **BigQuery**: Uses `project.dataset` hierarchy — the `database` key maps to the GCP project
@@ -72,17 +73,20 @@ sources:
 Search for and update platform-specific config keys in `dbt_project.yml` and model files:
 
 **Snowflake-specific configs to remove/update**:
+
 - `+snowflake_warehouse` — Remove or replace with target equivalent
 - `+query_tag` — Snowflake-specific, remove
 - `+copy_grants` — Snowflake-specific, remove
 - `cluster_by` — Snowflake cluster keys need conversion to destination platform equivalent
 
 **Databricks-specific configs to remove/update**:
+
 - `+file_format: delta` — Remove (delta is default on Databricks, not applicable elsewhere)
 - `+location_root` — Databricks-specific, remove
 - `tblproperties` — Databricks-specific, remove or convert
 
 **General config considerations**:
+
 - `+materialized` values are generally consistent across platforms
 - `+tags` are platform-agnostic and can be left as-is
 - `+persist_docs` behavior may vary — check destination platform support
@@ -100,6 +104,7 @@ dbtf debug
 ### Source data doesn't exist on destination platform
 
 If the source data (e.g., `snowflake_sample_data.tpch_sf1`) doesn't exist on the destination platform:
+
 - Check if equivalent sample data is available (e.g., Databricks has `samples.tpch` in Unity Catalog)
 - If not, consider using dbt seeds to load a subset of the data
 - Update source definitions to point to wherever the data lives on the target
@@ -107,6 +112,7 @@ If the source data (e.g., `snowflake_sample_data.tpch_sf1`) doesn't exist on the
 ### Accessing sample TPCH data across platforms
 
 TPCH sample data is commonly available:
+
 - **Snowflake**: `snowflake_sample_data.tpch_sf1`
 - **Databricks**: `samples.tpch` (Unity Catalog)
 - **BigQuery**: Available as public dataset `bigquery-public-data.tpch_sf1`
