@@ -3,9 +3,10 @@
 
 Checks:
 1. All skills are listed in tile.json (and paths are correct)
-2. All plugin folders under skills/ are listed in marketplace.json
+2. All plugin folders under skills/ are listed in .claude-plugin/marketplace.json (and vice versa)
 3. All non-SKILL.md files within skill folders are referenced via markdown links
 4. Plugin versions are incremented when skill content changes (vs. main branch)
+5. All plugin folders under skills/ are listed in .cursor-plugin/marketplace.json (and vice versa)
 
 Usage:
     python scripts/validate_repo.py
@@ -21,7 +22,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TILE_JSON = REPO_ROOT / "tile.json"
-MARKETPLACE_JSON = REPO_ROOT / ".claude-plugin" / "marketplace.json"
+CLAUDE_MARKETPLACE_JSON = REPO_ROOT / ".claude-plugin" / "marketplace.json"
+CURSOR_MARKETPLACE_JSON = REPO_ROOT / ".cursor-plugin" / "marketplace.json"
 SKILLS_DIR = REPO_ROOT / "skills"
 
 # Matches [text](path) and [text](path#heading)
@@ -89,20 +91,20 @@ def check_tile_json(skills: dict[str, Path]) -> list[str]:
 
 
 # --------------------------------------------------------------------------- #
-# Check 2: marketplace.json
+# Check 2: marketplace.json files
 # --------------------------------------------------------------------------- #
 
 
-def check_marketplace(plugin_dirs: dict[str, Path]) -> list[str]:
-    """Verify every plugin folder is listed in marketplace.json."""
+def check_marketplace(plugin_dirs: dict[str, Path], marketplace_path: Path) -> list[str]:
+    """Verify every plugin folder is listed in marketplace_path and vice versa."""
     errors: list[str] = []
+    rel = marketplace_path.relative_to(REPO_ROOT)
 
-    if not MARKETPLACE_JSON.exists():
-        return [".claude-plugin/marketplace.json not found"]
+    if not marketplace_path.exists():
+        return [f"{rel} not found"]
 
-    marketplace = json.loads(MARKETPLACE_JSON.read_text())
+    marketplace = json.loads(marketplace_path.read_text())
 
-    # Build a set of plugin directory names from marketplace sources
     listed_names: set[str] = set()
     for plugin in marketplace.get("plugins", []):
         source = plugin.get("source", "")
@@ -113,12 +115,12 @@ def check_marketplace(plugin_dirs: dict[str, Path]) -> list[str]:
 
     for name in sorted(on_disk - listed_names):
         errors.append(
-            f"Plugin folder 'skills/{name}' exists but is missing from marketplace.json"
+            f"Plugin folder 'skills/{name}' exists but is missing from {rel}"
         )
 
     for name in sorted(listed_names - on_disk):
         errors.append(
-            f"Plugin '{name}' is in marketplace.json but has no folder under skills/"
+            f"Plugin '{name}' is in {rel} but has no folder under skills/"
         )
 
     return errors
@@ -201,7 +203,7 @@ def check_file_references(skills: dict[str, Path]) -> list[str]:
                 # Search for non-link mentions (backticks, code blocks, plain text)
                 mentioned_in = find_non_link_mentions(f.name, skill_dir, all_files)
                 msg = (
-                    f"'{rel}' in skill '{skill_name}' is not referenced "
+                    f"'{rel}' in skill '{skill_dir.parts[-3]}/{skill_name}' is not referenced "
                     f"by any markdown link within the skill"
                 )
                 if mentioned_in:
@@ -338,8 +340,8 @@ def main() -> int:
             lambda: f"All {len(skills)} skills listed correctly",
         ),
         (
-            "marketplace.json completeness",
-            lambda: check_marketplace(plugin_dirs),
+            ".claude-plugin/marketplace.json completeness",
+            lambda: check_marketplace(plugin_dirs, CLAUDE_MARKETPLACE_JSON),
             lambda: f"All {len(plugin_dirs)} plugin folders listed correctly",
         ),
         (
@@ -349,6 +351,11 @@ def main() -> int:
                 f"All {sum(len([f for f in d.rglob('*') if f.is_file() and f.name != 'SKILL.md' and f.suffix == '.md']) for d in skills.values())} "
                 f"non-SKILL.md markdown files are properly referenced"
             ),
+        ),
+        (
+            ".cursor-plugin/marketplace.json completeness",
+            lambda: check_marketplace(plugin_dirs, CURSOR_MARKETPLACE_JSON),
+            lambda: f"All {len(plugin_dirs)} plugin folders listed correctly",
         ),
         (
             "Plugin version increments",
