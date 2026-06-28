@@ -43,3 +43,25 @@ description: Brief one-sentence description starting with "Use when..."
 1. Test with pressure scenarios using superpowers:writing-skills methodology
 2. Check naming: Skill name matches directory, lowercase with hyphens only
 3. Verify frontmatter: Only allowed fields, no extra metadata
+
+## Testing
+
+Validate changes locally before committing.
+
+### Repository Integrity
+Check tile/marketplace consistency and version increments:
+```bash
+python scripts/validate_repo.py
+```
+
+### Skill Validation & Integration
+Validate SKILL.md frontmatter, manifests, and functional loading:
+```bash
+./integration_tests/run.sh --verbose
+```
+
+### Containerized Testing (Parity with CI)
+Run the full suite in an isolated environment:
+```bash
+docker build -f integration_tests/Dockerfile -t dbt-agent-skills-it .
+```
