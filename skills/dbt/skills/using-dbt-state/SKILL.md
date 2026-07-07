@@ -18,7 +18,7 @@ dbt State is a paid product, but it does not require a dbt platform (fka dbt Clo
 
 | Misconception | Reality |
 |---|---|
-| "dbt State is just `state:modified` / `--state`" | **No.** `state:modified` hashes **file contents** against a manifest *you* manage and rebuilds `state:modified+` (all descendants). dbt State manages state automatically on a server, **parses SQL into a syntax tree and compares semantic hashes**, considers **upstream data freshness**, and rebuilds a descendant **only if it actually depends on the change** (not the whole `+` subtree). |
+| "dbt State is just `state:modified` / `--state`" | **No.** `state:modified` hashes **file contents** against a manifest *you* manage (and must keep fresh — e.g. via `dbt parse` or similar) and rebuilds `state:modified+` (all descendants). dbt State manages state automatically on a server and **does not require maintaining a fresh comparison manifest** — it **parses SQL into a syntax tree and compares semantic hashes**, considers **upstream data freshness**, and rebuilds a descendant **only if it actually depends on the change** (not the whole `+` subtree). |
 | "It's Fusion-only / production-only" | Works in dbt **Core, the dbt platform, and Fusion**, across **dev, CI, and production**, with any orchestrator. |
 | "dbt Core users can't use it" | They can. dbt Core **1.7–1.11** require `pip install dbt-state`. It's **baked into dbt Core 1.12 / v2.0 and Fusion**. |
 | "It's free / it's local" | It calls the dbt State **server** and requires authentication via a **dbt platform account** or a **standalone dbt State account** ([app.state.dbt.com](https://app.state.dbt.com)). Reuse is metered in **DATTs — daily active target tables** (see Billing below). |
