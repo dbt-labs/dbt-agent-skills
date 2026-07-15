@@ -95,6 +95,8 @@ models:
 semantic_models:
   - name: orders
     model: ref('fct_orders')
+    defaults:
+      agg_time_dimension: order_date
     entities:
       - name: order
         type: primary
