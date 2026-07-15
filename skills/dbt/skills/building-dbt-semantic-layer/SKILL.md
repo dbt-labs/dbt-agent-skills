@@ -62,31 +62,30 @@ Once you know which spec to use, follow the corresponding guide's implementation
 models:
   - name: fct_orders
     semantic_model:
-      agg_time_dimension: order_date
-      entities:
-        - name: order
+      enabled: true
+    agg_time_dimension: order_date
+    columns:
+      - name: order_id
+        entity:
           type: primary
-          expr: order_id
-        - name: customer
+          name: order
+      - name: customer_id
+        entity:
           type: foreign
-          expr: customer_id
-      dimensions:
-        - name: order_date
+          name: customer
+      - name: order_date
+        granularity: day
+        dimension:
           type: time
-          type_params:
-            time_granularity: day
-        - name: status
+      - name: status
+        dimension:
           type: categorical
-      measures:
-        - name: revenue
-          agg: sum
-          expr: amount
     metrics:
       - name: total_revenue
         type: simple
         label: Total Revenue
-        type_params:
-          measure: revenue
+        agg: sum
+        expr: amount
 ```
 
 **Minimal legacy spec example** (dbt Core 1.6–1.11) — use this if the project is on an older version:

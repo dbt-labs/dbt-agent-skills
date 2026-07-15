@@ -1,0 +1,6 @@
+kind: Fixes
+body: Correct the latest Semantic Layer inline YAML example to use column annotations and simple metrics.
+time: 2026-07-15T10:28:33-07:00
+custom:
+    Author: C00ldudeNoonan
+    Issue: "137"
