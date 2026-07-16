@@ -103,6 +103,7 @@ These skills work with AI agents that support the [Agent Skills](https://agentsk
 | `configuring-dbt-mcp-server` | Set up the dbt MCP server for Claude, Cursor, or VS Code |
 | `fetching-dbt-docs` | Look up dbt documentation efficiently |
 | `running-dbt-commands` | Run dbt CLI commands with correct flags, selectors, and parameter formats |
+| `using-dbt-state` | Enable, configure, optimize, and debug dbt State — the server-backed reuse mechanism |
 
 ### dbt-migration (one-off use)
 
