@@ -14,9 +14,7 @@ latest release track). A 1.6 project takes two hops to reach 1.8 (1.6→1.7, 1.7
 both dbt-redshift changes land at the **1.6→1.7** hop, so they are both documented here.
 
 This skill is **adapter-specific and complements the core `migrating-dbt-1.6` skill** —
-it does not repeat the dbt-core changes. For a full migration, apply both. The Python
-dependency-pin bump (e.g. `dbt-redshift~=1.8.0` in `requirements.txt`) is handled by the
-core skill's dependency-split step — do not duplicate it here.
+it does not repeat the dbt-core changes. For a full migration, apply both.
 
 Both changes below are adapter-internal — apply a change only where the project actually
 exercises it (a merge-strategy incremental model, or an overridden catalog macro). Work

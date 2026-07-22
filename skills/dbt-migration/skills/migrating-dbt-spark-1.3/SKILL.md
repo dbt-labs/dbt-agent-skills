@@ -62,16 +62,13 @@ genuinely sent to the server, so an authentication that "worked" on 1.3 by accid
 `session` connection method are unaffected — that path opens no thrift connection and
 reads no password, so there is nothing to change.
 
-### 3. Apply the 1.4→1.8 dbt-spark changes
+### 3. Apply the 1.6→1.7 dbt-spark change
 
-The rest of this migration continues from the 1.4→1.8 dbt-spark hops. Read
-`../migrating-dbt-spark-1.4/SKILL.md` now and apply every change in its "Changes to
-apply" section (which continues onward to the 1.6→1.8 hops, where the
-`server_side_parameters` change lives) to this project.
-
-Read that file directly rather than relying on prior knowledge of what it contains — it
-is the single source of truth for the 1.4→1.8 dbt-spark hops, and it can change
-independently of this skill.
+Neither the 1.4→1.5 nor the 1.5→1.6 hop has a dbt-spark-specific change — there is
+no `migrating-dbt-spark-1.4` or `migrating-dbt-spark-1.5` skill, do not look for
+one. The next dbt-spark-specific change in this chain lands at 1.6→1.7 (the
+`server_side_parameters` change). Execute the skill `migrating-dbt-spark-1.6` for
+that hop.
 
 ## Verify
 
@@ -96,6 +93,7 @@ separately. `dbt parse` is purely static and is the only verification you should
 ## Document the changes
 
 When the migration is complete, create a `migration_changes.md` file at the project root
+(or append a "dbt-spark adapter" section if the core skill already created one)
 summarizing everything you did. For each change include:
 
 - the file that changed,

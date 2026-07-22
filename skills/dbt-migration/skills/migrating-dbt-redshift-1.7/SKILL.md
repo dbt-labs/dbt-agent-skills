@@ -33,13 +33,9 @@ The connection/profile fields whose validity changed in earlier hops
 `connect_timeout`/`autocommit` introduced at 1.5; the `sslmode`→`verify-ca` remap at 1.5)
 are all **already settled at 1.7** and are not 1.7→1.8 changes — no action here.
 
-Two things that are **not** dbt-redshift-specific and are therefore handled elsewhere:
-
-- The Python dependency-pin bump (e.g. `dbt-redshift~=1.8.0` in `requirements.txt`) is
-  handled by the **core `migrating-dbt-1.7` skill's** dependency-split step. Apply that
-  skill.
-- All dbt-core 1.7→1.8 changes (renamed `tests:` → `data_tests:`, built-in
-  materialization override opt-in, and so on) are likewise in the core skill.
+All dbt-core 1.7→1.8 changes (the `--dry-run` removal, spaces in resource names,
+`primary_key` dedup, and so on) are handled by the core `migrating-dbt-1.7` skill —
+apply that skill for those.
 
 ## Verify
 

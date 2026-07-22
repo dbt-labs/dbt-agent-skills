@@ -14,9 +14,7 @@ latest release track). A 1.5 project takes three hops to reach 1.8 (1.5→1.6, 1
 1.7→1.8), so this migration applies the redshift changes from every hop.
 
 This skill is **adapter-specific and complements the core `migrating-dbt-1.5` skill** —
-it does not repeat the dbt-core changes. For a full migration, apply both. The Python
-dependency-pin bump (e.g. `dbt-redshift~=1.8.0` in `requirements.txt`) is handled by the
-core skill's dependency-split step — do not duplicate it here.
+it does not repeat the dbt-core changes. For a full migration, apply both.
 
 Note on scope: the `sslmode` → `verify-ca` remap and autocommit-by-default (which the
 migration doc labels 1.5→1.6) actually landed at **1.4→1.5** per adapter source, so a

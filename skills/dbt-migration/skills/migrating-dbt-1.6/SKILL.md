@@ -21,16 +21,7 @@ apply the fixes.
 
 ## Changes to apply
 
-### 1. Fix `clean-targets` entries that overlap source paths or resolve outside the project (1.6→1.7, breaking)
-
-Starting in 1.7, `dbt clean` raises a hard error if any entry in `dbt_project.yml`'s
-`clean-targets` overlaps a source path (`seed-paths`, `model-paths`, `macro-paths`,
-etc.) or resolves outside the project directory. On 1.6 this was silently allowed —
-and could delete source files, since `dbt clean` actually removes every path listed.
-Check `clean-targets` against the project's other `-paths` settings and remove or
-narrow any entry that overlaps one of them or points outside the project root.
-
-### 2. Numeric columns in contract-enforced models need explicit precision/scale (1.6→1.7, deprecation)
+### 1. Numeric columns in contract-enforced models need explicit precision/scale (1.6→1.7, deprecation)
 
 In 1.7, a bare `numeric` (or `decimal`) column type with no precision/scale on a
 model with `config: contract: enforced: true` triggers a deprecation warning. Find
@@ -39,18 +30,31 @@ every such column in a contract-enforced model and add explicit precision/scale
 specific precision/scale, match that value; otherwise pick a precision/scale wide
 enough for the existing data.
 
+### 2. Decide how to handle breaking contract changes on unversioned models (1.6→1.7, behavior)
+
+Before 1.7, a breaking change to a **contracted but unversioned** model (e.g.
+removing/renaming a column, changing a column's data type) raised a hard error at
+parse time. From 1.7, the same change only produces a **warning** — the project
+still parses and runs.
+
+Find every unversioned model with `config: contract: enforced: true`. This isn't
+a code fix so much as a policy decision, so **ask the user which they want**:
+
+- If the team relies on the old hard-error behavior to catch breaking contract
+  changes before they ship, add `--warn-error` (or `--warn-error-options` scoped to
+  this warning) to the invocation so the warning becomes a build failure again.
+- If versioning contracted models (`versions:` + `latest_version:`) is the
+  intended long-term fix for breaking-change safety, that's a larger modeling
+  change the user should plan separately — flag it as a follow-up rather than
+  attempting it as part of this migration.
+- If neither applies, no action is needed — note that the project was checked
+  and has no unversioned contracted models (or none with pending breaking
+  changes), so the warning has nothing to fire on today.
+
 ### 3. Apply the 1.7→1.8 changes
 
-The rest of this migration is exactly the 1.7→1.8 hop. Read
-`../migrating-dbt-1.7/SKILL.md` now and apply every change in its "Changes to
-apply" section (renaming `tests:` → `data_tests:`, the built-in materialization
-override opt-in, removing spaces from resource names, deduplicating `primary_key`
-constraints, the dbt-core/dbt-adapters dependency split, and widening
-`require-dbt-version`) to this project.
-
-Read that file directly rather than relying on prior knowledge of what it
-contains — it is the single source of truth for the 1.7→1.8 hop, and it can change
-independently of this skill.
+The rest of this migration is exactly the 1.7→1.8 hop. Execute the skill
+`migrating-dbt-1.7` for this hop.
 
 ## Verify
 
@@ -74,6 +78,7 @@ project root summarizing everything you did. For each change include:
 - which category of the latest release track upgrade it addresses
   (breaking / behavior / deprecated).
 
-Do not print a target version number in this document — describe changes in
+Create a section for this version hop and describe changes in
 terms of the latest release track and the category above. Keep it concise and
-factual — one entry per change.
+factual — one entry per change. If there's an existing `migration_changes.md` 
+prepared by the previous version hop, append to the doc.

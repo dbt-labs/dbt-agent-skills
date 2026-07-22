@@ -88,6 +88,7 @@ Do not run `dbt build`/`dbt test`/`dbt snapshot`/`dbt compile` as part of verifi
 ## Document the changes
 
 When the migration is complete, create a `migration_changes.md` file at the project root
+(or append a "dbt-bigquery adapter" section if the core skill already created one)
 summarizing everything you did. For each change include:
 
 - the file that changed,

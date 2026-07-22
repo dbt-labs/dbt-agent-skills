@@ -106,20 +106,28 @@ spine's granularity depend on the underlying data. If a flat metric is unused an
 project is not adopting the semantic layer, removing the metric block is an acceptable
 way to reach parseability; **ask the user before deleting** rather than assuming.
 
-### 2. Apply the 1.6→1.8 changes
+### 2. Use two-argument `ref()` if duplicate node names across packages become ambiguous (1.5→1.6, behavior)
 
-The rest of this migration is exactly the 1.6→1.8 upgrade. Read
-`../migrating-dbt-1.6/SKILL.md` now and apply every change in its "Changes to apply"
-section (the 1.6→1.7 `clean-targets` fix and contract numeric precision/scale, then the
-full 1.7→1.8 hop it chains to: renaming `tests:` → `data_tests:`, the built-in
-materialization override opt-in, removing spaces from resource names, deduplicating
-`primary_key` constraints, the dbt-core/dbt-adapters dependency split, and widening
-`require-dbt-version`) to this project.
+Before 1.6, two models with the same name in different installed packages (or a
+package and the root project) raised a hard `DuplicateResourceNameError` at parse
+time — the situation could not exist. From 1.6, duplicate names across packages
+are **allowed**; parsing no longer blocks it.
 
-Read that file directly rather than relying on prior knowledge of what it contains — it
-is the single source of truth for the 1.6→1.8 hops, and it can change independently of
-this skill. It in turn points to `../migrating-dbt-1.7/SKILL.md`; follow that pointer
-and read that file too.
+This mostly relaxes a prior restriction, but check for the one new failure mode it
+introduces: if the project (or one of its packages) already has, or gains, two
+resources with the same name in different packages, any **unqualified**
+`{{ ref('model_name') }}` call that could match either one now raises
+`AmbiguousAliasError` at compile/run time (a runtime error, not a parse warning).
+
+Search for resource names that collide across the project's own models and its
+installed packages (check `packages.yml` / `dependencies.yml` and the installed
+package sources if available). For any `ref()` call that is ambiguous, disambiguate
+with the two-argument form: `{{ ref('package_name', 'model_name') }}`.
+
+### 3. Apply the 1.6→1.8 changes
+
+The rest of this migration is exactly the 1.6→1.8 upgrade. Execute the skill
+`migrating-dbt-1.6` for this hop.
 
 ## Verify
 
@@ -143,6 +151,7 @@ project root summarizing everything you did. For each change include:
 - which category of the latest release track upgrade it addresses
   (breaking / behavior / deprecated).
 
-Do not print a target version number in this document — describe changes in
-terms of the latest release track and the category above. Keep it concise and
-factual — one entry per change.
+Create a section for this version hop and describe changes in terms of the
+latest release track and the category above. Keep it concise and factual — one
+entry per change. If there's an existing `migration_changes.md` prepared by a
+previous version hop, append to the doc.

@@ -14,11 +14,12 @@ This skill covers only the **dbt-bigquery-adapter-specific** changes. The dbt-co
 changes for the same hops are covered separately by the `migrating-dbt-1.4` skill —
 apply that one too for a complete migration.
 
-A 1.4 BigQuery project crosses three boundaries (1.4→1.5, 1.5→1.6, 1.6→1.7); the
-1.4→1.5 and 1.5→1.6 hops each carry a dbt-bigquery-specific change (the 1.3→1.4 job-label
-change is only reached from `migrating-dbt-bigquery-1.3`). Apply every change below that
-is present in the project. Make only the changes required by this upgrade — do not
-refactor unrelated code.
+A 1.4 BigQuery project crosses three boundaries (1.4→1.5, 1.5→1.6, 1.6→1.7); only the
+1.4→1.5 and 1.6→1.7 hops carry a dbt-bigquery-specific change (the 1.3→1.4 job-label
+change is only reached from `migrating-dbt-bigquery-1.3`; **1.5→1.6 has no
+dbt-bigquery-specific change** — there is no `migrating-dbt-bigquery-1.5` skill, do
+not look for one). Apply every change below that is present in the project. Make
+only the changes required by this upgrade — do not refactor unrelated code.
 
 Work through the project systematically: read `dbt_project.yml` and every incremental
 model (especially ones using `insert_overwrite`), then apply the fixes.
@@ -68,15 +69,11 @@ appear. The reason to make the fix is the correctness change above (NULL partiti
 silently excluded from replacement on 1.5+), which applies regardless of whether the 1.4
 error ever fired.
 
-### 2. Apply the 1.5→1.8 dbt-bigquery changes
+### 2. Apply the 1.6→1.7 dbt-bigquery change
 
-The rest of this adapter migration continues from the 1.5→1.8 hops. Read
-`../migrating-dbt-bigquery-1.5/SKILL.md` now and apply every change in its "Changes to
-apply" section (the `dbt debug` expanded-connection-keys change) to this project.
-
-Read that file directly rather than relying on prior knowledge of what it contains — it is
-the single source of truth for the 1.5→1.8 dbt-bigquery hops, and it can change
-independently of this skill.
+The 1.5→1.6 hop has no dbt-bigquery-specific change. The next (and last)
+dbt-bigquery-specific change in this chain lands at 1.6→1.7. Execute the skill
+`migrating-dbt-bigquery-1.6` for that hop.
 
 ## Verify
 
@@ -99,6 +96,7 @@ Do not run `dbt build`/`dbt test`/`dbt snapshot`/`dbt compile` as part of verifi
 ## Document the changes
 
 When the migration is complete, create a `migration_changes.md` file at the project root
+(or append a "dbt-bigquery adapter" section if the core skill already created one)
 summarizing everything you did. For each change include:
 
 - the file that changed,

@@ -19,70 +19,41 @@ apply the fixes.
 
 ## Changes to apply
 
-### 1. Rename `tests:` → `data_tests:` (deprecation)
+### 1. Replace `--dry-run` with `dbt deps --lock` (1.7→1.8, breaking)
 
-The `tests` key is deprecated in 1.8 in favor of `data_tests`. Rename it
-everywhere it appears:
+The `--dry-run` flag is removed from `dbt deps --add-package` in 1.8 — a
+command using it now errors instead of running. Find any invocation of
+`dbt deps --add-package ... --dry-run` (in scripts, CI config, or documented
+in the project) and replace it with `dbt deps --lock`, which is the 1.8
+equivalent for resolving/locking package versions without installing them.
 
-- The top-level `tests:` block in `dbt_project.yml`.
-- Every `tests:` block in schema YAML (`models/**/*.yml`), both at the model
-  level and under individual columns.
-  Rename the key only; leave the test list contents unchanged.
-
-### 2. Built-in materialization overrides now require an explicit opt-in (breaking + deprecation)
-
-In 1.8, `require_explicit_package_overrides_for_builtin_materializations`
-defaults to `True`, and overriding a built-in materialization emits a
-deprecation warning. Find any macro that redefines a built-in materialization
-(e.g. `{% materialization view, default %}`, `table`, `incremental`,
-`seed`, `snapshot`).
-
-- **Preferred fix:** if the override is a verbatim copy of the built-in (adds
-  nothing), delete the macro file so the built-in is used.
-- **Otherwise:** keep the override but add to `dbt_project.yml`:
-    ```yaml
-    flags:
-        require_explicit_package_overrides_for_builtin_materializations: false
-    ```
-
-### 3. Remove spaces from resource names (deprecation)
+### 2. Remove spaces from resource names (1.7→1.8, deprecated)
 
 Spaces in resource names raise `SpacesInResourceNameDeprecation` in 1.8. Find
 resources (sources, models, seeds, etc.) whose `name:` contains a space — e.g.
-a source `name: raw events` — rename it (e.g. `raw_events`) and update every
-reference, including `source('raw events', ...)` / `ref('...')` calls.
+a source `name: raw events` — and rename it (e.g. `raw_events`).
 
-This is a judgment-heavy change. Before renaming, **ask the user to confirm**
-when a rename could collide with an existing name, cross a package / dbt Mesh
-boundary, or change a relation name (`alias`/`identifier`). **Explicitly flag
-any references you cannot see or fix** — e.g. `--select` in scheduled jobs,
-`selectors.yml`, or BI tools — so the user can update them.
+Update every reference you can find: `source('raw events', ...)` / `ref('...')`
+calls, the resource's own file name if it's derived from the name, and any
+`select`/`exclude` selectors in the project (`selectors.yml`). If a rename
+would collide with an existing resource name, pick a distinct name that
+preserves the original intent (e.g. append a qualifier) rather than skipping
+the rename. **Note, but do not block on**, references you cannot see from the
+project alone — `--select` in scheduled jobs or BI tool references — so the
+user knows to check them.
 
-### 4. Declare each `primary_key` constraint in exactly one place (behavior → parse error)
+### 3. Declare each `primary_key` constraint in exactly one place (1.7→1.8, behavior)
 
 In 1.8, declaring a `primary_key` constraint both at the model level
 (`constraints:`) and at the column level (`columns: <col>: constraints:`)
 throws a `ParsingError` at parse time. For any model that does this, keep the
 `primary_key` in exactly one location and remove the duplicate.
 
-### 5. Update dependency pins for the dbt-core / dbt-adapters split (behavior)
+### 4. Widen `require-dbt-version` so 1.8 is allowed
 
-In 1.8, dbt-core was split into `dbt-core`, `dbt-common`, and `dbt-adapters`,
-and adapters are decoupled from a fixed core version.
-
-- In `requirements.txt` (or equivalent), bump the adapter pin to its 1.8 line
-  (e.g. `dbt-duckdb~=1.8.0`, `dbt-snowflake~=1.8.0`); the adapter pulls the
-  correct core/common/adapters split transitively. Do not pin `dbt-core~=1.7`.
-  This is an **edit to the requirements file only** — do NOT run `pip install`
-  or otherwise mutate the Python environment; dependency installation is handled
-  separately.
-- If any Python code imports from `dbt.exceptions`, `dbt.contracts`, or
-  `dbt.events`, update those imports for the split (many moved to
-  `dbt_common` / `dbt.adapters`).
-
-### 6. Widen `require-dbt-version` so 1.8 is allowed (version gate)
-
-If `dbt_project.yml` has a `require-dbt-version` bound that excludes 1.8 (e.g.
+This isn't a behavior change being tracked for compatibility — it's a
+mechanical prerequisite for the project to run under 1.8 at all. If
+`dbt_project.yml` has a `require-dbt-version` bound that excludes 1.8 (e.g.
 `[">=1.7.0", "<1.8.0"]`), widen the upper bound (e.g. `[">=1.7.0", "<1.9.0"]`)
 so the project runs under 1.8.
 
@@ -108,6 +79,8 @@ project root summarizing everything you did. For each change include:
 - which category of the latest release track upgrade it addresses
   (breaking / behavior / deprecated).
 
-Do not print a target version number in this document — describe changes in
-terms of the latest release track and the category above. Keep it concise and
-factual — one entry per change.
+Create a section for this version hop and describe changes in terms of the
+latest release track and the category above. Keep it concise and factual — one
+entry per change. If there's an existing `migration_changes.md` prepared by a
+previous version hop, append to the doc — this is the last hop, so the result
+is the complete migration summary.

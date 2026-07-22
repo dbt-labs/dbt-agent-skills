@@ -15,11 +15,9 @@ latest release track). A 1.3 project takes five hops to reach 1.8 (1.3→1.4, 1.
 hop.
 
 This skill is **adapter-specific and complements the core `migrating-dbt-1.3` skill** —
-it does not repeat the dbt-core changes (renamed keys, dependency split, `require-dbt-version`,
-etc.). For a full migration, apply both: the core skill for dbt-core changes and this
-chain for dbt-redshift changes. The Python dependency-pin bump (e.g. `dbt-redshift~=1.8.0`
-in `requirements.txt`) is handled by the core skill's dependency-split step — do not
-duplicate it here.
+it does not repeat the dbt-core changes (renamed keys, `require-dbt-version`, etc.). For
+a full migration, apply both: the core skill for dbt-core changes and this chain for
+dbt-redshift changes.
 
 Most dbt-redshift changes are **adapter-internal behavior shifts, not project-code
 edits**. Apply a change only where the project actually exercises it — a set connection

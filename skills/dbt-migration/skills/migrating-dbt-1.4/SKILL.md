@@ -42,7 +42,26 @@ equals the default. So:
   and behaviorally inert; removing it is harmless and future-proofs the project, but
   leaving it does not produce a warning.
 
-### 2. Update an overridden `collect_freshness` macro to return the full query result (1.4→1.5, deprecation)
+### 2. Rename deprecated environment variables (1.4→1.5, deprecation)
+
+Four environment variables are deprecated in 1.5 in favor of a renamed
+replacement. The old variable still works (with a deprecation warning) — but the
+first one **inverts the boolean**, so a mechanical rename is not enough there:
+
+| Old (deprecated) | New | Note |
+|---|---|---|
+| `DBT_NO_PRINT=true` | `DBT_PRINT=false` | **Inverted** — `NO_PRINT=true` means printing is off, i.e. `PRINT=false`. Do not set `DBT_PRINT=true`. |
+| `DBT_DEFER_TO_STATE` | `DBT_DEFER` | Same value, straight rename. |
+| `DBT_ARTIFACT_STATE_PATH` | `DBT_STATE` | Same value, straight rename. |
+| `DBT_FAVOR_STATE_MODE` | `DBT_FAVOR_STATE` | Same value, straight rename. |
+
+Search the project repo (env files, CI config, `profiles.yml`, wrapper scripts,
+Makefiles) for each old variable name and replace it per the table above. You
+can only see what's checked into the project — **flag any invocation sites you
+cannot see** (scheduled jobs, external CI secrets, orchestrator environment
+config) so the user can update them there too.
+
+### 3. Update an overridden `collect_freshness` macro to return the full query result (1.4→1.5, deprecation)
 
 In 1.5 the `collect_freshness` macro return signature changed: it now returns the
 full query result (an object with both `table` and `response`) instead of a bare
@@ -58,16 +77,16 @@ Find any such macro in `macros/`.
   result — e.g. `{% set result = load_result('collect_freshness') %}` followed by
   `{{ return(result) }}` — rather than `return(result.table)`.
 
-### 3. Apply the 1.5→1.8 changes
+> Boundary note (source vs Notion): the migration doc places this at 1.5→1.6. It is
+> kept here at 1.4→1.5, on the assumption that — like other boundary-note items
+> found elsewhere in this migration skill set — it is absent on 1.4 and present
+> identically in 1.5/1.6. Re-verify this specific item's introducing release
+> directly against dbt-core source if that assumption is ever in doubt.
 
-The rest of this migration is exactly the 1.5→1.8 hops. Read
-`../migrating-dbt-1.5/SKILL.md` now and apply every change in its "Changes to
-apply" section (the 1.5→1.6 rewrite of pre-1.6 flat `metrics:` definitions into the
-MetricFlow spec, then the 1.6→1.8 hops it chains onward to) to this project.
+### 4. Apply the 1.5→1.8 changes
 
-Read that file directly rather than relying on prior knowledge of what it
-contains — it is the single source of truth for the 1.5→1.8 hops, and it can change
-independently of this skill.
+The rest of this migration is exactly the 1.5→1.8 hops. Execute the skill
+`migrating-dbt-1.5` for this hop.
 
 ## Verify
 
@@ -91,8 +110,9 @@ project root summarizing everything you did. For each change include:
 - which category of the latest release track upgrade it addresses
   (breaking / behavior / deprecated).
 
-Do not print a target version number in this document — describe changes in
-terms of the latest release track and the category above. Keep it concise and
-factual — one entry per change.
+Create a section for this version hop and describe changes in terms of the
+latest release track and the category above. Keep it concise and factual — one
+entry per change. If there's an existing `migration_changes.md` prepared by a
+previous version hop, append to the doc.
 </content>
 </invoke>

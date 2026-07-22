@@ -42,17 +42,55 @@ Models that are fine as tables need no change — the point is to make the choic
 explicit so the upgrade does not silently swap the materialization out from under
 downstream consumers.
 
-### 2. Apply the 1.4→1.8 changes
+### 2. Find alternative approaches for `on-run-start`/`on-run-end` hooks that must abort a run (1.3→1.4, behavior)
 
-The rest of this migration continues from the 1.4→1.8 hop. Read
-`../migrating-dbt-1.4/SKILL.md` now and apply every change in its "Changes to
-apply" section (moving a custom `log-path` / `target-path` out of
-`dbt_project.yml`, and updating an overridden `collect_freshness` macro to return
-the full query result, then the 1.5→1.8 hops it chains onward to) to this project.
+Before 1.4, a failing `on-run-start` or `on-run-end` hook halted the run (the
+error was re-raised). From 1.4, a failing hook is recorded as an error result but
+**no longer stops the run** — everything after it still executes.
 
-Read that file directly rather than relying on prior knowledge of what it
-contains — it is the single source of truth for the 1.4→1.8 hop, and it can change
-independently of this skill.
+Find every `on-run-start` / `on-run-end` hook in `dbt_project.yml`. If a hook is a
+**guard or circuit-breaker** — it exists specifically to stop the run when a
+precondition fails (e.g. a freshness check, an environment assertion) — flag it to
+the user: on 1.4+ it no longer aborts anything, so the guard is silently inert.
+
+**Ask the user how they want to restore the guard behavior** rather than picking
+for them; options depend on what the hook checks:
+- Move the check into a `dbt build`/`dbt test` step (e.g. a singular test or a
+  `dbt-utils` assertion) so a failure fails the invocation via the normal
+  test-failure path.
+- Wrap the hook's logic in a macro that raises via `{{ exceptions.raise_compiler_error(...) }}`
+  at compile/parse time instead of run time, if the check can run that early.
+- If the hook doesn't actually need to abort anything (e.g. it's logging or
+  best-effort cleanup), no change is needed — note that explicitly so the user
+  knows it was reviewed.
+
+Hooks that don't need to abort the run need no change.
+
+### 3. Verify underscore-form `pre_hook`/`post_hook` behavior if they use Jinja (1.3→1.4, behavior)
+
+Before 1.4, only the hyphenated `pre-hook`/`post-hook` keys were correctly
+**late-rendered** (their Jinja evaluated at run time, with full runtime context).
+The underscore form `pre_hook`/`post_hook` had the same intent but was not
+late-rendered — its Jinja evaluated too early. From 1.4, both forms are
+late-rendered consistently.
+
+Find every model/seed/snapshot `config()` (or `dbt_project.yml` default) using
+the **underscore** form (`pre_hook`/`post_hook`) whose value contains Jinja (`{{ }}`
+or `{% %}`) — not a plain SQL string. For each one, check whether the Jinja
+references anything that is only available at run time (e.g. `run_started_at`,
+`invocation_id`, `this`, macro calls that depend on state set during the run).
+
+- If the hook's Jinja only used static/compile-time values, there is no
+  behavior change — the later render still resolves to the same string.
+- If the hook's Jinja depends on run-time state, the resolved value on 1.4+ may
+  differ from what ran on 1.3 (it previously rendered against parse-time context,
+  possibly incorrectly). **Ask the user to confirm** the hook still does what
+  they intend once it evaluates at the correct time.
+
+### 4. Apply the 1.4→1.8 changes
+
+The rest of this migration continues from the 1.4→1.8 hop. Execute the skill
+`migrating-dbt-1.4` for this hop.
 
 ## Verify
 
@@ -76,6 +114,7 @@ project root summarizing everything you did. For each change include:
 - which category of the latest release track upgrade it addresses
   (breaking / behavior / deprecated).
 
-Do not print a target version number in this document — describe changes in
-terms of the latest release track and the category above. Keep it concise and
-factual — one entry per change.
+Create a section for this version hop and describe changes in terms of the
+latest release track and the category above. Keep it concise and factual — one
+entry per change. If there's an existing `migration_changes.md` prepared by a
+previous version hop, append to the doc.
