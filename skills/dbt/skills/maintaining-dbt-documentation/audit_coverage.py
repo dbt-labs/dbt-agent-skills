@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Audit dbt model documentation coverage from the dbt manifest.
 
-Reads `target/manifest.json` (produced by `dbt parse` or
-`dbt docs generate --empty-catalog`) and reports, per folder, how many models
-have a `description` and how many of their declared columns are documented.
+Reads `target/manifest.json` (produced by `dbt parse`) and reports, per folder,
+how many models have a `description` and how many of their declared columns are
+documented.
 With a folder argument, lists the undocumented models and partially-documented
 models for that folder — the unit of work for the maintaining-dbt-documentation skill.
 
@@ -11,10 +11,12 @@ Using the manifest (rather than parsing YAML by hand) means the audit is
 correct regardless of the project's YAML layout, `{% docs %}` blocks, or naming
 conventions: dbt has already resolved every `description` for us.
 
-Column coverage counts only columns *declared* in YAML. Columns that exist in
-the warehouse but are not yet declared don't appear here (that needs a catalog,
-which requires a warehouse connection) — so 100% here means "every declared
-column has a description", not "every physical column is declared".
+Column coverage counts only columns *declared* in YAML. This audit reads the
+manifest, not the catalog, so columns that exist in the warehouse but aren't yet
+declared in YAML are out of scope — 100% here means "every declared column has a
+description", not "every physical column is declared". Surfacing undeclared
+columns would require `dbt docs generate` (a live warehouse) and reading
+`target/catalog.json`, which this script does not do.
 
 Usage:
     dbt parse                              # (re)generate target/manifest.json first
@@ -33,9 +35,8 @@ def load_models(manifest_path):
     if not os.path.isfile(manifest_path):
         sys.exit(
             f"Manifest not found at '{manifest_path}'.\n"
-            "Generate it first from the dbt project root, e.g.:\n"
-            "  dbt parse\n"
-            "  dbt docs generate --empty-catalog   # if parse alone isn't enough"
+            "Generate it first by running `dbt parse` from the dbt project root,\n"
+            "or point --manifest at an existing manifest.json."
         )
     with open(manifest_path, encoding="utf-8") as fh:
         manifest = json.load(fh)

@@ -56,20 +56,30 @@ upstream `ref()`/`source()`s; document keys and any non-obvious/derived columns.
 1. **Audit.** Generate the manifest, then run the coverage script against it. The
    audit reads `target/manifest.json`, so dbt has already resolved every
    `description` — the result is correct regardless of YAML layout or `{% docs %}`
-   blocks. Run from the dbt project root:
+   blocks. **Keep your working directory at the dbt project root** (so `dbt parse`
+   writes `target/manifest.json` there and the script finds it), and invoke the
+   script by its full path in the skill directory:
    ```bash
-   dbt parse                            # (re)generate target/manifest.json — no warehouse needed
-   python3 audit_coverage.py            # whole-project coverage summary (models + columns)
-   python3 audit_coverage.py <folder>   # one folder: undocumented models + models missing column docs
+   dbt parse                                        # (re)generate target/manifest.json — no warehouse needed
+   python3 <SKILL_BASE_DIR>/audit_coverage.py           # whole-project coverage summary (models + columns)
+   python3 <SKILL_BASE_DIR>/audit_coverage.py <folder>  # one folder: undocumented models + models missing column docs
    ```
+   **Replace `<SKILL_BASE_DIR>` with this skill's actual base directory** (the path
+   provided when the skill is loaded); `audit_coverage.py` lives there, not in the
+   project. The script reads `target/manifest.json` relative to your current
+   directory, so stay at the project root. Pass `--manifest <path>` if the manifest
+   is elsewhere.
    Prefer MCP/CLI conventions from the `running-dbt-commands` skill for invoking dbt
-   (pick the right executable; use `dbt docs generate --empty-catalog` instead of
-   `dbt parse` if the project needs it). Column coverage counts only columns
-   *declared* in YAML — a warehouse catalog is needed to find columns that exist but
-   aren't declared yet, so flag that limit if the user cares about it. If the user
-   named a folder, go straight to it; otherwise show the summary and confirm which
-   folder to start with (biggest gap or product area first). If the audit shows 0
-   gaps, report full coverage and stop.
+   (pick the right executable). `dbt parse` alone regenerates `target/manifest.json`,
+   which is everything this audit reads — no warehouse connection needed. Column
+   coverage therefore counts only columns *declared* in YAML: columns that exist in
+   the warehouse but aren't declared yet are out of scope here (the audit reads the
+   manifest, not the catalog). If you also want to surface those, run
+   `dbt docs generate` (not `--empty-catalog`, which skips the warehouse and yields
+   an empty catalog) and inspect `target/catalog.json` separately. If the user named
+   a folder, go straight to it; otherwise show the summary and confirm which folder
+   to start with (biggest gap or product area first). If the audit shows 0 gaps,
+   report full coverage and stop.
 
 2. **Understand each undocumented model.** For every undocumented model in the
    folder, before writing a word:
@@ -89,8 +99,9 @@ upstream `ref()`/`source()`s; document keys and any non-obvious/derived columns.
 4. **Write to the appropriate schema file** following the project's layout.
 
 5. **Validate.** Re-run `dbt parse` to confirm the YAML is well-formed and refs
-   still resolve, then re-run `audit_coverage.py <folder>` to confirm the gap you
-   set out to close is now gone. `dbt parse` must be clean before handing back.
+   still resolve, then re-run `python3 <SKILL_BASE_DIR>/audit_coverage.py <folder>`
+   (again from the project root) to confirm the gap you set out to close is now gone.
+   `dbt parse` must be clean before handing back.
 
 6. **Hand back for review.** Show the diff (`git diff <folder>`). Summarise which
    models were documented, which columns/tests you deliberately left out, and any
