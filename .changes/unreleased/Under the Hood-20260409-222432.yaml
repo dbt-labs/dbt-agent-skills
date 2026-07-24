@@ -1,0 +1,6 @@
+kind: Under the Hood
+body: 'Fix missing cursor marketplace plugins, broken markdown links, missing using-dbt-index in tile.json, leftover dbt-oss-template'
+time: 2026-04-09T22:24:32.690132-04:00
+custom:
+    Author: bbrewington
+    Issue: "99"

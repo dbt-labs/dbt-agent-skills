@@ -2,10 +2,10 @@
 
 ## Review logs and artifacts
 
-If you are prompted to fix a bug, start by reviewing the logs and artifacts from the most recent dbt invocation. See `scripts/review_run_results.md` for an example.
+If you are prompted to fix a bug, start by reviewing the logs and artifacts from the most recent dbt invocation. See [scripts/review_run_results.md](../scripts/review_run_results.md) for an example.
 
 - The `logs/dbt.log` file contains all the queries that dbt ran, and additional logging. Recent errors will be at the bottom of the file.
-- The `target/run_results.json` file contains each model which ran in the most recent invocation, and whether they succeeded or not. See `scripts/review_run_results` for sample code.
+- The `target/run_results.json` file contains each model which ran in the most recent invocation, and whether they succeeded or not. See [scripts/review_run_results.md](../scripts/review_run_results.md) for sample code.
 - The `target/compiled` directory contains the rendered model code as a select statement.
 - The `target/run` directory contains that rendered code inside of DDL statements such as `CREATE TABLE AS SELECT`.
 
