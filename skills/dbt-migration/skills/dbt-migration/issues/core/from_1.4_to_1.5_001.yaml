@@ -12,7 +12,7 @@ impact: >-
   Scripts relying on last-wins override now see both selections combined, selecting more nodes than intended
 from_version: '1.4'
 to_version: '1.5'
-automation_type: human
+automation_type: deterministic
 out_of_repo_risk: true
 environment_change: false
 context:

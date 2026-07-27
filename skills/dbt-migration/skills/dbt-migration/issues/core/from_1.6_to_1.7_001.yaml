@@ -10,7 +10,7 @@ impact: >-
   --warn-error
 from_version: '1.6'
 to_version: '1.7'
-automation_type: human
+automation_type: deterministic
 out_of_repo_risk: true
 environment_change: false
 context:

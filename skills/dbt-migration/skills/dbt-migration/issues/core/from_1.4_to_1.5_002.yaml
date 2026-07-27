@@ -11,7 +11,7 @@ impact: >-
   Commands like `dbt --flag run --flag` now fail instead of silently taking one value
 from_version: '1.4'
 to_version: '1.5'
-automation_type: human
+automation_type: deterministic
 out_of_repo_risk: true
 environment_change: false
 context:
