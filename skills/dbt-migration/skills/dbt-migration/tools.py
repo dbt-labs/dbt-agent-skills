@@ -72,7 +72,7 @@ def _vkey(v: str) -> tuple[int, int]:
 def load_collected(from_version: str, adapter: str | None) -> list[dict]:
     """core/* + <adapter>/*, filtered to from_version >= start, sorted by sort_order."""
     dirs = [ISSUES_DIR / "core"]
-    if adapter and adapter != "none":
+    if adapter and adapter not in ("none", "core"):
         dirs.append(ISSUES_DIR / adapter)
     start = _vkey(from_version)
     issues: list[dict] = []
@@ -158,36 +158,78 @@ def cmd_set_status(args) -> int:
     return 0
 
 
+def _load_issue_metadata() -> dict[str, dict]:
+    """issue_id -> full issue dict, scanned once across every issues/* dir."""
+    out: dict[str, dict] = {}
+    for f in ISSUES_DIR.glob("*/*.yaml"):
+        if f.name.startswith("_"):
+            continue
+        data = yaml.safe_load(f.read_text())
+        out[data["issue_id"]] = data
+    return out
+
+
 def cmd_report(args) -> int:
     project = Path(args.project_dir).resolve()
     data = _load_results(project)
     if not data:
         print("no results artifact found", file=sys.stderr)
         return 2
-    groups: dict[str, list[str]] = {}
-    for iid, rec in sorted(data.items()):
-        groups.setdefault(rec.get("status", "pending"), []).append(iid)
+    meta = _load_issue_metadata()
 
-    order = ["failed", "manual-required", "applied", "fixed", "handled-by-autofix",
-             "advisory", "skipped-not-present", "pending"]
-    lines = ["# dbt migration report", ""]
-    total = len(data)
-    done = sum(1 for r in data.values() if r.get("status") in TERMINAL_STATUSES)
-    lines.append(f"{done}/{total} issues processed.")
+    # Bucket into plain-English, user-facing sections rather than internal
+    # status/issue-id jargon.
+    changed: list[str] = []       # fixed / applied / handled-by-autofix
+    needs_review: list[str] = []  # manual-required / advisory / failed
+    not_applicable = 0            # skipped-not-present / pending
+
+    for iid, rec in sorted(data.items()):
+        status = rec.get("status", "pending")
+        info = meta.get(iid, {})
+        change = info.get("change", iid)
+        impact = info.get("impact", "")
+        files = rec.get("files_changed", [])
+        note = rec.get("notes", "")
+
+        if status in ("fixed", "applied", "handled-by-autofix"):
+            filepart = f" (updated {', '.join(files)})" if files else ""
+            changed.append(f"- {change}{filepart}")
+        elif status in ("manual-required", "advisory", "failed"):
+            detail = note or impact
+            suffix = f" — {detail}" if detail else ""
+            needs_review.append(f"- {change}{suffix}")
+        else:  # skipped-not-present, pending
+            not_applicable += 1
+
+    lines = ["# Migration summary", ""]
+    lines.append(
+        "This project was migrated to dbt 1.8. Below is a summary of what changed "
+        "and what still needs your attention."
+    )
     lines.append("")
-    for status in order:
-        ids = groups.get(status)
-        if not ids:
-            continue
-        lines.append(f"## {status} ({len(ids)})")
-        for iid in ids:
-            rec = data[iid]
-            files = ", ".join(rec.get("files_changed", []))
-            note = rec.get("notes", "")
-            suffix = f" — {note}" if note else ""
-            filepart = f" [{files}]" if files else ""
-            lines.append(f"- **{iid}**{filepart}{suffix}")
+
+    lines.append("## Changes made")
+    lines.append("")
+    if changed:
+        lines.extend(changed)
+    else:
+        lines.append("- No changes were required.")
+    lines.append("")
+
+    lines.append("## Needs your review")
+    lines.append("")
+    if needs_review:
+        lines.extend(needs_review)
+    else:
+        lines.append("- Nothing outstanding.")
+    lines.append("")
+
+    if not_applicable:
+        lines.append(
+            f"_{not_applicable} other version-upgrade check(s) were reviewed and did not apply to this project._"
+        )
         lines.append("")
+
     report = project / REPORT_REL
     report.write_text("\n".join(lines))
     print(f"wrote {report}")
