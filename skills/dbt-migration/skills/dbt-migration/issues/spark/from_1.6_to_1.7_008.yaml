@@ -1,0 +1,35 @@
+issue_id: from_1.6_to_1.7_008
+sort_order: 4080
+change: sasl C-extension replaced with pure-sasl; PyHive bumped to ~=0.7.0
+action: >-
+  Advisory dependency change: reinstall dbt-spark[PyHive] to get pure-sasl and update dependency
+  pinning; do not execute pip from the skill
+category: Breaking
+component: adapter
+adapter_type: spark
+impact: >-
+  dbt-spark[PyHive] now depends on pure-sasl and PyHive ~=0.7.0 instead of the sasl C-extension;
+  environments pinning the old sasl/PyHive may conflict at install time
+from_version: '1.6'
+to_version: '1.7'
+automation_type: human
+out_of_repo_risk: false
+environment_change: true
+context:
+  detection: |-
+    - This is a Python-dependency/runtime change, not a repo-source change — `dbt parse` and this skill
+      must exclude it from the parse-verify loop.
+    - Detect stale pins by grepping dependency manifests (`requirements.txt`, `requirements*.txt`,
+      `pyproject.toml`, `setup.py`, `setup.cfg`, `Pipfile`, `poetry.lock`, `environment.yml`, any
+      `Dockerfile`) for `sasl`, `PyHive`, `pyhive`, or `dbt-spark[PyHive]`.
+    - Flag an old pin: PyHive `<0.7` or a bare `sasl` dependency.
+    - Only relevant when the project uses the Thrift/PyHive connection method for dbt-spark.
+  fixing: |-
+    - ADVISORY EDIT ONLY — never run pip / pip install / uv from the skill.
+    - If a dependency manifest pins the old sasl/PyHive, update the pin to reflect PyHive ~=0.7.0 (e.g.
+      change `PyHive[hive]>=0.6.0,<0.7.0` or a bare `sasl` line to the `dbt-spark[PyHive]` extra, which
+      now pulls pure-sasl), and record the edit in the results report.
+    - Add a note in the results artifact (target/dbt_migration_results.json) as manual-required telling
+      the user to run `pip install --force-reinstall dbt-spark[PyHive]` themselves so the C-extension
+      `sasl` is replaced by `pure-sasl`.
+    - Do not execute that command. This change is excluded from the `dbt parse` gate.

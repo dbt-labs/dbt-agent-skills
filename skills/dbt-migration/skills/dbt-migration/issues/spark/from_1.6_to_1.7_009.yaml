@@ -1,0 +1,37 @@
+issue_id: from_1.6_to_1.7_009
+sort_order: 4090
+change: Python 3.7 support dropped for dbt-spark (already required since 1.6)
+action: >-
+  Advisory: ensure the runtime is Python 3.8+; edit dependency/runtime manifests only, never execute
+  an interpreter or environment change
+category: Breaking
+component: adapter
+adapter_type: spark
+impact: >-
+  dbt-spark cannot install or run on Python 3.7; installation fails. For most projects this was
+  already enforced at 1.6, so this is a reminder rather than a new requirement
+from_version: '1.6'
+to_version: '1.7'
+automation_type: human
+out_of_repo_risk: false
+environment_change: true
+context:
+  detection: |-
+    - Python-runtime change — exclude from the parse-verify loop; `dbt parse` cannot detect the
+      interpreter version.
+    - Detect stale runtime declarations by grepping for `python_requires`,
+      `python-3.7`/`python3.7`/`py37`, and `python_version` in `setup.py` / `setup.cfg` /
+      `pyproject.toml`, `tox.ini`, `.python-version`, `runtime.txt`.
+    - Also check base images (`Dockerfile` `FROM python:3.7*`) and CI matrices
+      (`.github/workflows/*.yml` `python-version: 3.7`).
+    - Flag any pin to 3.7.
+  fixing: |-
+    - ADVISORY EDIT ONLY — never run pip, pyenv, or any environment mutation.
+    - Where a manifest declares Python 3.7, bump it to `>=3.8` (or the project's chosen supported
+      version) in that file and record the edit in the results report.
+    - For runtimes controlled outside the repo (dbt platform environment Python version, CI runner
+      image, base Docker image maintained elsewhere), record the required 3.8+ upgrade in the results
+      artifact (target/dbt_migration_results.json) as manual-required and prompt the user.
+    - Since this was already required at 1.6 for Spark, if everything already targets 3.8+, mark it
+      satisfied and note that.
+    - Excluded from the `dbt parse` gate.

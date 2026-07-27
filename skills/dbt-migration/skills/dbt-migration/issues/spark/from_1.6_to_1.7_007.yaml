@@ -1,0 +1,34 @@
+issue_id: from_1.6_to_1.7_007
+sort_order: 4070
+change: tblproperties config now actually included in CREATE TABLE statements
+action: >-
+  Review models using tblproperties; the properties will now take effect (previously silently
+  ignored)
+category: Behavior
+component: adapter
+adapter_type: spark
+impact: >-
+  Tables configured with tblproperties now have those properties applied in the generated CREATE
+  TABLE; previously the config was parsed but never emitted, so behavior/table metadata changes
+from_version: '1.6'
+to_version: '1.7'
+automation_type: human
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Grep for `tblproperties` across `models/**/*.sql` config() blocks, `dbt_project.yml`
+      (`models:` config), and schema YAML `config:` blocks.
+    - Relevant on the Spark/Databricks adapter for table and incremental materializations.
+    - This is a behavior/warehouse change; `dbt parse` stays clean regardless.
+  fixing: |-
+    - No source edit is required for parse or to reach 1.8 — the adapter now wires tblproperties into
+      create_table_as.
+    - The migration action is to flag intent: for each model with tblproperties, confirm the declared
+      properties are actually desired now that they will be applied (e.g.
+      `delta.autoOptimize.optimizeWrite`, custom table metadata).
+    - If any tblproperties entry was left in place only because it used to be a no-op, it will now
+      change table behavior — record such cases in the results artifact
+      (target/dbt_migration_results.json) as manual-required with the model path and property list.
+    - Do not delete or alter tblproperties without user confirmation.
+    - Real effect is validated in the warehouse build-green layer.

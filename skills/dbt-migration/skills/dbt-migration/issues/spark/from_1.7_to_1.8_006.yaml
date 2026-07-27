@@ -1,0 +1,39 @@
+issue_id: from_1.7_to_1.8_006
+sort_order: 5060
+change: >-
+  Spark seed integer columns now explicitly typed as bigint (new agate Integer type)
+action: >-
+  Verify seed column types where downstream logic depends on them
+category: Behavior
+component: adapter
+adapter_type: spark
+impact: >-
+  Seeds with integer-only columns may now be typed bigint instead of double; downstream
+  joins/casts/schemas expecting double may behave differently
+from_version: '1.7'
+to_version: '1.8'
+automation_type: human
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Look at seeds/**/*.csv with integer-only columns (no decimal points, no nulls forcing float).
+    - Cross-reference any `seeds:` config in dbt_project.yml or seed YAML that sets `column_types:` —
+      if an integer column is NOT explicitly typed there, its inferred type changes from double
+      (1.7) to bigint (1.8).
+    - Also flag downstream models that cast or join on those seed columns assuming a floating type.
+    - Type-inference change, not a syntax error — nothing fails to parse; detection surfaces risk.
+  fixing: |-
+    - If the bigint typing is desired (the common case), no code change is needed — note it in the
+      migration log.
+    - If a specific seed column must remain double (downstream depends on float semantics), pin it
+      explicitly via `column_types` in the seed's config, e.g.:
+        seeds:
+          my_project:
+            my_seed:
+              +column_types:
+                amount: double
+    - Invisible to `dbt parse` and only observable after `dbt seed` against a warehouse — do not
+      attempt a build here.
+    - If a downstream dependency on the old double typing is suspected, record a manual-actions
+      entry naming the seed and column for the warehouse test phase.

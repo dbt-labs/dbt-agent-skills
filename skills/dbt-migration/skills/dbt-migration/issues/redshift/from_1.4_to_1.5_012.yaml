@@ -1,0 +1,34 @@
+issue_id: from_1.4_to_1.5_012
+sort_order: 2120
+change: >-
+  Redshift connector replaced from psycopg2 to redshift_connector
+action: >-
+  Test connections thoroughly; expect changed error messages and SSL handling
+category: Behavior
+component: adapter
+adapter_type: redshift
+impact: >-
+  Connection behavior, error messages, and SSL handling all change with the new redshift_connector driver
+from_version: '1.4'
+to_version: '1.5'
+automation_type: human
+out_of_repo_risk: false
+environment_change: true
+context:
+  detection: |-
+    - Two signals.
+    - (1) Dependency pins in requirements*.txt / setup.py / pyproject.toml / Pipfile / Dockerfiles
+      referencing psycopg2 or psycopg2-binary specifically for Redshift, or pinning dbt-redshift < 1.5.
+    - (2) profiles.yml (or in-repo profile fixtures) using psycopg2-specific connection options or sslmode
+      values that behave differently under redshift_connector.
+    - profiles.yml usually lives outside the repo (~/.dbt); only in-repo copies/fixtures are inspectable.
+  fixing: |-
+    - ADVISORY ONLY — never install packages.
+    - Remove any explicit psycopg2 pin that was there solely for dbt-redshift (the driver is now
+      redshift_connector, pulled transitively).
+    - Record an advisory note that the environment will switch drivers and that connection error messages
+      / SSL semantics change.
+    - EXCLUDED from the dbt parse verify loop (parse does not connect).
+    - Real validation needs a warehouse: add a results entry advising the user to run `dbt debug` against
+      Redshift after upgrading and review SSL/connection settings.
+    - Related profile-field removals are handled by from_1.4_to_1.5_014.

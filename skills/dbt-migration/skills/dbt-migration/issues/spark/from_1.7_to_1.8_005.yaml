@@ -1,0 +1,38 @@
+issue_id: from_1.7_to_1.8_005
+sort_order: 5050
+change: >-
+  Spark temp relations now exclude database/schema from the rendered SQL name
+action: >-
+  Review custom macros that reference temp relation names; drop assumptions about schema-qualified
+  temp names
+category: Behavior
+component: adapter
+adapter_type: spark
+impact: >-
+  Temp views/relations render as just the identifier (e.g. `model__dbt_tmp`) instead of
+  `schema.model__dbt_tmp`; custom macros that string-match or qualify the temp relation name may
+  break
+from_version: '1.7'
+to_version: '1.8'
+automation_type: human
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Only relevant if the project overrides Spark materialization/adapter macros that touch temp
+      relations.
+    - Grep macros/**/*.sql for `make_temp_relation`, `__dbt_tmp`, `tmp_relation`, `spark__`
+      incremental/temp macros, or manual construction like `{{ schema }}.{{ ... }}__dbt_tmp`.
+    - Also inspect custom incremental strategy macros that reference the temp relation's
+      database/schema.
+    - If no custom macros reference temp relations, the change is not present (built-in
+      materializations handle it).
+  fixing: |-
+    - Where a custom macro assumed the temp relation carried a database/schema qualifier, update it
+      to use the relation object's rendered name directly (1.8 built-ins call
+      `.include(database=false, schema=false)` on temp relations).
+    - Remove any manual `schema.` prefixing of `*__dbt_tmp` names and rely on the relation object.
+    - Behavior/SQL-generation change invisible to `dbt parse`, so parse cannot confirm correctness;
+      real validation is a warehouse build (harness build-green layer).
+    - If the override's dependence on the qualified name is load-bearing and unclear, record a
+      manual-actions entry with the macro name rather than guessing.

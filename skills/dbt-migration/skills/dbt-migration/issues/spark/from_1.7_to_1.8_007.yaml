@@ -1,0 +1,33 @@
+issue_id: from_1.7_to_1.8_007
+sort_order: 5070
+change: >-
+  Spark PyHive/Thrift dependency logs suppressed to ERROR level by default
+action: >-
+  Set DBT_SPARK_LOG_LEVEL if verbose PyHive/Thrift logs are needed
+category: Behavior
+component: adapter
+adapter_type: spark
+impact: >-
+  PyHive and Thrift library logs are set to ERROR by default in 1.8, reducing log noise; teams
+  relying on verbose driver logs for debugging will no longer see them
+from_version: '1.7'
+to_version: '1.8'
+automation_type: human
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Default logging-verbosity change with no required repo edit; detection is advisory.
+    - Check whether the team depends on verbose PyHive/Thrift output — e.g. log-parsing scripts,
+      runbooks, or CI steps that grep dbt-spark driver logs.
+    - Search repo docs/scripts for `PyHive`, `thrift`, `DBT_SPARK_LOG_LEVEL`.
+    - If nothing consumes those logs, there is nothing to do.
+  fixing: |-
+    - No project code change is required for the default.
+    - If verbose driver logs are needed, instruct setting the environment variable
+      `DBT_SPARK_LOG_LEVEL=DEBUG` (or INFO) in the execution environment — an environment/runtime
+      setting, not a repo edit, so do NOT modify or execute anything in the environment.
+    - Record it as an informational entry in the migration log.
+    - If a consumer of verbose logs exists, add a manual-actions note telling the user where to set
+      DBT_SPARK_LOG_LEVEL in their orchestration/CI.
+    - Not subject to the `dbt parse` gate.

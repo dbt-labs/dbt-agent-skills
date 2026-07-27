@@ -1,0 +1,33 @@
+issue_id: from_1.4_to_1.5_010
+sort_order: 2100
+change: >-
+  snowflake-connector-python upgraded from 2.x to 3.0
+action: >-
+  Ensure the runtime environment supports snowflake-connector-python 3.x
+category: Behavior
+component: adapter
+adapter_type: snowflake
+impact: >-
+  Major dependency bump; environments pinning snowflake-connector-python 2.x will conflict on install
+from_version: '1.4'
+to_version: '1.5'
+automation_type: human
+out_of_repo_risk: false
+environment_change: true
+context:
+  detection: |-
+    - Inspect in-repo dependency declarations only: requirements.txt, requirements*.txt, setup.py,
+      pyproject.toml, Pipfile, poetry.lock, Dockerfiles.
+    - Present if any pin holds snowflake-connector-python to a 2.x range (e.g.
+      `snowflake-connector-python==2.*`, `<3`, `~=2.`) or pins dbt-snowflake below 1.5 alongside a hard
+      2.x connector pin.
+  fixing: |-
+    - ADVISORY ONLY — never run pip/poetry/uv or otherwise mutate the environment.
+    - If an explicit 2.x pin exists, edit the declaration to allow 3.x (remove the `<3` cap or bump to the
+      dbt-snowflake 1.5 requirement) and note it.
+    - Most projects do not pin the connector directly (it comes transitively via dbt-snowflake) — then
+      there is nothing to edit; just record an advisory note that the environment must resolve
+      snowflake-connector-python 3.x.
+    - EXCLUDED from the dbt parse verify loop.
+    - Add to the migration log as an advisory environment change and, if a conflicting pin can't be safely
+      edited, to the results report (manual-required).
