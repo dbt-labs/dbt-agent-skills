@@ -1,0 +1,30 @@
+issue_id: "1_11_001"
+sort_order: 9001
+change: >-
+  generate_schema_name must return a valid, non-empty schema name
+action: >-
+  Set flags.require_valid_schema_from_generate_schema_name: false to keep the lax behavior, or fix the macro.
+category: Behavior
+component: core
+adapter_type: null
+impact: >-
+  A generate_schema_name override returning None/empty now errors instead of silently falling back. This flag still defaults to False in 1.12; pinning it makes that explicit and survives a future flip.
+from_version: '1.11'
+to_version: '1.12'
+automation_type: behavior_flag
+behavior_flag:
+  name: require_valid_schema_from_generate_schema_name
+  set_to: false
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Applies only if the project overrides `generate_schema_name` (or
+      `generate_schema_name_for_env`) in macros/.
+    - Inspect the override for a path that can return None/empty (e.g. a missing
+      `{% else %}` branch, or returning `custom_schema_name` unguarded).
+    - No override, or the override always returns a non-empty schema ->
+      skipped-not-present.
+  fixing: |-
+    Pin the flag via `tools.py set-flag --issue-id 1_11_001`. No project code changes.
+    Only pin it when a generate_schema_name override can return empty.

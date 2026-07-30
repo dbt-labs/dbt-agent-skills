@@ -1,0 +1,33 @@
+issue_id: "1_4_009"
+sort_order: 2090
+change: >-
+  Isolated BEGIN/COMMIT statements now produce a warning
+action: >-
+  Review custom macros/hooks that issue standalone BEGIN/COMMIT and remove or restructure them
+category: Behavior
+component: adapter
+adapter_type: snowflake
+impact: >-
+  Standalone transactional keywords trigger a warning; transaction handling is managed by dbt
+from_version: '1.4'
+to_version: '1.5'
+automation_type: human
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Grep macros/**/*.sql, models/**/*.sql (hooks embedded via config), and dbt_project.yml / model
+      configs for pre-hook / post-hook / on-run-start / on-run-end entries and macro bodies with a
+      standalone `BEGIN;`, `COMMIT;`, or `begin transaction` / `commit` not inside a stored-procedure
+      body.
+    - Regex (case-insensitive): `(^|\n)\s*(begin|commit)\s*;`.
+    - Present when such isolated statements exist in Snowflake-targeted code.
+  fixing: |-
+    - Remove standalone BEGIN/COMMIT from hooks and custom macros; dbt manages transactions itself, so
+      these are redundant and now warn.
+    - If the intent was to wrap several statements atomically, move that logic into a single statement or
+      a Snowflake stored procedure / scripting block rather than emitting bare transactional keywords.
+    - Warehouse-behavior change invisible to dbt parse; parse passing does not confirm the warning is
+      gone.
+    - Verify by grepping that no isolated BEGIN/COMMIT remain.
+    - If a hook genuinely must control transactions, record it in the results report for user review.

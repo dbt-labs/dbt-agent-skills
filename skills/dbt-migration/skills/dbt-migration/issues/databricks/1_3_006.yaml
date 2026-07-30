@@ -1,0 +1,36 @@
+issue_id: "1_3_006"
+sort_order: 1060
+change: >-
+  dbt_spark_get_incremental_sql macro dispatch removed
+action: >-
+  Migrate custom incremental overrides to the adapter.get_incremental_strategy_macro dispatch
+category: Breaking
+component: adapter
+adapter_type: databricks
+impact: >-
+  Custom macros overriding dbt_spark_get_incremental_sql are silently ignored — the incremental
+  strategy they intended no longer takes effect
+from_version: '1.3'
+to_version: '1.4'
+automation_type: deterministic
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Grep macros/**/*.sql for definitions or references to dbt_spark_get_incremental_sql
+      (regex `macro\s+.*get_incremental_sql` or `dbt_spark_get_incremental_sql`).
+    - A project-level override, or a package that overrides it, indicates the issue.
+    - Also look for custom incremental strategy SQL keyed off this macro name.
+    - If no such override exists, mark skipped-not-present.
+  fixing: |-
+    - Rewrite the override to plug into the newer dispatch: define get_incremental_strategy_macro /
+      the strategy-specific macro (e.g. get_incremental_<strategy>_sql) that
+      adapter.get_incremental_strategy_macro resolves, rather than the removed
+      dbt_spark_get_incremental_sql.
+    - Move the body of the old macro into the correctly named strategy macro and register the
+      strategy.
+    - Incremental behavior is warehouse-observable and not caught by parse: after editing run dbt
+      parse to confirm the macro compiles, then flag the change in the results report for
+      build-layer verification.
+    - If the strategy is custom and the correct new macro name is unclear, record it in the results
+      report.

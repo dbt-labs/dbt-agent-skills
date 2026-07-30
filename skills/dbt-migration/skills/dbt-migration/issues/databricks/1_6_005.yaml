@@ -1,0 +1,36 @@
+issue_id: "1_6_005"
+sort_order: 4050
+change: Default catalog set to hive_metastore when not specified
+action: >-
+  Verify the default matches expectations; set catalog explicitly in profiles.yml if a different
+  catalog is intended
+category: Behavior
+component: adapter
+adapter_type: databricks
+impact: >-
+  Projects that did not set a catalog now explicitly resolve to hive_metastore; relations may be
+  created/read in hive_metastore instead of a previously-implicit Unity Catalog default
+from_version: '1.6'
+to_version: '1.7'
+automation_type: human
+out_of_repo_risk: false
+environment_change: true
+context:
+  detection: |-
+    - This is a connection/environment default, not a repo-source change, so `dbt parse` cannot see it.
+    - Inspect the Databricks connection config: `profiles.yml` (`outputs.<target>.catalog`) and any
+      `catalog:` / `database:` set in `dbt_project.yml` or model configs.
+    - Flag the project if NO catalog/database is set anywhere for the Databricks target — those projects
+      now implicitly get `hive_metastore`.
+    - If a catalog is already set explicitly, no action.
+    - Note `profiles.yml` often lives outside the repo (`~/.dbt/` or dbt platform connection settings).
+  fixing: |-
+    - Advisory / environment change only — never mutate credentials or run anything.
+    - If the workspace uses Unity Catalog and the user expects a UC catalog rather than the legacy
+      hive_metastore, add an explicit `catalog: <name>` to the Databricks output in `profiles.yml` (or
+      the platform connection).
+    - If `profiles.yml` is inside the repo, apply the advisory edit and record it in the results report.
+    - If it is outside the repo, record the recommended `catalog:` setting in the results artifact
+      (target/dbt_migration_results.json) as advisory and prompt the user to confirm the intended
+      catalog.
+    - Exclude from the parse-verify loop (parse does not reflect connection settings).

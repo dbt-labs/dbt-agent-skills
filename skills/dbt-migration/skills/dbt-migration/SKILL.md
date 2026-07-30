@@ -1,20 +1,32 @@
 ---
 name: dbt-migration
-description: Use when upgrading a dbt-core v1 project (on 1.3, 1.4, 1.5, 1.6, or 1.7) up to 1.8 — the entry point of the latest release track — applying the required breaking, behavior, and deprecated changes hop by hop from a data-driven issue corpus, running dbt-autofix first, then agentic and human-in-the-loop fixes, and verifying with dbt parse. Inputs — starting_version (the project's current dbt-core minor, one of 1.3/1.4/1.5/1.6/1.7) and adapter_type (snowflake/redshift/bigquery/databricks/spark); both are normally supplied by the caller, with fallbacks described in the skill.
+description: Use when upgrading a dbt-core v1 project (on 1.3, 1.4, 1.5, 1.6, or 1.7) all the way to 1.12, applying the required breaking, behavior, and deprecated changes from a data-driven issue corpus — replaying each pre-1.8 version boundary in order, then pinning post-1.8 behavior-change flags — running dbt-autofix first, then agentic and human-in-the-loop fixes, and verifying with dbt parse on dbt-core 1.12. Inputs — starting_version (the project's current dbt-core minor, one of 1.3/1.4/1.5/1.6/1.7) and adapter_type (snowflake/redshift/bigquery/databricks/spark); both are normally supplied by the caller, with fallbacks described in the skill.
 allowed-tools: "Bash(git:*), Bash(dbt:*), Bash(uvx:*), Bash(uv:*), Read, Write, Edit, Glob, Grep"
 metadata:
-  target_version: "1.8"
+  target_version: "1.12"
   supported_source_versions: "1.3, 1.4, 1.5, 1.6, 1.7"
   supported_adapters: "snowflake, redshift, bigquery, databricks, spark"
   arguments: "starting_version=<1.3|1.4|1.5|1.6|1.7>; adapter_type=<snowflake|redshift|bigquery|databricks|spark>"
 ---
 
-# Migrate a dbt project to the latest release track (dbt 1.8)
+# Migrate a dbt project to dbt-core 1.12
 
-You upgrade a dbt-core **v1** project to **1.8** (the entry point of the latest,
-backward-compatible release track 1.8–1.12). You **replay every version hop in
-order** from the project's current version up to 1.8 — you never net-collapse to
-1.8 — because consistent changelogs exist only per single minor version.
+You upgrade a dbt-core **v1** project all the way to **1.12** — not one minor
+bump. Two different mechanisms apply, and you must not confuse them:
+
+- **Up to 1.8** — genuinely breaking changes with no compatibility shim. You
+  **replay every version boundary in order** from the project's current version,
+  because consistent changelogs exist only per single minor version.
+- **After 1.8** — every backwards-incompatible change ships **gated behind a
+  behavior-change flag** in `dbt_project.yml` `flags:`. You **do not fix those
+  behaviors.** Instead, for each such change the project **actually exhibits**,
+  you pin its gating flag to `false` so the project keeps its current semantics
+  and parses on 1.12. Several of these flags already default to `true` in 1.12,
+  so for an affected project leaving the flag unset silently adopts the new
+  behavior — pinning is what makes the migration behavior-preserving.
+
+  Pin only what applies: a flag for a behavior the project does not use is dead
+  config that hides the ones that matter. Detection per issue decides.
 
 This skill is **data-driven**. The issues to resolve are **not** listed here —
 they live as one YAML file per issue under `issues/`, colocated with this
@@ -27,6 +39,7 @@ Each issue has an `automation_type` that decides how it is handled:
 | `deterministic` | **`dbt-autofix` handles it.** You do not re-implement it — you run autofix, then map its diff onto the issue and record it. |
 | `agentic` | **You apply the fix directly** (per `context.fixing`), then verify. |
 | `human` | **You propose the fix, show the diff, confirm with the user, then apply** (HITL). Never apply a `human` issue without explicit confirmation. |
+| `behavior_flag` | **`tools.py set-flag` handles it**, only when detection found it present (Step 5). A post-1.8 change gated behind a flag: when the project actually exhibits the gated behavior, the flag named in the issue's `behavior_flag.name` is pinned to `false` in `dbt_project.yml`. Never hand-edit these, never pin one the project does not exhibit, and never "fix" the underlying behavior instead. |
 
 Two orthogonal flags modify handling regardless of `automation_type`:
 - `out_of_repo_risk: true` — the fix may reach outside the repo (job `--select`,
@@ -40,7 +53,7 @@ Two orthogonal flags modify handling regardless of `automation_type`:
 
 - **starting version** — supplied as an argument (from the extension / dbt
   platform environments). Accept a manual override. One of `1.3`–`1.7`. If the
-  project is already ≥1.8, report nothing to do.
+  project is already ≥1.8, only the post-1.8 behavior-flag pinning applies.
 - **adapter type** — supplied as an argument: `snowflake` / `redshift` /
   `bigquery` / `databricks` / `spark`. Fallback: read `profiles.yml` `type:` or
   the installed adapter. If undeterminable, ask.
@@ -49,7 +62,7 @@ Two orthogonal flags modify handling regardless of `automation_type`:
 
 - The project directory is a **git-versioned repo**.
 - The environment has **`uvx` and `python`** available (used to run `tools.py`,
-  `dbt-autofix`, and a throwaway dbt-core 1.8 for the parse gate).
+  `dbt-autofix`, and a throwaway dbt-core 1.12 for the parse gate).
 - **`tools.py`** sits next to this SKILL.md and does all deterministic work
   (issue selection/ordering, results bookkeeping, report, git preflight). Always
   run it with `uv run --with pyyaml python tools.py …`.
@@ -57,7 +70,8 @@ Two orthogonal flags modify handling regardless of `automation_type`:
 ## Non-negotiable rules
 
 1. **`dbt parse` is the only in-skill correctness gate** (via a throwaway
-   dbt-core 1.8 from `uvx`/`uv`). Never run `dbt build/run/test/seed/snapshot`,
+   dbt-core 1.12 from `uvx`/`uv` — the target version, not the next minor).
+   Never run `dbt build/run/test/seed/snapshot`,
    and never touch a warehouse. Behavior/warehouse correctness is validated in
    the separate build-green test layer.
 2. **Do not rebuild `dbt-autofix`.** `deterministic` issues are its job.
@@ -83,6 +97,28 @@ per-issue detection, applying fixes, and HITL confirmation.
 
 Strict procedure, not general guidance. Do not skip or reorder. If you catch
 yourself out of order, stop, say which step was missed, and do it now.
+
+The shape is **detect everything → fix everything → verify once → re-detect**:
+
+| Step | Phase |
+|---|---|
+| 0 | Git preflight |
+| 1 | Collect applicable issues |
+| 2 | Read the project |
+| 3 | Detection sweep — which issues actually exist (**no edits**) |
+| 4 | `dbt-autofix` (batch) |
+| 5 | Agentic fixes + behavior-flag pinning |
+| 6 | Human-in-the-loop fixes |
+| 7 | `dbt parse` validation — **once**, whole project |
+| 8 | Re-run detection to confirm the fixes held |
+| 9 | Report |
+
+**Validation is deliberately at the end, not per issue.** A project several
+minors behind fails `dbt parse` for many independent reasons at once, so parsing
+after each individual fix tells you nothing about that fix — it just reports
+whichever unrelated issue is still outstanding, and retrying against that signal
+wastes attempts rewriting code that is already correct. Fix the whole detected
+set first; then parse means something.
 
 ### Step 0 — Git preflight (before reading or changing anything)
 
@@ -116,93 +152,136 @@ Read `dbt_project.yml`, `models/**` (SQL + YAML), `macros/**`, `seeds/**`,
 **in the context of `collected_issues`** — so you know which issues plausibly
 apply before changing anything. Do not edit yet.
 
-### Step 3 — Application loop (one issue at a time)
+### Step 3 — Detection sweep (no edits)
 
-**Never batch-apply and validate at the end.** Apply ONE issue, validate it, and
-only then move on. This keeps a failure isolated to the issue that caused it.
-Record every outcome with `tools.py set-status --project-dir "$PROJECT"
---issue-id <id> --status <status> [--files a,b] [--note "…"]` — never hand-edit
-the JSON.
+Determine which of the collected issues **actually exist** in this project,
+before changing anything. For each issue in `collect` order, evaluate
+`context.detection` against the project and record the verdict:
 
-**3a. Run `dbt-autofix` once first** (it is a batch tool, not per-issue):
+- present → `set-status … --status detected`
+- not present → `set-status … --status skipped-not-present`
+
+```bash
+uv run --with pyyaml python tools.py set-status --project-dir "$PROJECT" --issue-id <id> --status detected
+```
+
+Make **no edits** in this step. The point is a complete, honest picture of the
+work before any of it starts, so later phases operate on a known set. When the
+sweep is done, everything still to do is exactly `--status detected`:
+
+```bash
+uv run --with pyyaml python tools.py list-issues --project-dir "$PROJECT" --status detected
+```
+
+### Step 4 — `dbt-autofix` (batch, deterministic issues)
+
 ```bash
 uv run --with pyyaml python tools.py autofix --project-dir "$PROJECT"
 ```
-Map the returned `changed_files` onto the `deterministic` issues: covered →
-`set-status … --status handled-by-autofix --files …`. If autofix introduced a
-breakage, note it and revert that hunk. A `deterministic` issue that is present
-but autofix missed is handled in the per-issue loop below as a normal edit.
+Map the returned `changed_files` onto the `detected` `deterministic` issues:
+covered → `set-status … --status handled-by-autofix --files …`. If autofix
+introduced a breakage, note it and revert that hunk. A `detected` `deterministic`
+issue that autofix missed stays `detected` and is fixed as a normal edit in
+Step 5.
 
-**3b. Per-issue loop** — for each remaining issue, in the order `collect`
-returned:
+### Step 5 — Agentic fixes
 
-1. **Detect** with `context.detection`. Not present → `set-status …
-   skipped-not-present`; continue.
-2. **`environment_change` / `out_of_repo_risk`** → do not edit-and-validate:
-   make the advisory edit only (env) or record the out-of-repo action, then
-   `set-status … advisory` / `manual-required`; continue. (These are excluded
-   from the validation gate.)
-3. **`human`** → prepare the fix, **show the user the exact diff and the
-   `action`**, and get approval. If declined → `set-status … manual-required`;
-   continue. If approved, proceed to the apply-and-validate cycle below.
-4. **Apply-and-validate cycle** (for `agentic`, approved `human`, and
-   autofix-missed `deterministic` in-repo fixes) — **max 5 attempts per issue**:
-   1. Apply the fix per `context.fixing`.
-   2. Run the validation gate:
-      ```bash
-      uv run --with pyyaml python tools.py parse --project-dir "$PROJECT" --adapter "$ADAPTER"
-      ```
-   3. `ok: true` → `set-status … fixed` (or `applied` for HITL) with the files
-      changed; continue to the next issue.
-   4. `ok: false` and attempts < 5 → read the parse error, adjust using the
-      fallback guidance in `context.fixing`, and retry (attempt += 1).
-   5. **After 5 failed attempts** → **revert this issue's edits**
-      (`git -C "$PROJECT" restore <files>` / delete files it added) so the
-      project stays parseable for the remaining issues, then `set-status …
-      failed --note "<what was tried and the final parse error>"`. This flags it
-      for the human in the report. Continue to the next issue — one unfixable
-      issue never blocks the rest.
+For each remaining `detected` issue that is `agentic` (or an autofix-missed
+`deterministic` in-repo fix):
 
-The gate today is `dbt parse` (via `tools.py parse`); if a stronger gate exists
-later, the cycle is unchanged — only the command in 4.2 changes.
+```bash
+uv run --with pyyaml python tools.py list-issues --project-dir "$PROJECT" --status detected --automation-type agentic,deterministic --ids-only
+```
 
-### Step 4 — Final verification (global)
+Handle by kind:
 
-Per-issue validation already happened in Step 3; this is the whole-project
+- **`behavior_flag`** → pin the gate; no code change, never a hand-edit:
+  ```bash
+  uv run --with pyyaml python tools.py set-flag --project-dir "$PROJECT" --issue-id <id>
+  ```
+  Only reached for issues detection found present — a flag for a behavior the
+  project does not use is dead config that hides the ones that matter. Where
+  `context.detection` says the behavior cannot be confirmed from the repo alone
+  (e.g. `state:modified` used only by out-of-repo CI), leave it
+  `skipped-not-present` and let the report surface it for the user.
+- **`environment_change` / `out_of_repo_risk`** → make the advisory edit only
+  (env) or record the out-of-repo action, then `set-status … advisory` /
+  `manual-required`.
+- **everything else** → apply the fix per `context.fixing`, then
+  `set-status … fixed --files …`.
+
+Apply fixes for all of them; **do not** run the parse gate after each one. On a
+project several minors behind, unrelated unfixed issues keep `dbt parse` failing,
+so a per-issue gate reports failures that have nothing to do with the fix just
+made — it cannot isolate anything, and retrying against it burns attempts
+"fixing" code that is already correct. Parse becomes meaningful only once the
+whole set is addressed, which is Step 7.
+
+### Step 6 — Human-in-the-loop fixes
+
+For each remaining `detected` issue that is `human`:
+
+```bash
+uv run --with pyyaml python tools.py list-issues --project-dir "$PROJECT" --status detected --automation-type human --ids-only
+```
+
+Prepare the fix, **show the user the exact diff and the issue's `action`**, and
+get approval. Approved → apply and `set-status … applied --files …`. Declined →
+`set-status … manual-required`. Never apply a `human` issue without explicit
 confirmation.
 
-1. **Idempotency:** re-run `context.detection` for every `fixed`/`applied`/
-   `handled-by-autofix` issue. Each must now report **not present** (zero new
-   edits). If one still detects as present, its fix was incomplete/non-idempotent
-   — reopen it through the Step 3 apply-and-validate cycle.
-2. **Full parse gate** (deterministic wrapper):
-   ```bash
-   uv run --with pyyaml python tools.py parse --project-dir "$PROJECT" --adapter "$ADAPTER" --warn-error
-   ```
-   It runs `dbt parse` on a throwaway dbt-core 1.8 (building the venv and a dummy
-   profile as needed) and returns `{ok, output}`. Must be `ok: true`. `--warn-error`
-   also fails on deprecation warnings; ignore only failures attributable to
-   `environment_change` / `manual-required` items (those are excluded from the
-   gate).
+### Step 7 — Parse validation (once, whole project)
 
-### Step 5 — Report
+```bash
+uv run --with pyyaml python tools.py parse --project-dir "$PROJECT" --adapter "$ADAPTER" --warn-error
+```
+Runs `dbt parse` on a throwaway dbt-core 1.12 (building the venv and a dummy
+profile as needed) and returns `{ok, output}`. This is the first parse of the run
+and the only correctness gate.
+
+`ok: false` → read the error, which names the offending file. Attribute it to the
+issue whose fix touched that file, correct it, and re-run this step — **max 5
+whole-project attempts**. Ignore only failures attributable to
+`environment_change` / `manual-required` items; those are excluded from the gate.
+If an issue still cannot be made to parse, revert that issue's edits
+(`git -C "$PROJECT" restore <files>`), `set-status … failed --note "<what was
+tried and the final parse error>"`, and re-run this step so the rest of the
+migration still lands.
+
+### Step 8 — Re-run detection
+
+Re-evaluate `context.detection` for every issue that was resolved
+(`fixed` / `applied` / `handled-by-autofix` / `flag-set`). Each must now report
+**not present**. This is what proves the fixes actually worked and are
+idempotent — a fix that still detects was incomplete, so reopen it (back to
+Step 5 or 6) and then re-run Step 7.
+
+Nothing should remain `detected` at the end of this step. Confirm with:
+```bash
+uv run --with pyyaml python tools.py list-issues --project-dir "$PROJECT" --status detected,pending
+```
+Anything still listed is unresolved and the report will flag it as such.
+
+### Step 9 — Report
 
 ```bash
 uv run --with pyyaml python tools.py report --project-dir "$PROJECT"
 ```
 Renders `target/dbt_migration_results.json` → `migration_report.md` grouped by
-status. Show it to the user.
+outcome. Show it to the user.
 
 ## Results artifact — `target/dbt_migration_results.json`
 
 Written and updated **only** via `tools.py` (`init-results` / `set-status`);
 source of truth for resume, idempotency, and the report. A map of `issue_id` →
 `{automation_type, out_of_repo_risk, environment_change, status, files_changed,
-notes}`. Statuses: `pending` · `handled-by-autofix` · `fixed` · `applied`
-(HITL-confirmed) · `manual-required` · `advisory` (environment_change) ·
-`skipped-not-present` · `failed`.
+notes}`. Statuses: `pending` (not yet looked at) · `detected` (present, not yet
+resolved) · `handled-by-autofix` · `fixed` · `applied` (HITL-confirmed) ·
+`flag-set` · `manual-required` · `advisory` (environment_change) ·
+`skipped-not-present` · `failed`. A run that ends with anything still `pending`
+or `detected` is incomplete, and the report says so.
 
 ## Verify
 
-`dbt parse` only, on a throwaway dbt-core 1.8. Never build/run/test/seed/
+`dbt parse` only, on a throwaway dbt-core 1.12. Never build/run/test/seed/
 snapshot/compile, never touch a warehouse.

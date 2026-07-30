@@ -1,0 +1,29 @@
+issue_id: "1_5_010"
+sort_order: 3100
+change: Default socket timeout set to 180 seconds
+action: Adjust _socket_timeout in connection_parameters if long-idle connections time out
+category: Behavior
+component: adapter
+adapter_type: databricks
+impact: >-
+  1.6 introduces a default socket timeout of 180s. Long-idle connections (e.g. warehouses that were
+  paused/cold) may now time out where they previously waited indefinitely.
+from_version: '1.5'
+to_version: '1.6'
+automation_type: human
+out_of_repo_risk: false
+environment_change: true
+context:
+  detection: |-
+    - Behavioral connection change invisible to `dbt parse`.
+    - Check the databricks output in profiles.yml (usually out of repo) for a
+      `connect_timeout` / `_socket_timeout` / `connection_parameters` setting.
+    - Risk signals: projects querying serverless / auto-stopping SQL warehouses with long cold-start
+      times, or long-running single statements exceeding 180s of socket idleness.
+  fixing: |-
+    - ADVISORY ONLY.
+    - If timeouts are a risk, recommend setting `_socket_timeout` under `connection_parameters` in
+      the databricks profile to a higher value; otherwise no change.
+    - profiles.yml is usually out of repo and this is warehouse behavior — add a manual-actions entry
+      noting the new 180s default and the tuning knob.
+    - Excluded from the parse verify loop.

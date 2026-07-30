@@ -11,7 +11,7 @@ Run with PyYAML available, e.g.:
     uv run --with pyyaml python tools.py collect --from-version 1.7 --adapter snowflake
     uv run --with pyyaml python tools.py preflight --project-dir .
     uv run --with pyyaml python tools.py init-results --from-version 1.7 --adapter snowflake --project-dir .
-    uv run --with pyyaml python tools.py set-status --project-dir . --issue-id from_1.7_to_1.8_003 \
+    uv run --with pyyaml python tools.py set-status --project-dir . --issue-id 1_7_003 \
         --status fixed --files models/marts/customers.sql --note "renamed + rewrote ref"
     uv run --with pyyaml python tools.py report --project-dir .
 
@@ -24,13 +24,14 @@ Commands:
   report         Render target/dbt_migration_results.json -> migration_report.md.
   preflight      Git safety gate: not on main/master, working tree clean.
   autofix        Run dbt-autofix in the project; return the files it changed (JSON).
-  parse          Run `dbt parse` on a throwaway dbt-core 1.8; return {ok, output}.
+  parse          Run `dbt parse` on a throwaway target-version dbt-core; return {ok, output}.
 """
 from __future__ import annotations
 
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -48,20 +49,37 @@ RESULTS_REL = Path("target") / "dbt_migration_results.json"
 REPORT_REL = Path("migration_report.md")
 
 AUTOFIX_SPEC = "git+https://github.com/dbt-labs/dbt-autofix.git"
-_DBT18_VENV = Path(os.environ.get("DBT18_VENV", Path.home() / ".cache" / "dbt_migration" / "dbt18"))
+
+# The core version every project is migrated to. Projects are no longer taken one
+# minor bump at a time — they go all the way to this version, so the parse gate
+# runs this version too.
+TARGET_VERSION = os.environ.get("DBT_TARGET_VERSION", "1.12")
+
+_DBT_VENV = Path(os.environ.get(
+    "DBT_TARGET_VENV",
+    Path.home() / ".cache" / "dbt_migration" / ("dbt" + TARGET_VERSION.replace(".", "")),
+))
+# Adapter packages are deliberately UNPINNED: post-1.8 the adapters were split
+# out of core's release train and no longer share its minor version, so
+# `dbt-snowflake~=1.12.0` may not exist. Pin core, let the resolver pick a
+# compatible adapter.
 _ADAPTER_PKG = {
-    "snowflake": "dbt-snowflake~=1.8.0",
-    "redshift": "dbt-redshift~=1.8.0",
-    "bigquery": "dbt-bigquery~=1.8.0",
-    "databricks": "dbt-databricks~=1.8.0",
-    "spark": "dbt-spark~=1.8.0",
+    "snowflake": "dbt-snowflake",
+    "redshift": "dbt-redshift",
+    "bigquery": "dbt-bigquery",
+    "databricks": "dbt-databricks",
+    "spark": "dbt-spark",
 }
 
 VALID_STATUSES = {
-    "pending", "handled-by-autofix", "fixed", "applied",
+    "pending", "detected", "handled-by-autofix", "fixed", "applied",
     "manual-required", "advisory", "skipped-not-present", "failed",
+    "flag-set",
 }
-TERMINAL_STATUSES = VALID_STATUSES - {"pending"}
+# `pending` = not yet looked at; `detected` = confirmed present in the project but
+# not yet resolved. Neither is an outcome — a run that ends with either is
+# incomplete, and the report says so.
+TERMINAL_STATUSES = VALID_STATUSES - {"pending", "detected"}
 
 
 def _vkey(v: str) -> tuple[int, int]:
@@ -158,6 +176,39 @@ def cmd_set_status(args) -> int:
     return 0
 
 
+def cmd_list_issues(args) -> int:
+    """Issue ids from the results artifact, optionally filtered by status and/or
+    automation_type. Lets each phase of the run drive off the artifact instead of
+    the agent hand-tracking which issues are still outstanding."""
+    project = Path(args.project_dir).resolve()
+    data = _load_results(project)
+    if not data:
+        print("no results artifact found (run init-results first)", file=sys.stderr)
+        return 2
+    meta = _load_issue_metadata()
+    wanted_status = set(args.status.split(",")) if args.status else None
+    wanted_auto = set(args.automation_type.split(",")) if args.automation_type else None
+
+    rows = []
+    for iid, rec in data.items():
+        auto = rec.get("automation_type") or (meta.get(iid, {}) or {}).get("automation_type")
+        if wanted_status and rec.get("status", "pending") not in wanted_status:
+            continue
+        if wanted_auto and auto not in wanted_auto:
+            continue
+        rows.append((meta.get(iid, {}).get("sort_order", 0), iid, rec.get("status"), auto))
+    rows.sort()
+
+    if args.ids_only:
+        for _, iid, _, _ in rows:
+            print(iid)
+    else:
+        print(json.dumps(
+            [{"issue_id": i, "status": s, "automation_type": a} for _, i, s, a in rows],
+            indent=2))
+    return 0
+
+
 def _load_issue_metadata() -> dict[str, dict]:
     """issue_id -> full issue dict, scanned once across every issues/* dir."""
     out: dict[str, dict] = {}
@@ -180,6 +231,7 @@ def cmd_report(args) -> int:
     # Bucket into plain-English, user-facing sections rather than internal
     # status/issue-id jargon.
     changed: list[str] = []       # fixed / applied / handled-by-autofix
+    pinned: list[str] = []        # flag-set (behavior preserved, not fixed)
     needs_review: list[str] = []  # manual-required / advisory / failed
     not_applicable = 0            # skipped-not-present / pending
 
@@ -194,16 +246,25 @@ def cmd_report(args) -> int:
         if status in ("fixed", "applied", "handled-by-autofix"):
             filepart = f" (updated {', '.join(files)})" if files else ""
             changed.append(f"- {change}{filepart}")
+        elif status == "flag-set":
+            flag = ((info.get("behavior_flag") or {}).get("name")) or "flag"
+            pinned.append(f"- {change} — pinned `{flag}` in dbt_project.yml")
         elif status in ("manual-required", "advisory", "failed"):
             detail = note or impact
             suffix = f" — {detail}" if detail else ""
             needs_review.append(f"- {change}{suffix}")
+        elif status == "detected":
+            # Present in the project and never resolved — surface it loudly
+            # rather than letting it hide in the "did not apply" tail.
+            detail = note or impact
+            suffix = f" — {detail}" if detail else ""
+            needs_review.append(f"- NOT RESOLVED: {change}{suffix}")
         else:  # skipped-not-present, pending
             not_applicable += 1
 
     lines = ["# Migration summary", ""]
     lines.append(
-        "This project was migrated to dbt 1.8. Below is a summary of what changed "
+        f"This project was migrated to dbt {TARGET_VERSION}. Below is a summary of what changed "
         "and what still needs your attention."
     )
     lines.append("")
@@ -215,6 +276,18 @@ def cmd_report(args) -> int:
     else:
         lines.append("- No changes were required.")
     lines.append("")
+
+    if pinned:
+        lines.append("## Behavior preserved via flags")
+        lines.append("")
+        lines.append(
+            f"dbt {TARGET_VERSION} changes these behaviors by default. Rather than rewriting your "
+            "project, the gating flags were set explicitly so your project keeps its current "
+            "behavior. Remove a flag when you're ready to adopt the new behavior:"
+        )
+        lines.append("")
+        lines.extend(pinned)
+        lines.append("")
 
     lines.append("## Needs your review")
     lines.append("")
@@ -248,7 +321,9 @@ def cmd_autofix(args) -> int:
         return subprocess.run(["git", "-C", str(project), *a], capture_output=True, text=True)
 
     before = git("status", "--porcelain").stdout
-    cmd = ["uvx", "--from", AUTOFIX_SPEC, "dbt-autofix", "deprecations"]
+    # Pin the interpreter: dbt-autofix's mashumaro dependency crashes on import
+    # under Python 3.14 (UnserializableField on Optional[bool]); 3.11 is known-good.
+    cmd = ["uvx", "--python", "3.11", "--from", AUTOFIX_SPEC, "dbt-autofix", "deprecations"]
     proc = subprocess.run(cmd, cwd=str(project), capture_output=True, text=True)
     after_names = git("diff", "--name-only").stdout.split()
     untracked = [l[3:] for l in git("status", "--porcelain").stdout.splitlines()
@@ -266,21 +341,22 @@ def cmd_autofix(args) -> int:
     return 0 if proc.returncode == 0 else 1
 
 
-def _resolve_dbt18(adapter: str | None, build: bool) -> str | None:
-    explicit = os.environ.get("DBT18_BIN")
+def _resolve_dbt(adapter: str | None, build: bool) -> str | None:
+    explicit = os.environ.get("DBT_TARGET_BIN")
     if explicit and Path(explicit).exists():
         return explicit
-    dbt = _DBT18_VENV / "bin" / "dbt"
+    dbt = _DBT_VENV / "bin" / "dbt"
     if dbt.exists():
         return str(dbt)
     if not build or shutil.which("uv") is None:
         return None
-    _DBT18_VENV.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run(["uv", "venv", "--python", "3.11", str(_DBT18_VENV)],
+    _DBT_VENV.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["uv", "venv", str(_DBT_VENV)],
                    check=True, capture_output=True, text=True)
-    pkg = _ADAPTER_PKG.get(adapter or "", "dbt-postgres~=1.8.0")
-    subprocess.run(["uv", "pip", "install", "--python", str(_DBT18_VENV / "bin" / "python"),
-                    "dbt-core~=1.8.0", pkg], check=True, capture_output=True, text=True)
+    pkg = _ADAPTER_PKG.get(adapter or "", "dbt-postgres")
+    subprocess.run(["uv", "pip", "install", "--python", str(_DBT_VENV / "bin" / "python"),
+                    f"dbt-core~={TARGET_VERSION}.0", pkg],
+                   check=True, capture_output=True, text=True)
     return str(dbt) if dbt.exists() else None
 
 
@@ -319,9 +395,9 @@ def _ensure_profiles_dir(project: Path, stack) -> str:
 def cmd_parse(args) -> int:
     import contextlib
     project = Path(args.project_dir).resolve()
-    dbt_bin = _resolve_dbt18(args.adapter if args.adapter != "none" else None, build=not args.no_build)
+    dbt_bin = _resolve_dbt(args.adapter if args.adapter != "none" else None, build=not args.no_build)
     if not dbt_bin:
-        print(json.dumps({"ok": None, "reason": "no dbt-core 1.8 available (set DBT18_BIN or install uv)"}))
+        print(json.dumps({"ok": None, "reason": f"no dbt-core {TARGET_VERSION} available (set DBT_TARGET_VENV or install uv)"}))
         return 2
     with contextlib.ExitStack() as stack:
         profiles_dir = _ensure_profiles_dir(project, stack)
@@ -364,6 +440,171 @@ def cmd_preflight(args) -> int:
     return 0 if ok else 1
 
 
+def _behavior_flag_for_issue(issue_id: str) -> tuple[str, bool] | None:
+    """(flag_name, set_to) for one behavior_flag issue, or None if not one.
+
+    Post-1.8, dbt ships backwards-incompatible changes gated behind a behavior
+    flag that defaults to the legacy value for existing projects and flips later.
+    We don't fix the underlying behavior — we pin the gate so the project keeps
+    its current semantics on the target core.
+
+    Flags are pinned ONLY for issues whose gated behavior the project actually
+    exhibits (detected per-issue in the skill's application loop). Pinning every
+    flag unconditionally would bury a real signal in a wall of irrelevant config
+    in the user's dbt_project.yml.
+    """
+    meta = _load_issue_metadata().get(issue_id)
+    if not meta or meta.get("automation_type") != "behavior_flag":
+        return None
+    bf = meta.get("behavior_flag") or {}
+    name = bf.get("name")
+    if not name:
+        return None
+    return name, bool(bf.get("set_to", False))
+
+
+def _collect_behavior_flags(from_version: str, adapter) -> list[tuple[str, str, bool]]:
+    """(issue_id, flag_name, set_to) for every in-scope behavior_flag issue.
+    Used for reporting/inspection only — NOT for blanket pinning."""
+    out = []
+    for i in load_collected(from_version, adapter):
+        if i.get("automation_type") != "behavior_flag":
+            continue
+        bf = i.get("behavior_flag") or {}
+        name = bf.get("name")
+        if name:
+            out.append((i["issue_id"], name, bool(bf.get("set_to", False))))
+    return out
+
+
+def _yaml_bool(v: bool) -> str:
+    return "true" if v else "false"
+
+
+def _set_flags_in_text(text: str, wanted: dict[str, bool]) -> tuple[str, dict[str, str]]:
+    """Insert/update keys under the top-level `flags:` mapping of a
+    dbt_project.yml, returning (new_text, {flag: action}).
+
+    Deliberately text-level rather than a yaml.safe_load/dump round-trip: this is
+    a user's real project file, and a round-trip would strip every comment and
+    reorder every key. We only touch the specific lines we own.
+    """
+    lines = text.splitlines(keepends=True)
+    actions: dict[str, str] = {}
+
+    # Locate a top-level `flags:` block-style key.
+    flags_idx = None
+    for i, ln in enumerate(lines):
+        if re.match(r"^flags:\s*(#.*)?$", ln):
+            flags_idx = i
+            break
+
+    if flags_idx is None:
+        # No flags: block (or an inline `flags: {...}` we won't try to rewrite).
+        if re.search(r"^flags:\s*\{", text, re.M):
+            raise ValueError(
+                "dbt_project.yml uses inline `flags: {...}`; rewrite it as a block "
+                "mapping so flags can be set safely without reformatting the file"
+            )
+        block = ["\n"] if text and not text.endswith("\n") else []
+        block.append("\nflags:\n")
+        for k, v in wanted.items():
+            block.append(f"  {k}: {_yaml_bool(v)}\n")
+            actions[k] = "added (new flags: block)"
+        return "".join(lines) + "".join(block), actions
+
+    # Determine the extent of the flags block: subsequent indented / blank lines.
+    end = flags_idx + 1
+    last_content = flags_idx
+    while end < len(lines):
+        ln = lines[end]
+        if ln.strip() == "":
+            end += 1
+            continue
+        if ln[:1] in (" ", "\t"):
+            last_content = end
+            end += 1
+            continue
+        break
+
+    indent = "  "
+    for j in range(flags_idx + 1, last_content + 1):
+        m = re.match(r"^(\s+)\S", lines[j])
+        if m:
+            indent = m.group(1)
+            break
+
+    for k, v in wanted.items():
+        want = f"{indent}{k}: {_yaml_bool(v)}\n"
+        found = None
+        for j in range(flags_idx + 1, last_content + 1):
+            if re.match(rf"^\s+{re.escape(k)}\s*:", lines[j]):
+                found = j
+                break
+        if found is None:
+            lines.insert(last_content + 1, want)
+            last_content += 1
+            actions[k] = "added"
+        elif lines[found] != want:
+            lines[found] = want
+            actions[k] = "updated"
+        else:
+            actions[k] = "already correct"
+
+    return "".join(lines), actions
+
+
+def cmd_set_flag(args) -> int:
+    """Pin ONE behavior-change flag, for an issue the project actually exhibits.
+
+    Called from the per-issue loop only after `context.detection` confirms the
+    project relies on the gated behavior. Flags are never pinned speculatively:
+    an unrelated flag in dbt_project.yml is noise that hides the ones that matter.
+    """
+    project = Path(args.project_dir).resolve()
+    proj_yml = project / "dbt_project.yml"
+    if not proj_yml.exists():
+        print(json.dumps({"ok": False, "reason": f"no dbt_project.yml in {project}"}))
+        return 2
+
+    found = _behavior_flag_for_issue(args.issue_id)
+    if found is None:
+        print(json.dumps({
+            "ok": False,
+            "reason": f"{args.issue_id} is not a behavior_flag issue (or has no behavior_flag.name)",
+        }))
+        return 2
+    name, set_to = found
+
+    try:
+        new_text, actions = _set_flags_in_text(proj_yml.read_text(), {name: set_to})
+    except ValueError as e:
+        print(json.dumps({"ok": False, "reason": str(e)}))
+        return 1
+    proj_yml.write_text(new_text)
+
+    data = _load_results(project)
+    rec = data.get(args.issue_id)
+    if rec is not None:
+        rec["status"] = "flag-set"
+        rec["files_changed"] = ["dbt_project.yml"]
+        rec["notes"] = (args.note or
+                        f"set flags.{name}: {_yaml_bool(set_to)} to preserve pre-change "
+                        f"behavior on dbt {TARGET_VERSION} ({actions.get(name, 'set')})")
+        _write_results(project, data)
+
+    print(json.dumps({
+        "ok": True,
+        "issue_id": args.issue_id,
+        "target_version": TARGET_VERSION,
+        "file": "dbt_project.yml",
+        "flag": name,
+        "set_to": _yaml_bool(set_to),
+        "action": actions.get(name, "set"),
+    }, indent=2))
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description="Deterministic helpers for the dbt-migration skill")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -388,6 +629,15 @@ def main() -> int:
     ss.add_argument("--note", default=None)
     ss.set_defaults(func=cmd_set_status)
 
+    li = sub.add_parser("list-issues",
+                        help="issue ids by status / automation_type, from the results artifact")
+    li.add_argument("--project-dir", required=True)
+    li.add_argument("--status", default=None, help="comma-separated statuses to include")
+    li.add_argument("--automation-type", default=None,
+                    help="comma-separated automation types to include")
+    li.add_argument("--ids-only", action="store_true")
+    li.set_defaults(func=cmd_list_issues)
+
     rp = sub.add_parser("report")
     rp.add_argument("--project-dir", required=True)
     rp.set_defaults(func=cmd_report)
@@ -404,8 +654,17 @@ def main() -> int:
     pa.add_argument("--project-dir", required=True)
     pa.add_argument("--adapter", default=None)
     pa.add_argument("--warn-error", action="store_true", help="treat deprecation warnings as errors")
-    pa.add_argument("--no-build", action="store_true", help="do not build a dbt 1.8 venv if missing")
+    pa.add_argument("--no-build", action="store_true",
+                    help=f"do not build a dbt {TARGET_VERSION} venv if missing")
     pa.set_defaults(func=cmd_parse)
+
+    sf = sub.add_parser(
+        "set-flag",
+        help="pin ONE post-1.8 behavior-change flag (only for a detected issue)")
+    sf.add_argument("--project-dir", required=True)
+    sf.add_argument("--issue-id", required=True)
+    sf.add_argument("--note", default=None)
+    sf.set_defaults(func=cmd_set_flag)
 
     args = p.parse_args()
     return args.func(args)

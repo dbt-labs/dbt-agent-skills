@@ -1,0 +1,40 @@
+issue_id: "1_6_002"
+sort_order: 4020
+change: Breaking contract changes on unversioned models now warn instead of error
+action: >-
+  Add --warn-error (or version the models) to retain the previous hard-error behavior on breaking
+  contract changes
+category: Behavior
+component: core
+adapter_type: null
+impact: >-
+  Unversioned models with a breaking schema/contract change warn via warn_or_error() instead of
+  erroring; CI that relied on the error to block may now pass silently
+from_version: '1.6'
+to_version: '1.7'
+automation_type: human
+out_of_repo_risk: true
+environment_change: false
+context:
+  detection: |-
+    - Scan schema YAML (`models/**/*.yml`, `models/**/*.yaml`) for models declaring `contract:` with
+      `enforced: true` that do NOT declare a `version:` / `versions:` block (i.e. unversioned).
+    - Those unversioned enforced-contract models are the ones whose breaking contract changes now only
+      warn.
+    - Also detect reliance on the old error behavior: grep CI/scripts for `dbt build` / `dbt run`
+      invocations that lack `--warn-error` or `--warn-error-options`.
+    - Those flags are what previously turned the contract breakage into a hard failure.
+    - This is a behavior/policy change; `dbt parse` stays clean either way, so detection is about intent,
+      not parse errors.
+  fixing: |-
+    - Preferred: preserve strict behavior by adding `--warn-error` (or a scoped `--warn-error-options`
+      targeting contract deprecations) to the relevant dbt invocation.
+    - If that invocation is defined outside the repo (dbt platform job command, orchestration tool), it
+      cannot be edited here: record it in the results artifact (target/dbt_migration_results.json) as
+      manual-required with the suggested flag, and prompt the user.
+    - Alternative in-repo fix: add a `version:` to the affected models — versioning makes breaking
+      contract changes error again.
+    - But versioning reshapes ref() resolution and downstream references, so only do it when the user
+      explicitly wants versioned models; note that trade-off in the results report rather than silently
+      versioning.
+    - No edit is required for `dbt parse` to succeed.

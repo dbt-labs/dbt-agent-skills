@@ -1,0 +1,35 @@
+issue_id: "1_3_002"
+sort_order: 1020
+change: >-
+  on-run-start / on-run-end hooks no longer halt execution on failure
+action: >-
+  Find alternative approaches if hooks were used as guards/circuit-breakers that must abort a run
+category: Behavior
+component: core
+adapter_type: null
+impact: >-
+  A failing on-run-start/on-run-end hook now appends an error result and continues instead of
+  raising; guard/circuit-breaker hooks no longer abort the run
+from_version: '1.3'
+to_version: '1.4'
+automation_type: human
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Read dbt_project.yml for on-run-start: and on-run-end: keys (string or list).
+    - Also scan these keys in any vendored package dbt_project.yml.
+    - Flag hooks whose SQL acts as a precondition/guard:
+      - a SELECT that RAISES/THROWS, or calls an assertion macro;
+      - `{% if ... %}{{ exceptions.raise_compiler_error(...) }}{% endif %}`;
+      - SQL that intentionally errors (divide-by-zero, invalid cast) to stop a run.
+    - Purely side-effecting hooks (grants, logging, audit inserts) are NOT affected.
+  fixing: |-
+    - Behavior change dbt parse cannot validate, so it is advisory.
+    - For guard hooks: document that they no longer abort the run in 1.4+, and recommend moving the
+      precondition into a pre-flight step outside the run (a separate `dbt run-operation` gate in
+      CI, or a data test CI checks before proceeding).
+    - Do not rewrite the hook's SQL automatically.
+    - Record each guard-style hook in the results report with issue_id, the dbt_project.yml
+      location, and the suggested CI-gate alternative.
+    - No parse impact expected; run dbt parse only to confirm no YAML was broken by edits.

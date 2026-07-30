@@ -26,15 +26,54 @@ from pathlib import Path
 CHANGES_DIR = Path(__file__).resolve().parent
 SCHEMA_PATH = CHANGES_DIR / "_schema.json"
 
-# sort_order band per hop (from_version -> (low, high) inclusive)
+# sort_order band per version (from_version -> (low, high) inclusive)
 HOP_BANDS = {
     "1.3": (1000, 1999),
     "1.4": (2000, 2999),
     "1.5": (3000, 3999),
     "1.6": (4000, 4999),
     "1.7": (5000, 5999),
+    "1.8": (6000, 6999),
+    "1.9": (7000, 7999),
+    "1.10": (8000, 8999),
+    "1.11": (9000, 9999),
 }
 ADAPTERS = {"snowflake", "redshift", "bigquery", "databricks", "spark"}
+
+# Every behavior-change flag dbt-core actually recognizes, i.e. the keys of
+# dbt.contracts.project.ProjectFlags.project_only_flags. This list MUST be
+# validated against, because dbt silently ignores unknown `flags:` keys — a
+# typo'd flag name would produce a project that looks migrated but has not
+# actually pinned anything, with no error anywhere.
+#
+# Regenerate against a target-version dbt-core with:
+#   python -c "from dbt.contracts.project import ProjectFlags as P; \
+#              print(sorted(P().project_only_flags))"
+KNOWN_BEHAVIOR_FLAGS = {
+    "allow_jinja_file_extensions",
+    "enable_grouped_warn_error_parser_logs",
+    "latest_version_pointer_enabled_by_default",
+    "require_all_warnings_handled_by_warn_error",
+    "require_batched_execution_for_custom_microbatch_strategy",
+    "require_corrected_analysis_fqns",
+    "require_explicit_package_overrides_for_builtin_materializations",
+    "require_generic_test_arguments_property",
+    "require_nested_cumulative_type_params",
+    "require_ref_searches_node_package_before_root",
+    "require_resource_names_without_spaces",
+    "require_source_and_semantic_model_names_without_spaces",
+    "require_sql_header_in_test_configs",
+    "require_unique_project_resource_names",
+    "require_valid_schema_from_generate_schema_name",
+    "require_yaml_configuration_for_mf_time_spines",
+    "skip_nodes_if_on_run_start_fails",
+    "source_freshness_run_project_hooks",
+    "state_modified_compare_more_unrendered_values",
+    "state_modified_compare_vars",
+    "support_custom_ref_kwargs",
+    "use_catalogs_v2",
+    "validate_macro_args",
+}  # dbt-core 1.12.0
 
 
 def load_json(path: Path) -> dict:
@@ -140,15 +179,37 @@ def main() -> int:
                     f"{path.name}: adapter_type {adapter} but in dir '{parent}'"
                 )
 
-        # issue_id encodes the hop
-        if cid and from_v:
-            m = re.match(r"^from_(1\.\d)_to_(1\.\d)_\d{3}$", cid)
-            if not m:
-                errors.append(f"{path.name}: issue_id malformed: {cid}")
-            elif m.group(1) != from_v:
+        # behavior_flag issues must name a flag dbt actually recognizes
+        if data.get("automation_type") == "behavior_flag":
+            bf = data.get("behavior_flag") or {}
+            fname = bf.get("name")
+            if fname and fname not in KNOWN_BEHAVIOR_FLAGS:
                 errors.append(
-                    f"{path.name}: issue_id hop {m.group(1)} != from_version {from_v}"
+                    f"{path.name}: behavior_flag.name {fname!r} is not a recognized dbt "
+                    f"behavior flag (dbt silently ignores unknown flags, so this would "
+                    f"be a no-op). Known: {sorted(KNOWN_BEHAVIOR_FLAGS)}"
                 )
+            if bf.get("set_to") is not False:
+                errors.append(
+                    f"{path.name}: behavior_flag.set_to must be false — the point is to "
+                    f"preserve legacy behavior"
+                )
+
+        # issue_id encodes the version whose boundary introduced the change
+        if cid and from_v:
+            if not isinstance(cid, str):
+                # bare 1_3_001 parses as int 13001 under YAML 1.1 digit-separator rules
+                errors.append(
+                    f"{path.name}: issue_id parsed as {type(cid).__name__} {cid!r} — quote it in YAML"
+                )
+            else:
+                m = re.match(r"^1_(\d+)_\d{3}$", cid)
+                if not m:
+                    errors.append(f"{path.name}: issue_id malformed: {cid} (want 1_<minor>_<NNN>)")
+                elif f"1.{m.group(1)}" != from_v:
+                    errors.append(
+                        f"{path.name}: issue_id version 1.{m.group(1)} != from_version {from_v}"
+                    )
 
     if errors:
         print(f"FAILED: {len(errors)} problem(s) in {len(records)} file(s):", file=sys.stderr)

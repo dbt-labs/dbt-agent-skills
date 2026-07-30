@@ -1,0 +1,30 @@
+issue_id: "1_11_005"
+sort_order: 9005
+change: >-
+  Jinja-suffixed file extensions (e.g. .sql.jinja) are recognized
+action: >-
+  Leave flags.allow_jinja_file_extensions: false to keep the previous file discovery.
+category: Behavior
+component: core
+adapter_type: null
+impact: >-
+  Enabling it changes which files dbt picks up as models; leaving it false preserves current discovery. This flag still defaults to False in 1.12; pinning it makes that explicit and survives a future flip.
+from_version: '1.11'
+to_version: '1.12'
+automation_type: behavior_flag
+behavior_flag:
+  name: allow_jinja_file_extensions
+  set_to: false
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - This flag ENABLES new file-extension discovery; it defaults to false, so the
+      project's current behavior is already the legacy one.
+    - Only relevant if the project has files with a `.jinja`-style suffix it expects
+      dbt to pick up.
+    - No such files -> skipped-not-present (pinning would be pure noise).
+  fixing: |-
+    Normally skipped-not-present: false is already the default and the legacy
+    behavior. Pin via `tools.py set-flag --issue-id 1_11_005` only if the project has
+    Jinja-suffixed files and you need to lock the current discovery behavior.

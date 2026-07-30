@@ -1,0 +1,34 @@
+issue_id: "1_6_006"
+sort_order: 4060
+change: job_execution_timeout now actually cancels queries via asyncio
+action: >-
+  Review all job_execution_timeout_seconds values and increase them where legitimate long-running
+  queries could now be cancelled
+category: Behavior
+component: adapter
+adapter_type: bigquery
+impact: >-
+  Queries exceeding job_execution_timeout_seconds are now actually cancelled and error; previously the
+  timeout was passed but not enforced, so long queries silently ran to completion
+from_version: '1.6'
+to_version: '1.7'
+automation_type: human
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Grep for `job_execution_timeout_seconds` across the project: `profiles.yml`
+      (`outputs.<target>`), `dbt_project.yml` (`models:` config), model config() blocks, and schema
+      YAML `config:` blocks.
+    - Any value set low relative to real query runtimes is now a live cancellation risk.
+    - This is a runtime/behavior change invisible to `dbt parse`.
+  fixing: |-
+    - No edit is needed to pass parse or reach 1.8. The action is protective.
+    - For each configured job_execution_timeout_seconds, assess whether real models run longer than the
+      value; if so, raise it (e.g. comfortably above observed p99 runtime) in the same location it is
+      configured.
+    - Where the value lives in `profiles.yml` outside the repo, record the recommendation in the
+      results artifact (target/dbt_migration_results.json) as manual-required instead of editing.
+    - If no timeout is set anywhere, BigQuery's own default applies and there is nothing to change —
+      note it and move on.
+    - Do not lower any timeouts. True impact is only observable in the warehouse build-green layer.
