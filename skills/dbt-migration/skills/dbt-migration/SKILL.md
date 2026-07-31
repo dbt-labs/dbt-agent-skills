@@ -98,6 +98,11 @@ per-issue detection, applying fixes, and HITL confirmation.
 Strict procedure, not general guidance. Do not skip or reorder. If you catch
 yourself out of order, stop, say which step was missed, and do it now.
 
+Every phase below is also **reported for display** (see
+[Progress artifact](#progress-artifact--targetdbt_migration_statusjson)): mark it
+`in_progress` when you start it and `complete` when you finish it, with a one-line
+note. A watcher renders this live, so a phase you silently skip reads as hung.
+
 The shape is **detect everything → fix everything → verify once → re-detect**:
 
 | Step | Phase |
@@ -122,7 +127,14 @@ set first; then parse means something.
 
 ### Step 0 — Git preflight (before reading or changing anything)
 
-Run the deterministic gate:
+Seed the progress artifact first, so a watcher has every phase to render from the
+very start rather than watching rows appear one at a time:
+```bash
+uv run --with pyyaml python tools.py status-init --project-dir "$PROJECT"
+uv run --with pyyaml python tools.py status-set --project-dir "$PROJECT" --step preflight --status in_progress
+```
+
+Then run the deterministic gate:
 ```bash
 uv run --with pyyaml python tools.py preflight --project-dir "$PROJECT"
 ```
@@ -269,6 +281,32 @@ uv run --with pyyaml python tools.py report --project-dir "$PROJECT"
 ```
 Renders `target/dbt_migration_results.json` → `migration_report.md` grouped by
 outcome. Show it to the user.
+
+## Progress artifact — `target/dbt_migration_status.json`
+
+Coarse, human-facing progress: **one row per phase** of the execution order above,
+not per issue. Written and updated **only** via `tools.py`, never by hand:
+
+```bash
+uv run --with pyyaml python tools.py status-init --project-dir "$PROJECT"
+uv run --with pyyaml python tools.py status-set --project-dir "$PROJECT" \
+  --step detect --status in_progress --note "12 of 41 issues checked"
+```
+
+`--step` is one of `preflight`, `collect`, `read-project`, `detect`, `autofix`,
+`agentic-fixes`, `human-fixes`, `parse`, `re-detect`, `report`. `--status` is
+`pending` / `in_progress` / `complete` / `failed`.
+
+The `--note` is shown to the customer under the step, so make it a concrete,
+present-tense line about *this* project — "8 issues detected, 3 need your
+confirmation", not "working". Set `in_progress` when a phase starts and
+`complete` when it ends; use `failed` with a note saying what blocked it, and
+keep going with the phases that still apply rather than leaving the rest hanging
+at `pending`.
+
+This file is for display only. It is **not** the source of truth for what was
+fixed — that stays in the results artifact below, and the report is still
+rendered from that.
 
 ## Results artifact — `target/dbt_migration_results.json`
 

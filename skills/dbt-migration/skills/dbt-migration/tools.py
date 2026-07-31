@@ -36,6 +36,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 try:
@@ -47,6 +48,30 @@ HERE = Path(__file__).resolve().parent
 ISSUES_DIR = HERE / "issues"
 RESULTS_REL = Path("target") / "dbt_migration_results.json"
 REPORT_REL = Path("migration_report.md")
+# Coarse, human-facing progress for whoever is watching the run (the VS Code
+# extension renders it as a stepper). Distinct from RESULTS_REL, which is
+# per-issue bookkeeping: this is one row per phase of the procedure, and it is
+# the ONLY file written for display. Rewritten atomically on every update so a
+# reader never sees a half-written file.
+STATUS_REL = Path("target") / "dbt_migration_status.json"
+STATUS_VERSION = 1
+
+# The phases of the mandatory execution order in SKILL.md, in order. Fixed and
+# closed: a watcher renders these rows before the agent has reported anything,
+# so the list cannot depend on what the run discovers.
+MIGRATION_STEPS: list[tuple[str, str]] = [
+    ("preflight", "Git preflight"),
+    ("collect", "Collect applicable issues"),
+    ("read-project", "Read the project"),
+    ("detect", "Detection sweep"),
+    ("autofix", "Run dbt-autofix"),
+    ("agentic-fixes", "Apply agentic fixes"),
+    ("human-fixes", "Confirm human-in-the-loop fixes"),
+    ("parse", "Validate with dbt parse"),
+    ("re-detect", "Re-run detection"),
+    ("report", "Write the report"),
+]
+STATUS_VALUES = {"pending", "in_progress", "complete", "failed"}
 
 AUTOFIX_SPEC = "git+https://github.com/dbt-labs/dbt-autofix.git"
 
@@ -121,6 +146,70 @@ def _write_results(project_dir: Path, data: dict) -> None:
     p = _results_path(project_dir)
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(data, indent=2) + "\n")
+
+
+def _status_path(project_dir: Path) -> Path:
+    return project_dir / STATUS_REL
+
+
+def _write_status(project_dir: Path, data: dict) -> None:
+    """Atomic write: a watcher polls this file, so it must never observe a partial one."""
+    p = _status_path(project_dir)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    data["updated_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    tmp = p.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(data, indent=2) + "\n")
+    os.replace(tmp, p)
+
+
+def _load_status(project_dir: Path) -> dict:
+    p = _status_path(project_dir)
+    if not p.exists():
+        return {}
+    try:
+        return json.loads(p.read_text())
+    except json.JSONDecodeError:
+        return {}
+
+
+def cmd_status_init(args) -> int:
+    project = Path(args.project_dir).resolve()
+    prior = {s["id"]: s for s in _load_status(project).get("steps", [])}
+    steps = []
+    for sid, label in MIGRATION_STEPS:
+        # Preserve anything already reported so a resumed run doesn't rewind the
+        # display to all-pending.
+        old = prior.get(sid, {})
+        steps.append({
+            "id": sid,
+            "label": label,
+            "status": old.get("status", "pending"),
+            "note": old.get("note", ""),
+        })
+    _write_status(project, {"version": STATUS_VERSION, "steps": steps})
+    print(f"initialized {len(steps)} steps -> {_status_path(project)}")
+    return 0
+
+
+def cmd_status_set(args) -> int:
+    project = Path(args.project_dir).resolve()
+    if args.status not in STATUS_VALUES:
+        print(f"invalid status {args.status!r}; valid: {sorted(STATUS_VALUES)}", file=sys.stderr)
+        return 2
+    data = _load_status(project)
+    if not data.get("steps"):
+        print(f"no status artifact yet; run `status-init` first", file=sys.stderr)
+        return 2
+    for step in data["steps"]:
+        if step["id"] == args.step:
+            step["status"] = args.status
+            if args.note is not None:
+                step["note"] = args.note
+            _write_status(project, data)
+            print(f"{args.step} -> {args.status}")
+            return 0
+    print(f"unknown step {args.step!r}; valid: {[s for s, _ in MIGRATION_STEPS]}", file=sys.stderr)
+    return 2
 
 
 def cmd_collect(args) -> int:
@@ -628,6 +717,18 @@ def main() -> int:
     ss.add_argument("--files", default=None, help="comma-separated repo-relative paths")
     ss.add_argument("--note", default=None)
     ss.set_defaults(func=cmd_set_status)
+
+    si = sub.add_parser("status-init",
+                        help="seed the display artifact with every phase pending")
+    si.add_argument("--project-dir", required=True)
+    si.set_defaults(func=cmd_status_init)
+
+    st = sub.add_parser("status-set", help="report one phase's progress for display")
+    st.add_argument("--project-dir", required=True)
+    st.add_argument("--step", required=True, choices=[s for s, _ in MIGRATION_STEPS])
+    st.add_argument("--status", required=True, choices=sorted(STATUS_VALUES))
+    st.add_argument("--note", default=None, help="short line shown under the step")
+    st.set_defaults(func=cmd_status_set)
 
     li = sub.add_parser("list-issues",
                         help="issue ids by status / automation_type, from the results artifact")
