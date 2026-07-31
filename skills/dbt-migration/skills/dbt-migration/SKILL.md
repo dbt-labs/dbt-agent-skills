@@ -98,10 +98,15 @@ per-issue detection, applying fixes, and HITL confirmation.
 Strict procedure, not general guidance. Do not skip or reorder. If you catch
 yourself out of order, stop, say which step was missed, and do it now.
 
-Every phase below is also **reported for display** (see
-[Progress artifact](#progress-artifact--targetdbt_migration_statusjson)): mark it
-`in_progress` when you start it and `complete` when you finish it, with a one-line
-note. A watcher renders this live, so a phase you silently skip reads as hung.
+Every phase below opens and closes with a `status-set` call (see
+[Progress artifact](#progress-artifact--targetdbt_migration_statusjson)). Those
+calls are **part of the step, not optional bookkeeping** — a watcher renders this
+live, so a phase you never close reads as hung no matter how well the work went.
+Step 2 is the one with no other tool call in it, which makes it the easiest to
+forget; it is not exempt.
+
+The `--note` values below are **placeholders**: substitute the real numbers for
+this project (`--note "Read 34 models, 6 macros"`), never the literal `<n>`.
 
 The shape is **detect everything → fix everything → verify once → re-detect**:
 
@@ -140,12 +145,27 @@ uv run --with pyyaml python tools.py preflight --project-dir "$PROJECT"
 ```
 It prints JSON and exits non-zero when unsafe. If `ok` is false, **stop** and
 relay `reason` (on `main`/`master` → ask the user to create/checkout a migration
-branch; dirty tree → ask them to commit or stash). If `ok` is true, prompt:
+branch; dirty tree → ask them to commit or stash). If `ok` is true, report that
+you are blocked on them before asking, then prompt:
+```bash
+uv run --with pyyaml python tools.py status-set --project-dir "$PROJECT" \
+  --step preflight --status waiting_input \
+  --note "Continue on branch <branch>?"
+```
 **"You are on branch `<branch>` with a clean tree. Continue the migration here?"**
-and proceed only on confirmation.
+Proceed only on confirmation.
+
+```bash
+uv run --with pyyaml python tools.py status-set --project-dir "$PROJECT" \
+  --step preflight --status complete \
+  --note "On branch <branch>, clean tree"
+```
 
 ### Step 1 — Assemble `collected_issues` (deterministic)
-
+```bash
+uv run --with pyyaml python tools.py status-set --project-dir "$PROJECT" \
+  --step collect --status in_progress
+```
 ```bash
 uv run --with pyyaml python tools.py collect --from-version "$FROM" --adapter "$ADAPTER"
 ```
@@ -157,15 +177,33 @@ artifact (idempotent — preserves any prior statuses, enabling resume):
 uv run --with pyyaml python tools.py init-results --from-version "$FROM" --adapter "$ADAPTER" --project-dir "$PROJECT"
 ```
 
-### Step 2 — Understand the project
+```bash
+uv run --with pyyaml python tools.py status-set --project-dir "$PROJECT" \
+  --step collect --status complete \
+  --note "<n> issues apply from <version>"
+```
 
+### Step 2 — Understand the project
+```bash
+uv run --with pyyaml python tools.py status-set --project-dir "$PROJECT" \
+  --step read-project --status in_progress
+```
 Read `dbt_project.yml`, `models/**` (SQL + YAML), `macros/**`, `seeds/**`,
 `snapshots/**`, `packages.yml`/`dependencies.yml`, and (read-only) `profiles.yml`,
 **in the context of `collected_issues`** — so you know which issues plausibly
 apply before changing anything. Do not edit yet.
 
-### Step 3 — Detection sweep (no edits)
+```bash
+uv run --with pyyaml python tools.py status-set --project-dir "$PROJECT" \
+  --step read-project --status complete \
+  --note "Read <n> models, <n> macros"
+```
 
+### Step 3 — Detection sweep (no edits)
+```bash
+uv run --with pyyaml python tools.py status-set --project-dir "$PROJECT" \
+  --step detect --status in_progress
+```
 Determine which of the collected issues **actually exist** in this project,
 before changing anything. For each issue in `collect` order, evaluate
 `context.detection` against the project and record the verdict:
@@ -185,8 +223,17 @@ sweep is done, everything still to do is exactly `--status detected`:
 uv run --with pyyaml python tools.py list-issues --project-dir "$PROJECT" --status detected
 ```
 
-### Step 4 — `dbt-autofix` (batch, deterministic issues)
+```bash
+uv run --with pyyaml python tools.py status-set --project-dir "$PROJECT" \
+  --step detect --status complete \
+  --note "<n> of <n> issues present"
+```
 
+### Step 4 — `dbt-autofix` (batch, deterministic issues)
+```bash
+uv run --with pyyaml python tools.py status-set --project-dir "$PROJECT" \
+  --step autofix --status in_progress
+```
 ```bash
 uv run --with pyyaml python tools.py autofix --project-dir "$PROJECT"
 ```
@@ -196,8 +243,17 @@ introduced a breakage, note it and revert that hunk. A `detected` `deterministic
 issue that autofix missed stays `detected` and is fixed as a normal edit in
 Step 5.
 
-### Step 5 — Agentic fixes
+```bash
+uv run --with pyyaml python tools.py status-set --project-dir "$PROJECT" \
+  --step autofix --status complete \
+  --note "autofix changed <n> files"
+```
 
+### Step 5 — Agentic fixes
+```bash
+uv run --with pyyaml python tools.py status-set --project-dir "$PROJECT" \
+  --step agentic-fixes --status in_progress
+```
 For each remaining `detected` issue that is `agentic` (or an autofix-missed
 `deterministic` in-repo fix):
 
@@ -229,8 +285,17 @@ made — it cannot isolate anything, and retrying against it burns attempts
 "fixing" code that is already correct. Parse becomes meaningful only once the
 whole set is addressed, which is Step 7.
 
-### Step 6 — Human-in-the-loop fixes
+```bash
+uv run --with pyyaml python tools.py status-set --project-dir "$PROJECT" \
+  --step agentic-fixes --status complete \
+  --note "<n> fixed, <n> flags pinned"
+```
 
+### Step 6 — Human-in-the-loop fixes
+```bash
+uv run --with pyyaml python tools.py status-set --project-dir "$PROJECT" \
+  --step human-fixes --status in_progress
+```
 For each remaining `detected` issue that is `human`:
 
 ```bash
@@ -242,8 +307,17 @@ get approval. Approved → apply and `set-status … applied --files …`. Decli
 `set-status … manual-required`. Never apply a `human` issue without explicit
 confirmation.
 
-### Step 7 — Parse validation (once, whole project)
+```bash
+uv run --with pyyaml python tools.py status-set --project-dir "$PROJECT" \
+  --step human-fixes --status complete \
+  --note "<n> approved, <n> declined"
+```
 
+### Step 7 — Parse validation (once, whole project)
+```bash
+uv run --with pyyaml python tools.py status-set --project-dir "$PROJECT" \
+  --step parse --status in_progress
+```
 ```bash
 uv run --with pyyaml python tools.py parse --project-dir "$PROJECT" --adapter "$ADAPTER" --warn-error
 ```
@@ -260,8 +334,17 @@ If an issue still cannot be made to parse, revert that issue's edits
 tried and the final parse error>"`, and re-run this step so the rest of the
 migration still lands.
 
-### Step 8 — Re-run detection
+```bash
+uv run --with pyyaml python tools.py status-set --project-dir "$PROJECT" \
+  --step parse --status complete \
+  --note "dbt parse clean on 1.12"
+```
 
+### Step 8 — Re-run detection
+```bash
+uv run --with pyyaml python tools.py status-set --project-dir "$PROJECT" \
+  --step re-detect --status in_progress
+```
 Re-evaluate `context.detection` for every issue that was resolved
 (`fixed` / `applied` / `handled-by-autofix` / `flag-set`). Each must now report
 **not present**. This is what proves the fixes actually worked and are
@@ -274,13 +357,28 @@ uv run --with pyyaml python tools.py list-issues --project-dir "$PROJECT" --stat
 ```
 Anything still listed is unresolved and the report will flag it as such.
 
-### Step 9 — Report
+```bash
+uv run --with pyyaml python tools.py status-set --project-dir "$PROJECT" \
+  --step re-detect --status complete \
+  --note "all resolved issues re-checked"
+```
 
+### Step 9 — Report
+```bash
+uv run --with pyyaml python tools.py status-set --project-dir "$PROJECT" \
+  --step report --status in_progress
+```
 ```bash
 uv run --with pyyaml python tools.py report --project-dir "$PROJECT"
 ```
 Renders `target/dbt_migration_results.json` → `migration_report.md` grouped by
 outcome. Show it to the user.
+
+```bash
+uv run --with pyyaml python tools.py status-set --project-dir "$PROJECT" \
+  --step report --status complete \
+  --note "migration_report.md written"
+```
 
 ## Progress artifact — `target/dbt_migration_status.json`
 
@@ -295,12 +393,28 @@ uv run --with pyyaml python tools.py status-set --project-dir "$PROJECT" \
 
 `--step` is one of `preflight`, `collect`, `read-project`, `detect`, `autofix`,
 `agentic-fixes`, `human-fixes`, `parse`, `re-detect`, `report`. `--status` is
-`pending` / `in_progress` / `complete` / `failed`.
+`pending` / `in_progress` / `waiting_input` / `complete` / `failed`.
+
+**Whenever you stop to ask the customer something, report `waiting_input` first.**
+Every question you ask — the Step 0 branch confirmation, each Step 6 diff approval,
+an ambiguous adapter — blocks the run until they answer, and they may not be
+looking at the chat. The note must say what you asked, so the stepper can show it:
+
+```bash
+uv run --with pyyaml python tools.py status-set --project-dir "$PROJECT" \
+  --step human-fixes --status waiting_input \
+  --note "Approve renaming 3 models in models/marts?"
+```
+
+Set it back to `in_progress` the moment they answer. A phase left at
+`waiting_input` after the answer reads as still blocked and stalls the display for
+the rest of the run.
 
 The `--note` is shown to the customer under the step, so make it a concrete,
 present-tense line about *this* project — "8 issues detected, 3 need your
 confirmation", not "working". Set `in_progress` when a phase starts and
-`complete` when it ends; use `failed` with a note saying what blocked it, and
+`complete` when it ends; use `waiting_input` while a question of yours is
+outstanding; use `failed` with a note saying what blocked it, and
 keep going with the phases that still apply rather than leaving the rest hanging
 at `pending`.
 

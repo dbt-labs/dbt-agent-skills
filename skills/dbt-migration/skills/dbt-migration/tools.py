@@ -71,7 +71,10 @@ MIGRATION_STEPS: list[tuple[str, str]] = [
     ("re-detect", "Re-run detection"),
     ("report", "Write the report"),
 ]
-STATUS_VALUES = {"pending", "in_progress", "complete", "failed"}
+# `waiting_input` is distinct from `in_progress`: the agent has stopped and cannot
+# continue until the customer answers in the chat. Rendered with its own icon, because
+# a spinner would tell them to keep waiting when they are the ones being waited on.
+STATUS_VALUES = {"pending", "in_progress", "waiting_input", "complete", "failed"}
 
 AUTOFIX_SPEC = "git+https://github.com/dbt-labs/dbt-autofix.git"
 
