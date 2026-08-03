@@ -112,6 +112,7 @@ These skills are typically used once during a migration project rather than in e
 |-------|-------------|
 | `migrating-dbt-core-to-fusion` | Migrate dbt projects from dbt Core to the Fusion engine |
 | `migrating-dbt-project-across-platforms` | Migrate dbt projects across data platforms |
+| `upgrading-dbt-core` | Upgrade a dbt-core v1 project (1.3-1.7) to the latest dbt-core, applying breaking, behavior, and deprecated changes |
 
 ## Prerequisites
 

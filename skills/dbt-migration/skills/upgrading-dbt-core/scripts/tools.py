@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic helpers for the dbt-migration skill.
+"""Deterministic helpers for the upgrading-dbt-core skill.
 
 The agent should NOT hand-roll issue selection, filtering, ordering, results
 bookkeeping, or report rendering — those are mechanical and must be identical on
@@ -45,7 +45,8 @@ except ImportError as exc:  # pragma: no cover
     raise SystemExit("PyYAML required: run via `uv run --with pyyaml python tools.py ...`") from exc
 
 HERE = Path(__file__).resolve().parent
-ISSUES_DIR = HERE / "issues"
+SKILL_ROOT = HERE.parent
+ISSUES_DIR = SKILL_ROOT / "references"
 RESULTS_REL = Path("target") / "dbt_migration_results.json"
 REPORT_REL = Path("migration_report.md")
 # Coarse, human-facing progress for whoever is watching the run (the VS Code
@@ -130,7 +131,7 @@ def load_collected(from_version: str, adapter: str | None) -> list[dict]:
                 continue
             data = yaml.safe_load(f.read_text())
             if _vkey(str(data["from_version"])) >= start:
-                data["_path"] = str(f.relative_to(HERE))
+                data["_path"] = str(f.relative_to(SKILL_ROOT))
                 issues.append(data)
     issues.sort(key=lambda d: d["sort_order"])
     return issues
@@ -698,7 +699,7 @@ def cmd_set_flag(args) -> int:
 
 
 def main() -> int:
-    p = argparse.ArgumentParser(description="Deterministic helpers for the dbt-migration skill")
+    p = argparse.ArgumentParser(description="Deterministic helpers for the upgrading-dbt-core skill")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     c = sub.add_parser("collect")

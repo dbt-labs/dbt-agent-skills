@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "dbt-migration issue corpus entry",
+  "title": "upgrading-dbt-core issue corpus entry",
   "description": "One migration issue derived from the Migration Analysis DB. One YAML file per issue.",
   "type": "object",
   "additionalProperties": false,
