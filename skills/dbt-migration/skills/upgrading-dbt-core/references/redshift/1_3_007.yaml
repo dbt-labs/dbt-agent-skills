@@ -1,0 +1,32 @@
+issue_id: "1_3_007"
+sort_order: 1070
+change: >-
+  keepalives_idle default changed from 240 to 4 seconds
+action: >-
+  Review keepalives_idle in profiles.yml; set it to 240 explicitly if the old behavior is needed
+category: Behavior
+component: adapter
+adapter_type: redshift
+impact: >-
+  Connections on slow or idle networks may drop sooner because the TCP keepalive idle default
+  dropped from 240s to 4s
+from_version: '1.3'
+to_version: '1.4'
+automation_type: human
+out_of_repo_risk: false
+environment_change: true
+context:
+  detection: |-
+    - This is a connection/profiles concern (no in-model footprint).
+    - Read profiles.yml (typically ~/.dbt/profiles.yml or a repo-local profiles.yml) for the
+      redshift output(s) and check whether keepalives_idle is set.
+    - If absent, the effective default silently changes from 240 to 4 in 1.4.
+    - If explicitly set, no change is needed. models/** and dbt_project.yml are irrelevant here.
+  fixing: |-
+    - ADVISORY ONLY: environment/profiles change; never mutate live credentials or run any command.
+    - If profiles.yml is in the repo and lacks keepalives_idle, suggest adding keepalives_idle: 240
+      under the affected redshift target to preserve pre-1.4 behavior (only if the user reported
+      idle-network drops).
+    - Record the recommendation in the results report with the target name.
+    - Do NOT run pip or connect to the warehouse.
+    - Excluded from the dbt parse verify loop because parse does not reflect connection settings.

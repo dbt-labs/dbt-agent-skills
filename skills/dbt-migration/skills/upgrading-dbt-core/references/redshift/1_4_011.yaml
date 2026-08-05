@@ -1,0 +1,32 @@
+issue_id: "1_4_011"
+sort_order: 2110
+change: >-
+  RedshiftAdapter parent class changed from PostgresAdapter to SQLAdapter
+action: >-
+  Update custom adapter/plugin code that subclasses or relies on RedshiftAdapter extending PostgresAdapter
+category: Breaking
+component: adapter
+adapter_type: redshift
+impact: >-
+  Custom adapter plugins extending RedshiftAdapter, or code assuming Postgres-adapter methods, may break
+from_version: '1.4'
+to_version: '1.5'
+automation_type: agentic
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Affects only projects that ship CUSTOM Python adapter code.
+    - Grep the repo's Python files for `from dbt.adapters.redshift` / `RedshiftAdapter`,
+      `PostgresAdapter`, or subclasses inheriting from these.
+    - Also check macros overriding Postgres-inherited behavior (e.g. `redshift__` / `postgres__` macro
+      pairs in macros/**/*.sql where the Redshift path assumed Postgres defaults).
+    - Most standard dbt projects have NO such code and are unaffected — report skipped-not-present.
+  fixing: |-
+    - For custom adapter classes: change the base from PostgresAdapter to SQLAdapter and re-implement any
+      Postgres-specific methods previously inherited (Redshift no longer gets them for free).
+    - For overridden macros relying on postgres__ dispatch, provide explicit redshift__ implementations.
+    - Python/plugin code is not exercised by dbt parse of the project models; parse cannot validate it.
+    - If the project has no custom adapter code, mark skipped-not-present.
+    - If custom code exists but the correct re-implementation is non-trivial, record a results entry
+      (manual-required) with the affected files.

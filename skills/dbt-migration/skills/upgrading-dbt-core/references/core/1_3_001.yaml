@@ -1,0 +1,38 @@
+issue_id: "1_3_001"
+sort_order: 1010
+change: >-
+  Python model default materialization changed from view to table
+action: >-
+  Set materialized='view' explicitly on Python models that relied on the old view default
+category: Behavior
+component: core
+adapter_type: null
+impact: >-
+  Python models without an explicit materialized config now create tables instead of views,
+  changing storage/cost and downstream freshness expectations
+from_version: '1.3'
+to_version: '1.4'
+automation_type: human
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Enumerate Python models: models/**/*.py containing `def model(dbt, session)`.
+    - Determine each model's effective materialization, in precedence order:
+      - an inline `dbt.config(materialized=...)` call inside model(dbt, session);
+      - a config() block;
+      - the matching model's YAML config in models/**/*.yml;
+      - the models: tree in dbt_project.yml (path-scoped config).
+    - A model is affected if NONE of these set materialized: it defaulted to view, now defaults
+      to table.
+    - SQL models are unaffected (their default was already view and is unchanged).
+  fixing: |-
+    - Only change models where the prior view behavior was actually intended (thin passthrough,
+      or a downstream tool expects a view).
+    - For those, add materialized='view' at the most local level that already carries config:
+      prefer `dbt.config(materialized='view')` inside the function, else `materialized: view` in
+      the model's YAML, else under dbt_project.yml models:.
+    - Do NOT blanket-force every Python model to view — the new table default is usually desirable;
+      flag ambiguous ones in the results report rather than guessing.
+    - After editing run dbt parse; if it fails because dbt.config was placed outside the function,
+      move the call to the first statement inside def model(...).

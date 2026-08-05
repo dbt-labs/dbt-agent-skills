@@ -1,0 +1,26 @@
+issue_id: "1_4_008"
+sort_order: 2080
+change: >-
+  DBT_DEFER_TO_STATE environment variable deprecated in favor of DBT_DEFER
+action: >-
+  Replace DBT_DEFER_TO_STATE with DBT_DEFER
+category: Deprecated
+component: core
+adapter_type: null
+impact: >-
+  Deprecation warning; the old variable still works for now
+from_version: '1.4'
+to_version: '1.5'
+automation_type: human
+out_of_repo_risk: true
+environment_change: false
+context:
+  detection: |-
+    - Grep the repo for `DBT_DEFER_TO_STATE` in CI YAML, Dockerfiles, .env files, shell scripts,
+      Makefiles, tox.ini.
+    - Used in --defer based CI workflows that usually live outside the repo.
+  fixing: |-
+    - Rename to `DBT_DEFER`, preserving the boolean value.
+    - Update all in-repo occurrences. Advisory env-var rename, not verified by dbt parse.
+    - Add a results entry directing the user to rename DBT_DEFER_TO_STATE to DBT_DEFER in external CI /
+      dbt platform environments.

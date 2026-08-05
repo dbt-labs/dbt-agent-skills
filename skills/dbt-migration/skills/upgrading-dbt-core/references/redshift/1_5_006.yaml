@@ -1,0 +1,30 @@
+issue_id: "1_5_006"
+sort_order: 3060
+change: sslmode behavior changed; require/allow/prefer now map to verify-ca
+action: Review and update sslmode in profiles.yml (advisory)
+category: Breaking
+component: adapter
+adapter_type: redshift
+impact: >-
+  In 1.6 the redshift_connector sslmode mapping changed: require/allow/prefer are treated as
+  verify-ca, so connections that relied on the looser semantics may fail without a CA certificate.
+from_version: '1.5'
+to_version: '1.6'
+automation_type: human
+out_of_repo_risk: false
+environment_change: true
+context:
+  detection: |-
+    - Connection-profile concern, not visible to dbt parse.
+    - Look for `sslmode:` under a redshift target in profiles.yml (usually ~/.dbt/profiles.yml, but
+      also any in-repo profiles.yml or profiles template).
+    - Flag values `require`, `allow`, or `prefer`.
+    - If profiles.yml is not in the repo, this can only be advised, not edited.
+  fixing: |-
+    - ADVISORY — do not open a warehouse connection.
+    - If an in-repo profiles.yml exists, note (do not silently rewrite auth) that require/allow/prefer
+      now behave as verify-ca.
+    - Advise the user to either provide a CA cert (`sslrootcert`) or set the intended sslmode
+      explicitly (e.g. `disable` / `verify-ca` / `verify-full`) to match their security posture.
+    - Record in the results report with the target name and current sslmode value.
+    - Excluded from the dbt parse verify loop (connection behavior is not exercised by parse).

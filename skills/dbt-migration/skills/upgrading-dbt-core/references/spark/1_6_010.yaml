@@ -1,0 +1,38 @@
+issue_id: "1_6_010"
+sort_order: 4100
+change: server_side_parameters values coerced to strings
+action: >-
+  Review server_side_parameters that use non-string values; they are now str()-coerced (e.g. True ->
+  "True")
+category: Behavior
+component: adapter
+adapter_type: spark
+impact: >-
+  server_side_parameters is now typed Dict[str, str] with str() coercion; non-string values are
+  converted, so booleans/ints render as their Python str form (True -> "True" with a capital T, 1 ->
+  "1")
+from_version: '1.6'
+to_version: '1.7'
+automation_type: agentic
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Grep for `server_side_parameters` in `profiles.yml` (`outputs.<target>`), `dbt_project.yml`,
+      model config() blocks, and schema YAML `config:` blocks.
+    - Inspect the mapped values: flag any value that is not already a quoted string — YAML bare
+      `true`/`false` (parsed as booleans), bare integers/floats, or Jinja expressions producing
+      non-strings.
+    - String values are unaffected.
+  fixing: |-
+    - This is a behavior change with no parse impact.
+    - For each non-string value, decide the intended wire value and make it an explicit string so the
+      coercion is predictable.
+    - Example: if Spark expects lowercase `true`, write `'true'` as a quoted string rather than YAML
+      boolean `true` (which str()-coerces to `"True"` with a capital T and may be rejected by Spark).
+    - Edit the value in place (quote it / normalize case) and record in the results report.
+    - Where the config lives in `profiles.yml` outside the repo, record the recommendation in the
+      results artifact (target/dbt_migration_results.json) as manual-required instead.
+    - If unsure of the exact string Spark expects for a given parameter, leave it and flag it for the
+      user rather than guessing.
+    - Real effect is validated in the warehouse build-green layer.

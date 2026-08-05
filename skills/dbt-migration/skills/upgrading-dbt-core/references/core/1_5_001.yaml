@@ -1,0 +1,84 @@
+issue_id: "1_5_001"
+sort_order: 3010
+change: Metric YAML schema completely rewritten for MetricFlow
+action: Rewrite all metric definitions using the new type/type_params/filter format
+category: Breaking
+component: core
+adapter_type: null
+impact: >-
+  All existing metric YAML definitions fail to parse in 1.6; the pre-1.6 UnparsedMetric fields
+  (calculation_method, expression, sql, model, type: expression) and the rename_metric_attr
+  compatibility shim were removed.
+from_version: '1.5'
+to_version: '1.6'
+automation_type: agentic
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Search every YAML file under models/ and any schema-file globs declared in dbt_project.yml
+      (models/**/*.yml, models/**/*.yaml, plus any top-level metrics/ dir) for a `metrics:` block.
+    - Flag a metric as legacy (pre-1.6) if its entry uses ANY of these keys: `calculation_method`,
+      `expression`, `sql`, `type: expression`, a top-level `type:` with the old enum
+      (`count`/`sum`/...), `model:`, `timestamp:`, `time_grains:`, `dimensions:` directly on the
+      metric, or `filters:` (the list-of-dict old form).
+    - The new MetricFlow schema instead uses `type:` with values simple|ratio|cumulative|derived
+      plus a `type_params:` block. If a metric already has `type_params:`, it is migrated — skip it.
+    - Also grep packages.yml for `dbt_metrics` usage and models for `metrics.calculate(` /
+      `metrics.develop(` macro calls — those depend on the old package and must be flagged too.
+  fixing: |-
+    - Rewrite each legacy metric into the new schema. Attribute mapping:
+      - `calculation_method` -> `type`: sum/average/min/max/count/count_distinct/median become
+        `type: simple` with `type_params.measure`; derived/expression become `type: derived` with
+        `type_params.expr` and `type_params.metrics`.
+      - `expression`/`sql` -> `type_params.measure` (the semantic measure name), or
+        `type_params.expr` for a derived metric.
+      - `model:` -> moves into a `semantic_models:` definition (see example below).
+      - `filters:` -> `filter:` (a single `{{ Dimension(...) }}` string, or keep the WHERE fragment).
+    - Concrete before/after:
+      BEFORE (1.5):
+        metrics:
+          - name: total_revenue
+            calculation_method: sum
+            expression: amount
+            model: ref('orders')
+            timestamp: order_date
+            time_grains: [day, month]
+            dimensions: [status]
+      AFTER (1.6, MetricFlow):
+        semantic_models:
+          - name: orders
+            model: ref('orders')
+            defaults:
+              agg_time_dimension: order_date
+            entities:
+              - name: order
+                type: primary
+            dimensions:
+              - name: order_date
+                type: time
+                type_params: {time_granularity: day}
+              - name: status
+                type: categorical
+            measures:
+              - name: amount
+                agg: sum
+                agg_time_dimension: order_date
+        metrics:
+          - name: total_revenue
+            type: simple
+            type_params:
+              measure: amount
+    - Derived example: `calculation_method: derived` + `expression: revenue - cost` becomes
+      `type: derived` with `type_params: {expr: 'revenue - cost', metrics: [{name: revenue},
+      {name: cost}]}`.
+    - Judgment-heavy: 1.6 requires a `semantic_models:` layer that did not exist in 1.5, so the
+      measure/entity/dimension split cannot always be inferred mechanically.
+    - If you cannot confidently reconstruct the semantic model (e.g. the source model's grain or
+      entities are ambiguous), do NOT guess — record the metric in the results report with
+      the original YAML and the suggested new shape, and move on.
+    - After editing, run `dbt parse`. On a metric/semantic-model validation error, re-read it;
+      reverting to legacy form is NOT an option (it won't parse in 1.6) — instead leave the
+      semantic_model skeleton and flag it manual.
+    - Remove `dbt_metrics` / `metrics.calculate` usages and flag them as requiring the
+      MetricFlow / Semantic Layer migration (out of scope for parse).

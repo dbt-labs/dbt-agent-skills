@@ -1,0 +1,31 @@
+issue_id: "1_5_007"
+sort_order: 3070
+change: 'Autocommit enabled by default (autocommit: True)'
+action: >-
+  Set autocommit: false in profiles.yml if you relied on 1.5's transactional behavior (advisory)
+category: Behavior
+component: adapter
+adapter_type: redshift
+impact: >-
+  1.6 restores pre-1.5 semantics: autocommit defaults to True, so DDL and standalone statements
+  auto-commit. Projects that depended on 1.5's implicit transaction wrapping (e.g. multi-statement
+  hooks meant to roll back together) change behavior.
+from_version: '1.5'
+to_version: '1.6'
+automation_type: human
+out_of_repo_risk: false
+environment_change: true
+context:
+  detection: |-
+    - Connection-profile concern, not visible to dbt parse.
+    - Check the redshift target(s) in profiles.yml for an explicit `autocommit:` key.
+    - Grep macros/**/*.sql and models for pre-hook/post-hook/on-run-* blocks containing explicit
+      BEGIN/COMMIT/ROLLBACK — these suggest the project relied on transactional grouping.
+    - If neither profiles.yml is available nor transactional hooks exist, mark skipped-not-present.
+  fixing: |-
+    - ADVISORY — do not connect to the warehouse.
+    - If the project shows reliance on transactional behavior, advise setting `autocommit: false` on
+      the redshift target in profiles.yml and record it in the results report (with target
+      name).
+    - Do not blanket-add autocommit:false — the 1.6 default is intentional for most projects.
+    - Excluded from the dbt parse verify loop.

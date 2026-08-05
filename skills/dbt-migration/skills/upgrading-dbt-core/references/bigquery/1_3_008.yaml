@@ -1,0 +1,34 @@
+issue_id: "1_3_008"
+sort_order: 1080
+change: >-
+  Job labels longer than 63 characters are silently truncated instead of erroring
+action: >-
+  Review labels longer than 63 chars so truncation does not collide or mislead
+category: Behavior
+component: adapter
+adapter_type: bigquery
+impact: >-
+  Labels that previously raised an error now succeed with a value truncated to 63 characters,
+  which can produce duplicate or misleading label values
+from_version: '1.3'
+to_version: '1.4'
+automation_type: human
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Find BigQuery label configs with values (or keys) exceeding 63 characters.
+    - Look in dbt_project.yml and models/**/*.yml for `labels:` maps under model/+config.
+    - Look in config() blocks in models/**/*.sql with `labels={...}`, plus query_comment/labels macros.
+    - Flag entries whose value string length > 63.
+    - Especially flag long labels sharing a >63-char prefix (they truncate to the same value).
+    - Also consider Jinja-built label values whose rendered length could exceed 63.
+  fixing: |-
+    - Shorten each offending label value to <= 63 chars while keeping it unique and meaningful
+      (e.g. abbreviate a long team/pipeline name, drop redundant prefixes).
+    - Preserve intent; do not merely chop at 63 if that collides with another label.
+    - For Jinja-computed labels, wrap or shorten the expression so the rendered result is <= 63.
+    - Does not affect dbt parse; run parse only to confirm YAML/config edits are valid, and note
+      the change in the results report.
+    - If a label is generated out-of-repo (injected by a job/orchestrator), record it in the
+      results report instead of editing.

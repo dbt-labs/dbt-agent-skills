@@ -1,0 +1,32 @@
+issue_id: "1_5_008"
+sort_order: 3080
+change: list_relations_without_caching rewritten with Redshift-native SQL
+action: Review the macro if you override it; edge-case results may differ
+category: Behavior
+component: adapter
+adapter_type: redshift
+impact: >-
+  1.6 replaces the Postgres-based relation listing with Redshift-native SQL. Projects that override
+  redshift__list_relations_without_caching may diverge from the new base behavior on edge cases
+  (late-binding views, external schemas).
+from_version: '1.5'
+to_version: '1.6'
+automation_type: human
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Grep macros/**/*.sql for an override named `list_relations_without_caching`,
+      `redshift__list_relations_without_caching`, or `postgres__list_relations_without_caching`
+      used by the redshift adapter.
+    - If no override exists, mark skipped-not-present — core's new implementation applies
+      automatically and needs no code change.
+  fixing: |-
+    - If an override exists, compare it against dbt-redshift 1.6's
+      redshift__list_relations_without_caching.
+    - If the override only reproduced the old Postgres query, recommend removing it to inherit the
+      fixed native version.
+    - If it adds project-specific logic, port that logic onto the 1.6 base query.
+    - This is behavioral (warehouse-executed), so `dbt parse` passes regardless — record a
+      manual-actions note asking the user to validate relation listing against a live Redshift.
+    - If unsure whether the override is still needed, flag it rather than deleting it.

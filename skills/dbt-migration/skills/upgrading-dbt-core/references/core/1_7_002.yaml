@@ -1,0 +1,44 @@
+issue_id: "1_7_002"
+sort_order: 5020
+change: >-
+  Primary key constraint on multiple columns or at both column and model level now throws
+  ParsingError
+action: >-
+  Fix constraint definitions to specify the primary key in exactly one place
+category: Behavior
+component: core
+adapter_type: null
+impact: >-
+  Models with duplicate/ambiguous primary_key constraint definitions fail to parse in 1.8
+  (ParsingError)
+from_version: '1.7'
+to_version: '1.8'
+automation_type: agentic
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Only relevant to models with `contract: {enforced: true}` (or constraints blocks).
+    - Scan model YAML (models/**/*.yml, *.yaml) and in-file `{{ config(...) }}` blocks for a
+      primary key declared more than once.
+    - Failure shape 1: a model-level `constraints:` entry of `type: primary_key` listing multiple
+      columns AND a column also carrying `constraints: [{type: primary_key}]`.
+    - Failure shape 2: more than one column each carrying a `type: primary_key` column-level
+      constraint.
+    - Cues: search YAML for `type: primary_key` and count occurrences per model; also check for a
+      model-level `constraints:` list with `- type: primary_key` combined with any column-level one.
+    - Composite PKs must be expressed once, at the model level, with `columns: [a, b]`.
+  fixing: |-
+    - Consolidate to a single primary key declaration per model.
+    - If a composite key is intended, remove the per-column `type: primary_key` constraints and
+      declare one model-level constraint:
+        constraints:
+          - type: primary_key
+            columns: [col_a, col_b]
+    - If a single-column PK is intended, keep exactly one declaration (column-level OR a model-level
+      single-column entry) and delete the duplicate.
+    - Preserve any accompanying constraints (not_null, foreign_key) unchanged.
+    - After editing, run `dbt parse`; if it still raises a primary-key ParsingError, re-read the
+      error's node name and ensure only one primary_key exists across column- and model-level.
+    - If the intended key is ambiguous (e.g. two different single-column PKs on one model), do not
+      guess — record a manual-actions entry with the model name and the competing declarations.
