@@ -1,0 +1,6 @@
+kind: Features
+body: Add skill for generating Looker LookML views and explores from dbt fact/dim models.
+time: 2026-08-07T03:57:13.884763+03:00
+custom:
+    Author: mustafaa7med
+    Issue: "147"
