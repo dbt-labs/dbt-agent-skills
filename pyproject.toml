@@ -13,7 +13,17 @@ build-backend = "setuptools.build_meta"
 exclude = ["evals", "evals.*", "scripts", "scripts.*"]
 
 [tool.setuptools.package-data]
-skills = ["**/*.md", "**/*.sh"]
+# The precompiled issue bundles are scoped to this one skill deliberately: they
+# are the only non-doc resource an agent loads at runtime, and each bundle is
+# self-contained (every issue carries its own action, automation_type, and
+# detection/fixing context), so the kb/ YAML corpus they are generated from does
+# not need to ship. A blanket **/*.json would pull in unrelated files from every
+# other skill.
+skills = [
+    "**/*.md",
+    "**/*.sh",
+    "dbt-migration/skills/upgrading-dbt-core/references/*.json",
+]
 
 [dependency-groups]
 dev = [
