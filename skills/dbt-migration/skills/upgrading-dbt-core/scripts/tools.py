@@ -16,8 +16,10 @@ Run with PyYAML available, e.g.:
     uv run --with pyyaml python tools.py report --project-dir .
 
 Commands:
-  collect        Ordered list of issues for (from_version, adapter) as JSON. The
-                 single source of truth for "which issues, in what order".
+  collect        Ordered list of issues for (from_version, adapter), written to
+                 references/kb_<from_version>_<warehouse>.json. The single source
+                 of truth for "which issues, in what order".
+  collect-all    Regenerate every bundle (committed; CI diffs them after editing kb/).
   init-results   Write target/dbt_migration_results.json seeded from `collect`,
                  every issue status = "pending" (idempotent: keeps existing statuses).
   set-status     Update one issue's status/files/notes in the results artifact.
@@ -46,9 +48,13 @@ except ImportError as exc:  # pragma: no cover
 
 HERE = Path(__file__).resolve().parent
 SKILL_ROOT = HERE.parent
-ISSUES_DIR = SKILL_ROOT / "references"
+ISSUES_DIR = SKILL_ROOT / "kb"
+# Where `collect` writes its output: one JSON file per (from_version, adapter),
+# so the agent reads a single stable artifact instead of a giant stdout blob.
+COLLECT_DIR = SKILL_ROOT / "references"
 RESULTS_REL = Path("target") / "dbt_migration_results.json"
 REPORT_REL = Path("migration_report.md")
+
 # Coarse, human-facing progress for whoever is watching the run (the VS Code
 # extension renders it as a stepper). Distinct from RESULTS_REL, which is
 # per-issue bookkeeping: this is one row per phase of the procedure, and it is
@@ -216,13 +222,73 @@ def cmd_status_set(args) -> int:
     return 2
 
 
+def _warehouse_slug(adapter: str | None) -> str:
+    wh = (adapter or "").strip().lower()
+    return "core" if wh in ("", "none", "core") else wh
+
+
+def collect_path(from_version: str, adapter: str | None) -> Path:
+    """references/kb_<from_version>_<warehouse>.json, versions dotless to match
+    the kb file naming (1.7 -> 1_7)."""
+    return COLLECT_DIR / f"kb_{from_version.replace('.', '_')}_{_warehouse_slug(adapter)}.json"
+
+
+def _write_collected(from_version: str, adapter: str | None) -> tuple[Path, int]:
+    """Write one bundle. Deliberately contains no timestamp: these files are
+    committed, and CI regenerates them and diffs, so the output must depend only
+    on the kb corpus — not on when it ran."""
+    issues = load_collected(from_version, adapter)
+    out = collect_path(from_version, adapter)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps({
+        "from_version": from_version,
+        "warehouse": _warehouse_slug(adapter),
+        "target_version": TARGET_VERSION,
+        "count": len(issues),
+        "issues": issues,
+    }, indent=2) + "\n")
+    return out, len(issues)
+
+
 def cmd_collect(args) -> int:
-    issues = load_collected(args.from_version, args.adapter)
+    out, n = _write_collected(args.from_version, args.adapter)
     if args.ids_only:
-        for i in issues:
+        for i in load_collected(args.from_version, args.adapter):
             print(i["issue_id"])
-    else:
-        print(json.dumps(issues, indent=2))
+    print(f"collected {n} issues -> {out}")
+    return 0
+
+
+def kb_from_versions() -> list[str]:
+    """Every from_version the corpus actually uses, oldest first."""
+    seen = {str(yaml.safe_load(f.read_text())["from_version"])
+            for f in ISSUES_DIR.glob("*/*.yaml") if not f.name.startswith("_")}
+    return sorted(seen, key=_vkey)
+
+
+def kb_warehouses() -> list[str]:
+    """core + every adapter directory in the corpus."""
+    return ["core"] + sorted(d.name for d in ISSUES_DIR.iterdir()
+                             if d.is_dir() and d.name != "core")
+
+
+def cmd_collect_all(args) -> int:
+    """Regenerate every (from_version, warehouse) bundle. Run this after editing
+    the kb; CI reruns it and fails if the committed bundles drift."""
+    written = []
+    for v in kb_from_versions():
+        for wh in kb_warehouses():
+            out, n = _write_collected(v, wh)
+            written.append((out, n))
+    if args.prune:
+        keep = {p for p, _ in written}
+        for stale in sorted(COLLECT_DIR.glob("kb_*.json")):
+            if stale not in keep:
+                stale.unlink()
+                print(f"removed stale {stale.name}")
+    for out, n in written:
+        print(f"{out.name}: {n} issues")
+    print(f"wrote {len(written)} bundles -> {COLLECT_DIR}")
     return 0
 
 
@@ -702,11 +768,22 @@ def main() -> int:
     p = argparse.ArgumentParser(description="Deterministic helpers for the upgrading-dbt-core skill")
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    c = sub.add_parser("collect")
+    c = sub.add_parser(
+        "collect",
+        help="write references/kb_<from_version>_<warehouse>.json for the applicable issues")
     c.add_argument("--from-version", required=True)
-    c.add_argument("--adapter", default=None)
-    c.add_argument("--ids-only", action="store_true")
+    c.add_argument("--adapter", default=None,
+                   help="warehouse/adapter (snowflake, redshift, ...); omit or 'none' for core-only")
+    c.add_argument("--ids-only", action="store_true",
+                   help="also print the collected issue ids to stdout")
     c.set_defaults(func=cmd_collect)
+
+    ca = sub.add_parser(
+        "collect-all",
+        help="regenerate every references/kb_<version>_<warehouse>.json bundle")
+    ca.add_argument("--prune", action="store_true",
+                    help="delete kb_*.json bundles no longer produced by the corpus")
+    ca.set_defaults(func=cmd_collect_all)
 
     ir = sub.add_parser("init-results")
     ir.add_argument("--from-version", required=True)

@@ -29,7 +29,7 @@ bump. Two different mechanisms apply, and you must not confuse them:
   config that hides the ones that matter. Detection per issue decides.
 
 This skill is **data-driven**. The issues to resolve are **not** listed here —
-they live as one YAML file per issue under `references/`, colocated with this
+they live as one YAML file per issue under `kb/`, colocated with this
 SKILL.md. Read them; **never fabricate an issue or a fix from memory.**
 
 Each issue has an `automation_type` that decides how it is handled:
@@ -186,7 +186,9 @@ uv run --with pyyaml python scripts/tools.py status-set --project-dir "$PROJECT"
 ```bash
 uv run --with pyyaml python scripts/tools.py collect --from-version "$FROM" --adapter "$ADAPTER"
 ```
-This is the **single source of truth** for which issues apply and in what order
+This writes `references/kb_<FROM>_<ADAPTER>.json` (versions dotless, e.g.
+`references/kb_1_5_snowflake.json`) and prints the path. Read that file — it is
+the **single source of truth** for which issues apply and in what order
 (core + adapter, `from_version >=` start, sorted by `sort_order`, including
 `deterministic` issues). Do not re-derive the set yourself. Then seed the results
 artifact (idempotent — preserves any prior statuses, enabling resume):
