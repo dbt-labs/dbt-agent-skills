@@ -75,7 +75,8 @@ memory: read it, change the one record you mean to change, write it back.
 | `git` (`status`, `branches`, `diff`, `checkout`, `commit`, `push`, `pull`, `revert`, `merge`) | Preflight, diffs for approval, undo. **No `stash`** |
 | `dbt_command`, `dbt_command_status`, `dbt_command_cancel` | The `dbt parse` gate and the `dbt-autofix` run |
 | `request_user_input` | Every question you put to the user |
-| `list_jobs`, `get_job_details` | Read the legacy jobs, their `execute_steps` and pinned `dbt_version` |
+| `get_job_details` | Read one job by id — its `execute_steps` and pinned `dbt_version` |
+| `list_jobs` | Use with care: it returns every job in the **account**, not this project. Work from the legacy job ids you were given |
 | `trigger_job_run`, `get_job_run_details`, `get_job_run_error`, `list_job_run_artifacts` | The optional `verify-jobs` exit gate |
 
 `$PROJECT` = the project's root. `$ADAPTER` = the adapter type. `$FROM` = the
@@ -199,7 +200,7 @@ Admin tools, all bound to the signed-in user:
 
 | Tool | Use |
 |---|---|
-| `list_jobs` / `get_job_details` | Find the legacy jobs; read each one's `execute_steps` and pinned `dbt_version` |
+| `get_job_details` | Read each legacy job by id — its `execute_steps` and pinned `dbt_version`. Pick targets from the legacy job ids you were given, not from `list_jobs`, which is account-wide |
 | `trigger_job_run` | Start one run, with `dbt_version_override` plus `git_branch` and `schema_override` |
 | `get_job_run_details` | Poll that run to completion |
 | `get_job_run_error` | Read the failure when it fails |
@@ -221,18 +222,19 @@ When every legacy job is green, re-issue the report.
 
 **Guardrails — these are the operation, not decoration:**
 
-- **Ask before the first triggered run**, with `request_user_input`, and set the
-  phase to `waiting_input` while you wait. This spends real warehouse compute on
-  the customer's account. Studio's in-session approval for `dbt_command` does
-  **not** cover `trigger_job_run` — it is a server-side action with no equivalent
-  gate — so this instruction is the only thing standing between the user and an
-  unrequested bill.
+- **Ask before *every* triggered run**, not just the first, with
+  `request_user_input`, and set the phase to `waiting_input` while you wait. Each
+  run spends real warehouse compute on the customer's account. Studio's in-session
+  approval for `dbt_command` does **not** cover `trigger_job_run` — it is a
+  server-side action with no equivalent gate — so this instruction is the only
+  thing standing between the user and an unrequested bill.
+
+  Per-run approval is also what bounds the loop: there is no attempt cap here
+  precisely because you cannot start another run without being told to. Never
+  batch several runs behind one approval.
 - **Always a scratch schema**, via `schema_override`. Never write to the schema a
   real job targets.
 - **One job at a time.** Do not fan out.
-- **A hard cap on total attempts across the whole set**, not per job. Fixing one
-  job can break another; without a global cap the loop can run indefinitely. When
-  you hit the cap, stop and report what is still red.
 - **Never trigger anything on `main`/`master`** — always the migration branch.
 
 **If you cannot run it** — `dbt_version_override` unavailable on `trigger_job_run`,
