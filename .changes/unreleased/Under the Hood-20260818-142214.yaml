@@ -1,0 +1,6 @@
+kind: Under the Hood
+body: Split the upgrading-dbt-core skill's execution mechanics into local and dbt platform profiles, moved its issue corpus to a build-time-compiled kb/ directory, and tightened the optional verify-jobs gate to require per-run approval instead of a fixed attempt cap.
+time: 2026-08-18T14:22:14.003899+05:30
+custom:
+    Author: sriramr98
+    Issue: N/A

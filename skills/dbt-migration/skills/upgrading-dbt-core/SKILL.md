@@ -371,12 +371,14 @@ this migrate," and your profile will define it as the `verify-jobs` operation.
 
 It is **optional and user-gated**, never automatic:
 
-- **Ask first, every time**, before the first triggered run. This spends real
+- **Ask before every triggered run**, Each one spends real
   warehouse compute on the customer's account. Nothing outside this instruction
   enforces that gate — no server-side approval covers it — so it rests on you.
+  It is also what bounds the loop: there is no attempt cap, because you cannot
+  start another run without being told to.
 - **Never as a substitute for Step 7.** Parse first, always; this runs after.
 - **Scope is every job whose effective version is legacy**, not a sample. One job
-  at a time, with a hard cap on total attempts across the whole set.
+  at a time.
 - **Failures feed back**: attribute the error to an issue, return to Step 5 or 6,
   re-run Step 7, then re-issue the report. That loop is the point of the gate.
 - **If it is unavailable** — no permission, no such operation in your profile —
