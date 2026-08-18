@@ -1,0 +1,224 @@
+{
+  "from_version": "1.10",
+  "warehouse": "core",
+  "target_version": "1.12",
+  "count": 9,
+  "issues": [
+    {
+      "issue_id": "1_10_001",
+      "sort_order": 8001,
+      "change": "resource names must be unique within a project",
+      "action": "Set flags.require_unique_project_resource_names: false to keep allowing duplicates, or rename the colliding resources.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Projects with two resources sharing a name across paths start erroring at parse time. This flag still defaults to False in 1.12; pinning it makes that explicit and survives a future flip.",
+      "from_version": "1.10",
+      "to_version": "1.11",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "require_unique_project_resource_names",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Applies only if the project has DUPLICATE resource names within itself.\n- List model/seed/snapshot/test file stems and look for the same name declared\n  more than once across different paths.\n- All names unique -> skipped-not-present.",
+        "fixing": "Pin the flag via `tools.py set-flag --issue-id 1_10_001`. No project code changes.\nOnly pin it when an actual duplicate resource name exists."
+      },
+      "_path": "kb/core/1_10_001.yaml"
+    },
+    {
+      "issue_id": "1_10_002",
+      "sort_order": 8002,
+      "change": "ref() resolves against the node's own package before the root project",
+      "action": "Set flags.require_ref_searches_node_package_before_root: false to keep root-first resolution.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "In projects with packages that shadow root model names, ref() can resolve to a different node. This flag still defaults to False in 1.12; pinning it makes that explicit and survives a future flip.",
+      "from_version": "1.10",
+      "to_version": "1.11",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "require_ref_searches_node_package_before_root",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Applies only if an installed package defines a model name that ALSO exists in\n  the root project (the shadowing case where resolution order changes).\n- Check packages.yml/dependencies.yml for packages, then compare package model\n  names against root model names (dbt_packages/ if installed).\n- No packages, or no name collision -> skipped-not-present.",
+        "fixing": "Pin the flag via `tools.py set-flag --issue-id 1_10_002`. No project code changes.\nOnly pin it when a package/root model name collision exists."
+      },
+      "_path": "kb/core/1_10_002.yaml"
+    },
+    {
+      "issue_id": "1_11_001",
+      "sort_order": 9001,
+      "change": "generate_schema_name must return a valid, non-empty schema name",
+      "action": "Set flags.require_valid_schema_from_generate_schema_name: false to keep the lax behavior, or fix the macro.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "A generate_schema_name override returning None/empty now errors instead of silently falling back. This flag still defaults to False in 1.12; pinning it makes that explicit and survives a future flip.",
+      "from_version": "1.11",
+      "to_version": "1.12",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "require_valid_schema_from_generate_schema_name",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Applies only if the project overrides `generate_schema_name` (or\n  `generate_schema_name_for_env`) in macros/.\n- Inspect the override for a path that can return None/empty (e.g. a missing\n  `{% else %}` branch, or returning `custom_schema_name` unguarded).\n- No override, or the override always returns a non-empty schema ->\n  skipped-not-present.",
+        "fixing": "Pin the flag via `tools.py set-flag --issue-id 1_11_001`. No project code changes.\nOnly pin it when a generate_schema_name override can return empty."
+      },
+      "_path": "kb/core/1_11_001.yaml"
+    },
+    {
+      "issue_id": "1_11_002",
+      "sort_order": 9002,
+      "change": "sql_header must be declared in test configs to take effect",
+      "action": "Set flags.require_sql_header_in_test_configs: false to keep the old handling.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Tests relying on an implicitly inherited sql_header may lose it. This flag still defaults to False in 1.12; pinning it makes that explicit and survives a future flip.",
+      "from_version": "1.11",
+      "to_version": "1.12",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "require_sql_header_in_test_configs",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Applies only if tests rely on a `sql_header` they do not declare themselves\n  (i.e. inherited from a model/project-level config).\n- Grep for `sql_header` in dbt_project.yml, model configs, and test configs; the\n  issue is present when a test needs it but only a non-test config sets it.\n- No sql_header anywhere, or tests declare their own -> skipped-not-present.",
+        "fixing": "Pin the flag via `tools.py set-flag --issue-id 1_11_002`. No project code changes.\nOnly pin it when a test depends on an inherited sql_header."
+      },
+      "_path": "kb/core/1_11_002.yaml"
+    },
+    {
+      "issue_id": "1_11_003",
+      "sort_order": 9003,
+      "change": "analyses use corrected fully-qualified names",
+      "action": "Set flags.require_corrected_analysis_fqns: false to keep the previous FQNs.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Selection and documentation paths for analyses change, affecting --select on analyses. This flag still defaults to False in 1.12; pinning it makes that explicit and survives a future flip.",
+      "from_version": "1.11",
+      "to_version": "1.12",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "require_corrected_analysis_fqns",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Applies only if the project has an analyses/ directory with content AND\n  something selects analyses by FQN (selectors.yml or in-repo job commands).\n- Empty/absent analyses/ -> skipped-not-present.",
+        "fixing": "Pin the flag via `tools.py set-flag --issue-id 1_11_003`. No project code changes.\nOnly pin it when analyses exist and are selected by FQN."
+      },
+      "_path": "kb/core/1_11_003.yaml"
+    },
+    {
+      "issue_id": "1_11_004",
+      "sort_order": 9004,
+      "change": "source and semantic model names may not contain spaces",
+      "action": "Set flags.require_source_and_semantic_model_names_without_spaces: false to keep allowing spaces, or rename them.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Sources/semantic models with spaces in their names start erroring rather than warning. This flag still defaults to False in 1.12; pinning it makes that explicit and survives a future flip.",
+      "from_version": "1.11",
+      "to_version": "1.12",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "require_source_and_semantic_model_names_without_spaces",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Applies only if a SOURCE or SEMANTIC MODEL name contains a space.\n- Grep source/semantic model YAML for `- name:` values containing a space.\n  (Model names with spaces are a different, pre-1.8 issue \u2014 not this one.)\n- No spaces in source/semantic model names -> skipped-not-present.",
+        "fixing": "Pin the flag via `tools.py set-flag --issue-id 1_11_004`. No project code changes.\nOnly pin it when a source/semantic model name actually contains a space."
+      },
+      "_path": "kb/core/1_11_004.yaml"
+    },
+    {
+      "issue_id": "1_11_005",
+      "sort_order": 9005,
+      "change": "Jinja-suffixed file extensions (e.g. .sql.jinja) are recognized",
+      "action": "Leave flags.allow_jinja_file_extensions: false to keep the previous file discovery.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Enabling it changes which files dbt picks up as models; leaving it false preserves current discovery. This flag still defaults to False in 1.12; pinning it makes that explicit and survives a future flip.",
+      "from_version": "1.11",
+      "to_version": "1.12",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "allow_jinja_file_extensions",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- This flag ENABLES new file-extension discovery; it defaults to false, so the\n  project's current behavior is already the legacy one.\n- Only relevant if the project has files with a `.jinja`-style suffix it expects\n  dbt to pick up.\n- No such files -> skipped-not-present (pinning would be pure noise).",
+        "fixing": "Normally skipped-not-present: false is already the default and the legacy\nbehavior. Pin via `tools.py set-flag --issue-id 1_11_005` only if the project has\nJinja-suffixed files and you need to lock the current discovery behavior."
+      },
+      "_path": "kb/core/1_11_005.yaml"
+    },
+    {
+      "issue_id": "1_11_006",
+      "sort_order": 9006,
+      "change": "versioned models get a `latest` version pointer by default",
+      "action": "Leave flags.latest_version_pointer_enabled_by_default: false to keep explicit-only version pointers.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "For versioned models, ref() without a version can resolve differently. This flag still defaults to False in 1.12; pinning it makes that explicit and survives a future flip.",
+      "from_version": "1.11",
+      "to_version": "1.12",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "latest_version_pointer_enabled_by_default",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Applies only if the project uses MODEL VERSIONS (`versions:` in model YAML)\n  and has `ref()` calls to a versioned model without an explicit version.\n- No versioned models -> the pointer default cannot matter -> skipped-not-present.",
+        "fixing": "Pin the flag via `tools.py set-flag --issue-id 1_11_006`. No project code changes.\nOnly pin it when versioned models exist and are ref'd without a version."
+      },
+      "_path": "kb/core/1_11_006.yaml"
+    },
+    {
+      "issue_id": "1_11_007",
+      "sort_order": 9007,
+      "change": "v2 catalog integration replaces the previous catalog behavior (all adapters)",
+      "action": "Leave flags.use_catalogs_v2: false to keep the previous catalog behavior.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Catalog/metadata resolution changes across adapters; leaving it false preserves current behavior. This flag still defaults to False in 1.12; pinning it makes that explicit and survives a future flip.",
+      "from_version": "1.11",
+      "to_version": "1.12",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "use_catalogs_v2",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Applies only if the project defines catalog configuration (e.g. a `catalogs:`\n  block or catalog-related model configs) whose resolution v2 would change.\n- Defaults to false, so a project with no catalog config already has the legacy\n  behavior -> skipped-not-present (pinning would be pure noise).",
+        "fixing": "Normally skipped-not-present: false is already the default and the legacy\nbehavior. Pin via `tools.py set-flag --issue-id 1_11_007` only if the project has\ncatalog configuration whose behavior you need to lock."
+      },
+      "_path": "kb/core/1_11_007.yaml"
+    }
+  ]
+}
