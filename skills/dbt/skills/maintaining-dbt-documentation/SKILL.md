@@ -1,7 +1,7 @@
 ---
 name: maintaining-dbt-documentation
 description: Audits dbt documentation coverage and drafts missing model/column descriptions in the project's own house style, one folder at a time, for human review. Use when documenting undocumented models, backfilling missing YAML descriptions, auditing doc coverage, or keeping schema YAML in sync with model SQL — especially on multi-contributor projects where new models routinely land undocumented.
-allowed-tools: "Bash(dbt *), Bash(python3 *), Read, Write, Edit, Glob, Grep"
+allowed-tools: "Bash(dbt *), Bash(python3 *), Bash(git *), Read, Write, Edit, Glob, Grep"
 user-invocable: false
 metadata:
   author: dbt-labs
