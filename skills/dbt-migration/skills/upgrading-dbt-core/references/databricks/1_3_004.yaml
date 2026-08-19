@@ -1,0 +1,37 @@
+issue_id: "1_3_004"
+sort_order: 1040
+change: >-
+  Schema containing '.' now raises an exception (was a warning)
+action: >-
+  Split a 'catalog.schema' value into separate catalog and schema fields
+category: Breaking
+component: adapter
+adapter_type: databricks
+impact: >-
+  Projects using schema: catalog.schema (a dotted value) fail at startup with a DbtValidationError
+  instead of only warning
+from_version: '1.3'
+to_version: '1.4'
+automation_type: human
+out_of_repo_risk: true
+environment_change: false
+context:
+  detection: |-
+    - Look for a dotted schema value in two places:
+      - in-repo generate_schema_name / custom schema macros and +schema:/schema: configs in
+        dbt_project.yml and models/**/*.yml where the value contains a dot
+        (regex `schema:\s*['\"]?[\w]+\.[\w]+`);
+      - out-of-repo: profiles.yml schema: field with a dot (often the real source of
+        catalog.schema).
+    - The catalog half must move to the database/catalog field.
+    - Also check custom macros that concatenate schema names with '.'.
+  fixing: |-
+    - Where the dotted value lives in the repo (dbt_project.yml or a schema config), split it: left
+      side -> database (Databricks catalog), right side -> schema.
+      Example: `schema: my_catalog.analytics` -> `database: my_catalog` + `schema: analytics`.
+    - If the dotted value comes from profiles.yml (out of repo) OR from a generate_schema_name macro
+      that builds names dynamically, do NOT silently edit connection files the skill shouldn't own —
+      record it in the results report (out_of_repo_risk) with the exact key and needed split, and
+      prompt the user.
+    - After any in-repo edit run dbt parse; if a schema macro still emits a dotted name, adjust the
+      macro logic to emit catalog via database instead.

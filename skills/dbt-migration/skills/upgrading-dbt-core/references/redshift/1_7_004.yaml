@@ -1,0 +1,41 @@
+issue_id: "1_7_004"
+sort_order: 5040
+change: >-
+  Redshift catalog query macros restructured and split into multiple files
+action: >-
+  Update custom overrides of redshift__get_base_catalog / catalog macros to match the new 1.8
+  structure
+category: Behavior
+component: adapter
+adapter_type: redshift
+impact: >-
+  Custom overrides of redshift__get_catalog / redshift__get_base_catalog (and related catalog SQL)
+  may break or silently diverge because the macro was split across a catalog/ directory in
+  dbt-redshift 1.8
+from_version: '1.7'
+to_version: '1.8'
+automation_type: agentic
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Only relevant if the project (or an installed package) overrides Redshift catalog macros.
+    - Grep macros/**/*.sql and packages' macros for definitions named `redshift__get_catalog`,
+      `redshift__get_base_catalog`, `redshift__get_catalog_relations`, or any
+      `{% macro redshift__...catalog...%}`.
+    - If no such override exists, the change is not present (docs generate keeps working on the
+      built-in macros).
+    - If an override exists, it likely mirrors the old single-file catalog.sql shape and will not
+      align with the 1.8 split.
+  fixing: |-
+    - If an override is found, compare it against the dbt-redshift 1.8 catalog macros (now under an
+      adapter catalog/ directory, split into base-catalog and relations pieces).
+    - Re-implement the override on the new macro seams: typically split a monolithic
+      `redshift__get_catalog` override into `redshift__get_base_catalog` plus the relation-scoped
+      variant, matching the new signatures.
+    - Invisible to `dbt parse` (catalog macros only compile when catalog generation runs), so parse
+      cannot validate correctness.
+    - After adjusting, note that `dbt docs generate` against a warehouse is the real check (harness
+      build-green layer, not in-skill).
+    - If the override's intent is unclear or reproducing the split is risky, record a manual-actions
+      entry pointing at the overriding macro and the dbt-redshift 1.8 catalog macro source.

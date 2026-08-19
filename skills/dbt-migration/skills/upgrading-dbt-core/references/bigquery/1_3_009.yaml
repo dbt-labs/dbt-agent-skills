@@ -1,0 +1,33 @@
+issue_id: "1_3_009"
+sort_order: 1090
+change: >-
+  google-cloud-bigquery dependency bumped from >=1.25,<3 to ~=3.0
+action: >-
+  Ensure the environment supports google-cloud-bigquery 3.x
+category: Behavior
+component: adapter
+adapter_type: bigquery
+impact: >-
+  Environments pinned to google-cloud-bigquery 2.x will fail to resolve or install alongside
+  dbt-bigquery 1.4
+from_version: '1.3'
+to_version: '1.4'
+automation_type: human
+out_of_repo_risk: false
+environment_change: true
+context:
+  detection: |-
+    - This is a Python dependency concern (no in-model footprint).
+    - Read dependency manifests: requirements.txt, requirements*.txt, setup.py, pyproject.toml,
+      Pipfile, and any constraints files.
+    - Flag an explicit pin of google-cloud-bigquery to a 2.x range or an upper bound <3
+      (regex `google-cloud-bigquery\s*[<=~!].*` pinning below 3).
+    - Also flag transitive pins via constraints files.
+    - If no such pin exists, mark skipped-not-present.
+  fixing: |-
+    - ADVISORY ONLY: never run pip/poetry/uv or otherwise mutate the installed environment.
+    - If a conflicting pin exists in a repo dependency file, propose editing it to allow 3.x
+      (e.g. `google-cloud-bigquery<3` / `==2.*` -> `google-cloud-bigquery~=3.0` or `>=3,<4`) and
+      surface the suggested diff.
+    - If the pin lives outside the repo (base image, org constraints), record it in the results report.
+    - Excluded from the dbt parse verify loop; parse does not reflect installed package versions.

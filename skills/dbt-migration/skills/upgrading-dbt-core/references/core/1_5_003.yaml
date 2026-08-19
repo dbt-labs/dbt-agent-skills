@@ -1,0 +1,38 @@
+issue_id: "1_5_003"
+sort_order: 3030
+change: collect_freshness macro return type changed
+action: >-
+  Update any custom collect_freshness macro override to return the full result object (table +
+  response) instead of just the table
+category: Deprecated
+component: core
+adapter_type: null
+impact: >-
+  In 1.6 core's default collect_freshness returns a dict-like {table, response} object; a custom
+  override that returns only the agate table triggers a deprecation warning and will break source
+  freshness in later versions.
+from_version: '1.5'
+to_version: '1.6'
+automation_type: human
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Grep macros/**/*.sql for a macro named `collect_freshness` (i.e. `{% macro collect_freshness(`
+      or `{% macro <adapter>__collect_freshness(`).
+    - If none exists, the project uses core's implementation — mark skipped-not-present.
+    - If one exists, inspect its final `{{ return(...) }}` and flag it if it returns the query
+      result table directly (e.g. `return(load_result('collect_freshness').table)` or
+      `return(table)`) rather than the full result object.
+  fixing: |-
+    - Change the macro to capture the full result and return an object exposing both the table and
+      the adapter response.
+    - Pattern: `{% set result = run_query(...) %}` then
+      `{{ return({'table': result.table, 'response': result.response}) }}`.
+    - Mirror core's 1.6 signature: it returns `load_result('collect_freshness')`, which already has
+      `.table` and `.response`.
+    - Simplest safe fix, if the override only existed to tweak the SQL: align the return statement
+      with core 1.6's macro body.
+    - After editing run `dbt parse`.
+    - If the override is complex or the intended response object is unclear, record it in the
+      results report with a pointer to core's 1.6 collect_freshness for reference.

@@ -1,0 +1,32 @@
+issue_id: "1_4_014"
+sort_order: 2140
+change: >-
+  iam_duration_seconds, search_path, and keepalives_idle profile fields removed
+action: >-
+  Remove these fields from the Redshift profile; reproduce search_path via a SET search_path pre-hook
+category: Breaking
+component: adapter
+adapter_type: redshift
+impact: >-
+  Profiles still declaring iam_duration_seconds, search_path, or keepalives_idle error on connection
+from_version: '1.4'
+to_version: '1.5'
+automation_type: agentic
+out_of_repo_risk: false
+environment_change: true
+context:
+  detection: |-
+    - Search in-repo profiles.yml / profile fixtures for the keys `iam_duration_seconds:`, `search_path:`,
+      or `keepalives_idle:` under a Redshift output (regex
+      `^\s*(iam_duration_seconds|search_path|keepalives_idle)\s*:`).
+    - These now cause a hard connection error.
+    - profiles.yml commonly lives in ~/.dbt outside the repo, so the primary fix is out-of-repo.
+  fixing: |-
+    - Remove all three keys wherever they appear in an in-repo profile.
+    - To preserve search_path behavior, add a pre-hook running `SET search_path TO <schemas>` — e.g. in
+      dbt_project.yml `on-run-start: "SET search_path TO analytics, public"` or a model-level pre_hook.
+    - iam_duration_seconds and keepalives_idle have no direct replacement; drop them.
+    - Not verified by dbt parse (connection-time error).
+    - Because the authoritative profiles.yml is usually outside the repo, ALWAYS add a results entry
+      telling the user to remove these keys from their real profiles.yml and to add the SET search_path
+      pre-hook if they relied on a custom search_path.

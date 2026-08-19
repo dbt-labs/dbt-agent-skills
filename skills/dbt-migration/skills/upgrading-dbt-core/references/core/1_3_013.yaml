@@ -1,0 +1,26 @@
+issue_id: "1_3_013"
+sort_order: 1130
+change: >-
+  Metric attributes sql / type / type: expression deprecation warnings updated
+action: >-
+  Migrate metric attrs to expression, calculation_method, and calculation_method: derived
+category: Deprecated
+component: core
+adapter_type: null
+impact: >-
+  Legacy metric attribute names emit deprecation warnings; slated for removal
+from_version: '1.3'
+to_version: '1.4'
+automation_type: deterministic
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Scan models/**/*.yml for `metrics:` blocks using legacy attrs `sql:`, `type:`, or
+      `type: expression`.
+  fixing: |-
+    - Handled by `dbt-autofix deprecations` (attribute rename to expression/calculation_method).
+    - Review the autofix diff and confirm each metric was rewritten.
+    - NOTE: this is the 1.3->1.4 attribute rename only; the full MetricFlow rewrite is the separate
+      1.5->1.6 issue 1_5_001.
+    - Manual fallback: apply the attribute renames yourself if autofix skipped any.

@@ -1,0 +1,26 @@
+issue_id: "1_7_009"
+sort_order: 5090
+change: >-
+  tests config deprecated in favor of data_tests
+action: >-
+  Rename `tests:` to `data_tests:` in dbt_project.yml and schema YAML files
+category: Deprecated
+component: core
+adapter_type: null
+impact: >-
+  `tests:` key emits a deprecation warning in 1.8; still works but slated for removal
+from_version: '1.7'
+to_version: '1.8'
+automation_type: deterministic
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Grep dbt_project.yml for a top-level `tests:` block.
+    - Grep models/**/*.yml for `tests:` keys (both model-level and column-level).
+  fixing: |-
+    - Handled by `dbt-autofix deprecations` (renames `tests:` -> `data_tests:`).
+    - Review the diff and confirm every occurrence was renamed (leave the test list contents
+      unchanged).
+    - Manual fallback: rename any occurrence autofix missed.
+    - Verify with `dbt parse --warn-error` (no deprecation).

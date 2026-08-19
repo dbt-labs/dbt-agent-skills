@@ -1,0 +1,118 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "upgrading-dbt-core issue corpus entry",
+  "description": "One migration issue derived from the Migration Analysis DB. One YAML file per issue.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "issue_id",
+    "sort_order",
+    "change",
+    "action",
+    "category",
+    "component",
+    "adapter_type",
+    "impact",
+    "from_version",
+    "to_version",
+    "automation_type",
+    "out_of_repo_risk",
+    "environment_change",
+    "context"
+  ],
+  "properties": {
+    "issue_id": {
+      "type": "string",
+      "pattern": "^1_(?:[3-9]|1[0-2])_[0-9]{3}$",
+      "description": "Stable identity: 1_<X>_<NNN> (3-digit), where X is the minor version whose upgrade boundary introduced the change. There is no to-version: every project is migrated all the way to the newest core, not one minor bump. Never changes on reorder. NOTE: always quote this in YAML — bare 1_3_001 parses as the integer 13001 under YAML 1.1 digit-separator rules."
+    },
+    "sort_order": {
+      "type": "integer",
+      "minimum": 1000,
+      "maximum": 9999,
+      "description": "Drives processing order (ascending). Version bands: 1.3=1000s, 1.4=2000s, 1.5=3000s, 1.6=4000s, 1.7=5000s, 1.8=6000s, 1.9=7000s, 1.10=8000s, 1.11=9000s."
+    },
+    "change": { "type": "string", "minLength": 1 },
+    "action": { "type": "string", "minLength": 1 },
+    "category": {
+      "type": "string",
+      "enum": ["Breaking", "Behavior", "Deprecated"]
+    },
+    "component": {
+      "type": "string",
+      "enum": ["core", "adapter"]
+    },
+    "adapter_type": {
+      "type": ["string", "null"],
+      "enum": ["snowflake", "redshift", "bigquery", "databricks", "spark", null]
+    },
+    "impact": { "type": "string", "minLength": 1 },
+    "from_version": {
+      "type": "string",
+      "description": "The version a project is ON when it hits this issue; drives collection filtering (a project on X collects every issue with from_version >= X).",
+      "enum": ["1.3", "1.4", "1.5", "1.6", "1.7", "1.8", "1.9", "1.10", "1.11"]
+    },
+    "to_version": {
+      "type": "string",
+      "description": "The version the change actually landed in. Informational only — it is NOT a migration target; every project is migrated to the newest core regardless.",
+      "enum": ["1.4", "1.5", "1.6", "1.7", "1.8", "1.9", "1.10", "1.11", "1.12"]
+    },
+    "automation_type": {
+      "type": "string",
+      "enum": ["deterministic", "agentic", "human", "behavior_flag"],
+      "description": "How the issue is resolved. deterministic -> dbt-autofix handles it (the skill only maps its diff + verifies). agentic -> the skill applies the fix directly, then verifies. human -> the skill proposes a fix, confirms with the user, then applies (HITL). behavior_flag -> a post-1.8 backwards-incompatible change that dbt ships gated behind a behavior-change flag; we do NOT fix the underlying behavior, we just set the gating flag explicitly to its legacy value in dbt_project.yml so behavior stays consistent and the project parses on the newest core."
+    },
+    "behavior_flag": {
+      "type": "object",
+      "description": "Required when automation_type is behavior_flag: which dbt_project.yml `flags:` entry gates this change, and the value that preserves legacy (pre-change) behavior.",
+      "additionalProperties": false,
+      "required": ["name", "set_to"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$",
+          "description": "Flag key as it appears under `flags:` in dbt_project.yml."
+        },
+        "set_to": {
+          "type": "boolean",
+          "description": "Value that preserves the legacy behavior (normally false)."
+        }
+      }
+    },
+    "out_of_repo_risk": {
+      "type": "boolean",
+      "description": "true -> the fix may reach things outside the repo (job --select, selectors.yml, BI tools, mesh refs); surfaced in the results report for the user regardless of automation_type."
+    },
+    "environment_change": {
+      "type": "boolean",
+      "description": "true -> dependency / Python-runtime / profiles change. Advisory edit only, never executed, and excluded from the parse-verify loop."
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["detection", "fixing"],
+      "properties": {
+        "detection": { "type": "string", "minLength": 1 },
+        "fixing": { "type": "string", "minLength": 1 }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "component": { "const": "core" } } },
+      "then": { "properties": { "adapter_type": { "const": null } } }
+    },
+    {
+      "if": { "properties": { "component": { "const": "adapter" } } },
+      "then": { "properties": { "adapter_type": { "type": "string" } } }
+    },
+    {
+      "if": {
+        "properties": { "automation_type": { "const": "behavior_flag" } },
+        "required": ["automation_type"]
+      },
+      "then": { "required": ["behavior_flag"] },
+      "else": { "not": { "required": ["behavior_flag"] } }
+    }
+  ]
+}

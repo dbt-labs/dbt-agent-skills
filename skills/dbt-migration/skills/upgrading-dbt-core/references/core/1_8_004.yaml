@@ -1,0 +1,30 @@
+issue_id: "1_8_004"
+sort_order: 6004
+change: >-
+  cumulative metric type params must be nested under type_params
+action: >-
+  Set flags.require_nested_cumulative_type_params: false to keep accepting the flat shape, or nest the params.
+category: Behavior
+component: core
+adapter_type: null
+impact: >-
+  Semantic-layer cumulative metrics using the flat param shape fail validation. This flag defaults to True in 1.12, so leaving it unset silently adopts the new behavior.
+from_version: '1.8'
+to_version: '1.9'
+automation_type: behavior_flag
+behavior_flag:
+  name: require_nested_cumulative_type_params
+  set_to: false
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Applies only if the project defines cumulative metrics using the FLAT param
+      shape (window/grain_to_date directly under the metric rather than nested under
+      `type_params`).
+    - Grep metric YAML for `type: cumulative`, then check whether its params are
+      nested under `type_params:`.
+    - Already nested, or no cumulative metrics -> skipped-not-present.
+  fixing: |-
+    Pin the flag via `tools.py set-flag --issue-id 1_8_004`. No project code changes.
+    Only pin it when a flat-shaped cumulative metric exists.

@@ -1,0 +1,29 @@
+issue_id: "1_4_013"
+sort_order: 2130
+change: >-
+  connect_timeout default introduced at 30 seconds
+action: >-
+  Set connect_timeout explicitly in the Redshift profile if 30s is insufficient
+category: Behavior
+component: adapter
+adapter_type: redshift
+impact: >-
+  Connections without an explicit timeout now time out after 30 seconds
+from_version: '1.4'
+to_version: '1.5'
+automation_type: human
+out_of_repo_risk: false
+environment_change: true
+context:
+  detection: |-
+    - Inspect any in-repo profiles.yml or profile fixture for a Redshift output that does NOT set
+      `connect_timeout:`. Present when the field is absent (it now defaults to 30s).
+    - If profiles.yml lives only in ~/.dbt (outside the repo), there is nothing to detect in-repo — treat
+      as advisory.
+  fixing: |-
+    - ADVISORY ONLY — this is a profiles.yml / connection change, never executed.
+    - If an in-repo profile is present and 30s could be too short (high network latency, VPN), add
+      `connect_timeout: <seconds>` to the Redshift output. Otherwise record an advisory note only.
+    - EXCLUDED from the dbt parse verify loop.
+    - Add a results entry telling the user to set connect_timeout in their real profiles.yml if the
+      default 30s causes premature connection timeouts.

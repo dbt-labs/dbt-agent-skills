@@ -1,0 +1,27 @@
+issue_id: "1_11_003"
+sort_order: 9003
+change: >-
+  analyses use corrected fully-qualified names
+action: >-
+  Set flags.require_corrected_analysis_fqns: false to keep the previous FQNs.
+category: Behavior
+component: core
+adapter_type: null
+impact: >-
+  Selection and documentation paths for analyses change, affecting --select on analyses. This flag still defaults to False in 1.12; pinning it makes that explicit and survives a future flip.
+from_version: '1.11'
+to_version: '1.12'
+automation_type: behavior_flag
+behavior_flag:
+  name: require_corrected_analysis_fqns
+  set_to: false
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Applies only if the project has an analyses/ directory with content AND
+      something selects analyses by FQN (selectors.yml or in-repo job commands).
+    - Empty/absent analyses/ -> skipped-not-present.
+  fixing: |-
+    Pin the flag via `tools.py set-flag --issue-id 1_11_003`. No project code changes.
+    Only pin it when analyses exist and are selected by FQN.
