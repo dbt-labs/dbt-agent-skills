@@ -96,6 +96,7 @@ These skills work with AI agents that support the [Agent Skills](https://agentsk
 |-------|-------------|
 | `using-dbt-for-analytics-engineering` | Build and modify dbt models, debug errors, explore data sources, write tests |
 | `adding-dbt-unit-test` | Add unit tests for dbt models, practice test-driven development |
+| `maintaining-dbt-documentation` | Audit model/column doc coverage and draft missing descriptions in the project's own style |
 | `building-dbt-semantic-layer` | Create semantic models, metrics, and dimensions with MetricFlow |
 | `answering-natural-language-questions-with-dbt` | Answer business questions by querying the semantic layer |
 | `working-with-dbt-mesh` | Implement dbt Mesh governance (contracts, access, groups, versions) and cross-project collaboration |

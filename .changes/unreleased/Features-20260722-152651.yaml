@@ -1,0 +1,6 @@
+kind: Features
+body: Add the `maintaining-dbt-documentation` skill — audits dbt documentation coverage (from the dbt manifest) and drafts missing model/column descriptions in the project's own house style, one folder at a time, for human review.
+time: 2026-07-22T15:26:51+02:00
+custom:
+    Author: danielmontalbano
+    Issue: "143"
