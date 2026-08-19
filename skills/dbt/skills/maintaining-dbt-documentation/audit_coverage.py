@@ -38,19 +38,19 @@ def load_models(manifest_path):
             "Generate it first by running `dbt parse` from the dbt project root,\n"
             "or point --manifest at an existing manifest.json."
         )
-    with open(manifest_path, encoding="utf-8") as fh:
-        manifest = json.load(fh)
+    with open(manifest_path, encoding="utf-8") as manifest_file:
+        manifest = json.load(manifest_file)
     return [
-        n for n in manifest.get("nodes", {}).values()
-        if n.get("resource_type") == "model"
+        node for node in manifest.get("nodes", {}).values()
+        if node.get("resource_type") == "model"
     ]
 
 
 def col_stats(node):
     """(#columns with a description, #declared columns) for a model node."""
-    cols = node.get("columns", {}) or {}
-    documented = sum(1 for c in cols.values() if (c.get("description") or "").strip())
-    return documented, len(cols)
+    columns = node.get("columns", {}) or {}
+    documented_columns = sum(1 for c in columns.values() if (c.get("description") or "").strip())
+    return documented_columns, len(columns)
 
 
 def main():
@@ -65,56 +65,61 @@ def main():
         sys.exit("No models found in the manifest.")
 
     folders = defaultdict(list)
-    for n in models:
-        folders[os.path.dirname(n.get("original_file_path", ""))].append(n)
+    for model in models:
+        folders[os.path.dirname(model.get("original_file_path", ""))].append(model)
 
-    def is_doc(n):
-        return bool((n.get("description") or "").strip())
+    def is_documented(model):
+        return bool((model.get("description") or "").strip())
 
     if args.folder:
         target = args.folder.rstrip("/")
-        matches = [f for f in folders if f == target or f.endswith("/" + target)]
+        matches = [folder for folder in folders if folder == target or folder.endswith("/" + target)]
         if not matches:
             print(f"No folder matches '{target}'. Folders:")
-            for f in sorted(folders):
-                print("  ", f)
+            for folder in sorted(folders):
+                print("  ", folder)
             sys.exit(1)
         for folder in sorted(matches):
-            nodes = sorted(folders[folder], key=lambda n: n["name"])
-            documented = [n for n in nodes if is_doc(n)]
-            undoc = [n for n in nodes if not is_doc(n)]
-            print(f"\n# {folder}  ({len(documented)}/{len(nodes)} models documented)")
-            if undoc:
-                print(f"  undocumented models ({len(undoc)}):")
-                for n in undoc:
-                    print("   -", n["name"])
+            models_in_folder = sorted(folders[folder], key=lambda model: model["name"])
+            documented_models = [model for model in models_in_folder if is_documented(model)]
+            undocumented_models = [model for model in models_in_folder if not is_documented(model)]
+            print(f"\n# {folder}  ({len(documented_models)}/{len(models_in_folder)} models documented)")
+            if undocumented_models:
+                print(f"  undocumented models ({len(undocumented_models)}):")
+                for model in undocumented_models:
+                    print("   -", model["name"])
             # Documented models that still have undocumented declared columns.
-            partial = []
-            for n in documented:
-                d, total = col_stats(n)
-                if total and d < total:
-                    partial.append((n["name"], d, total))
-            if partial:
-                print(f"  documented models missing column docs ({len(partial)}):")
-                for name, d, total in partial:
-                    print(f"   - {name}  ({d}/{total} columns)")
+            partially_documented = []
+            for model in documented_models:
+                documented_columns, total_columns = col_stats(model)
+                if total_columns and documented_columns < total_columns:
+                    partially_documented.append((model["name"], documented_columns, total_columns))
+            if partially_documented:
+                print(f"  documented models missing column docs ({len(partially_documented)}):")
+                for name, documented_columns, total_columns in partially_documented:
+                    print(f"   - {name}  ({documented_columns}/{total_columns} columns)")
         return
 
-    total = len(models)
-    doc = sum(1 for n in models if is_doc(n))
-    print(f"Model description coverage: {doc}/{total} ({100 * doc // total}%)\n")
+    total_models = len(models)
+    documented_model_count = sum(1 for model in models if is_documented(model))
+    print(f"Model description coverage: {documented_model_count}/{total_models} "
+          f"({100 * documented_model_count // total_models}%)\n")
     print("models    columns    folder")
     for folder in sorted(folders):
-        nodes = folders[folder]
-        d = sum(1 for n in nodes if is_doc(n))
-        col_d = col_t = 0
-        for n in nodes:
-            cd, ct = col_stats(n)
-            col_d += cd
-            col_t += ct
-        col_str = f"{col_d}/{col_t}" if col_t else "-"
-        flag = "  <-- gap" if d < len(nodes) or (col_t and col_d < col_t) else ""
-        print(f"  {d:3d}/{len(nodes):<3d}  {col_str:>9s}  {folder}{flag}")
+        models_in_folder = folders[folder]
+        documented_model_count = sum(1 for model in models_in_folder if is_documented(model))
+        folder_documented_columns = folder_total_columns = 0
+        for model in models_in_folder:
+            model_documented_columns, model_total_columns = col_stats(model)
+            folder_documented_columns += model_documented_columns
+            folder_total_columns += model_total_columns
+        col_str = f"{folder_documented_columns}/{folder_total_columns}" if folder_total_columns else "-"
+        has_gap = (
+            documented_model_count < len(models_in_folder)
+            or (folder_total_columns and folder_documented_columns < folder_total_columns)
+        )
+        flag = "  <-- gap" if has_gap else ""
+        print(f"  {documented_model_count:3d}/{len(models_in_folder):<3d}  {col_str:>9s}  {folder}{flag}")
 
 
 if __name__ == "__main__":
