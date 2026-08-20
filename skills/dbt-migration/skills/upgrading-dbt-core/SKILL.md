@@ -100,6 +100,7 @@ invocations are written down.
 | `parse` | Run `dbt parse` on dbt-core 1.12 — the correctness gate |
 | `revert` | Undo the uncommitted changes to a named set of files |
 | `report` | Render the results artifact to `migration_report.md` |
+| `jobs-file` | Read, and record verdicts in, `migration_jobs.json` — the customer's job commands |
 | `ask` | Put a question to the user and wait for the answer |
 
 `$PROJECT` below = the project's root directory. `$ADAPTER` = the adapter type
@@ -294,7 +295,9 @@ Handle by kind:
   surface it for the user.
 - **`environment_change` / `out_of_repo_risk`** → make the advisory edit only
   (env) or record the out-of-repo action, then `set-status` `advisory` /
-  `manual-required`.
+  `manual-required`. When the out-of-repo thing is a **job command**, the record
+  goes in the jobs file via **`jobs-file`**, not only in the issue note — see
+  [Job commands](#job-commands--migration_jobsjson).
 - **everything else** → apply the fix per `context.fixing`, then `set-status`
   `fixed` with the files you touched.
 
@@ -358,6 +361,12 @@ the report will flag it as such.
 
 **`report`** renders the results artifact to `migration_report.md`, grouped by
 outcome. Show it to the user.
+
+If a jobs file exists (see [Job commands](#job-commands--migration_jobsjson)),
+every entry in it must be resolved by now — no `pending` left. Say in the report
+how many commands need changing and point at the file by name; do **not** restate
+the commands in prose. The file is the actionable artifact, and a summary that
+duplicates it will drift from it.
 
 `status-set` → `report` = `complete`, note `"migration_report.md written"`.
 
@@ -451,6 +460,70 @@ looked at) · `detected` (present, not yet resolved) · `handled-by-autofix` ·
 `advisory` (environment_change) · `skipped-not-present` · `failed`. A run that
 ends with anything still `pending` or `detected` is incomplete, and the report
 says so.
+
+### Job commands — `migration_jobs.json`
+
+The customer's dbt platform job commands, at the **project root** next to
+`migration_report.md` — not under `target/`, which most projects gitignore. This
+one exists to be read and acted on: the customer has to change these commands in
+the dbt platform themselves, and **you must never edit their jobs for them.**
+
+Why a file rather than a paragraph in the report: a job command that has to change
+is a concrete edit in a named job, so it needs the job's name, the exact command
+today, and the exact command to replace it with. Prose loses at least one of those
+every time.
+
+Where it comes from depends on the profile, and your profile says which applies:
+
+- **Local (VS Code)** — the extension has already written it, with every command
+  `status: "pending"`. Read it and record verdicts. Do **not** regenerate it.
+- **Studio** — no extension wrote it, so you create it from the legacy job ids
+  you were given, in exactly the shape below, then record verdicts in it.
+
+```json
+{
+  "version": 1,
+  "source": "vscode",
+  "generated_at": "2026-08-20T10:00:00.000Z",
+  "project_id": 12345,
+  "jobs": [
+    {
+      "id": 67890,
+      "name": "nightly",
+      "steps": [
+        {
+          "original": "dbt deps --add-package dbt-labs/dbt_utils --version 1.1.1 --dry-run",
+          "updated": "dbt deps --lock",
+          "status": "needs_change",
+          "issue_id": "1_9_004",
+          "reason": "--dry-run was removed from dbt deps --add-package; use dbt deps --lock"
+        },
+        { "original": "dbt build", "updated": null, "status": "ok" }
+      ]
+    }
+  ]
+}
+```
+
+`source` is `vscode` or `platform` — whichever side created the file; never change
+it. `status` per step is:
+
+- `pending` — nobody has looked at it yet. **None may remain at the end of a run.**
+- `ok` — reviewed, runs unchanged on the target version. `updated` stays null.
+- `needs_change` — `updated` holds the replacement command. `reason` is required.
+- `manual` — needs a change no single replacement expresses (e.g. one step becoming
+  two). `updated` stays null; `reason` says what to do.
+
+Rules:
+
+- **Every step stays in the file**, including unchanged ones. Removing the `ok`
+  entries would leave the customer unable to tell "reviewed and fine" from "never
+  looked at" — which is the whole reason this file exists.
+- **`updated` is one command, not a list.** A change that splits or merges steps is
+  `manual` with a `reason`.
+- **`issue_id` must match a record in the results artifact**, so the two agree.
+- Never reorder or reword `original`. It is what the job runs today, verbatim, and
+  it is how the customer finds the line to replace.
 
 ## Verify
 

@@ -75,7 +75,7 @@ memory: read it, change the one record you mean to change, write it back.
 | `git` (`status`, `branches`, `diff`, `checkout`, `commit`, `push`, `pull`, `revert`, `merge`) | Preflight, diffs for approval, undo. **No `stash`** |
 | `dbt_command`, `dbt_command_status`, `dbt_command_cancel` | The `dbt parse` gate and the `dbt-autofix` run |
 | `request_user_input` | Every question you put to the user |
-| `get_job_details` | Read one job by id — its `execute_steps` and pinned `dbt_version` |
+| `get_job_details` | Read one job by id — its `execute_steps` and pinned `dbt_version`. Also how you build `migration_jobs.json` (`jobs-file`) |
 | `list_jobs` | Use with care: it returns every job in the **account**, not this project. Work from the legacy job ids you were given |
 | `trigger_job_run`, `get_job_run_details`, `get_job_run_error`, `list_job_run_artifacts` | The optional `verify-jobs` exit gate |
 
@@ -168,6 +168,32 @@ only flags for behaviors detection actually found.
 The gate is only meaningful against **dbt-core 1.12** — the target version. Treat
 the session as running 1.12 for the purposes of this skill.
 
+### `jobs-file`
+
+**You create this file here.** No extension ran before you, so unlike the local
+profile there is nothing on disk to read — you build it from the legacy job ids you
+were given, then record your verdicts in it.
+
+1. For each legacy job id, `get_job_details` → its `execute_steps`.
+2. `edit_file` on `migration_jobs.json` at the **project root** (not under
+   `target/`), creating it with one entry per job and one step entry per command,
+   every step `status: "pending"` and `updated: null`.
+3. Then `edit_file` the same file as you work through the issues, setting each step
+   to `ok` / `needs_change` / `manual`.
+
+Set `"source": "platform"`. Use the legacy job ids you were given — **not**
+`list_jobs`, which is account-wide and would pull in jobs from projects that are
+none of this migration's business.
+
+The schema is **fixed and shared with the VS Code extension**, which writes the
+same file deterministically on the local path: see
+[Job commands](../SKILL.md#job-commands--migration_jobsjson) and match it exactly.
+Nothing validates it for you here, so that section is the contract — do not add
+fields, rename them, or invent status values.
+
+Writing this file is not permission to change the jobs. `verify-jobs` may *run*
+them; nothing in this skill edits them.
+
 ### `revert`
 `git` `revert` with a `files` list. That undoes those uncommitted changes, which
 is what `git restore` does locally. There is no `stash`.
@@ -182,6 +208,11 @@ Cover what changed, which behavior flags were pinned and why, anything left
 `manual-required` or `failed`, and — for this environment specifically — **every
 environment and job the user still has to flip**, listed together. A partial flip
 leaves the project split across release tracks.
+
+For job **commands**, give the count and link `migration_jobs.json` rather than
+restating them; that file is the actionable list and a prose copy will drift from
+it. Flipping a job's version and fixing its commands are two different jobs of
+work — say both.
 
 ### `ask`
 `request_user_input`. Always `status-set` the current phase to `waiting_input`

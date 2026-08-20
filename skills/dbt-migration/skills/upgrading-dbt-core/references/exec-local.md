@@ -140,6 +140,28 @@ Builds a throwaway dbt-core 1.12 virtualenv and a dummy profile as needed, runs
 `dbt parse` against it, and returns `{ok, output}`. The 1.12 venv is what makes
 this gate mean anything — never substitute the project's own dbt.
 
+### `jobs-file`
+
+`$PROJECT/migration_jobs.json`, **already written by the extension** before the
+handoff — it read the jobs from the dbt platform API, so the job ids, names and
+commands in it are authoritative. Read it with `Read` and record verdicts with
+`Edit`.
+
+```
+Read  $PROJECT/migration_jobs.json
+Edit  $PROJECT/migration_jobs.json   # set status / updated / issue_id / reason per step
+```
+
+**Never regenerate this file here, and never call the platform API for jobs.** You
+have no credentials in this environment, and rewriting it would discard the ids the
+customer needs to find each job. If the file is absent, the project has no jobs or
+the extension could not read them — say so in the report and move on; do not invent
+one.
+
+Schema and status vocabulary are in SKILL.md
+([Job commands](../SKILL.md#job-commands--migration_jobsjson)). Every step must
+leave `pending` before Step 9.
+
 ### `revert`
 ```bash
 git -C "$PROJECT" restore <files>
