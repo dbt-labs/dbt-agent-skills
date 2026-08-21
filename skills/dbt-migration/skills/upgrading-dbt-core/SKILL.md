@@ -262,6 +262,10 @@ before changing anything. For each issue in bundle order, evaluate
 - present → `detected`
 - not present → `skipped-not-present`
 
+**This mapping belongs to this step only.** It is how a *first* look at an
+untouched project records what it found. Applying it again after fixes have
+landed inverts its meaning — see Step 8.
+
 Make **no edits** in this step. The point is a complete, honest picture of the
 work before any of it starts, so later phases operate on a known set. When the
 sweep is done, everything still to do is exactly `list-issues --status detected`.
@@ -348,6 +352,18 @@ Re-evaluate `context.detection` for every issue that was resolved
 **not present**. This is what proves the fixes actually worked and are
 idempotent — a fix that still detects was incomplete, so reopen it (back to
 Step 5 or 6) and then re-run Step 7.
+
+**Confirming is not reclassifying. Change no status in this step when the
+re-check passes.** A resolved issue no longer detecting is the expected result —
+it is the fix being confirmed, not the issue turning out to be absent. Marking it
+`skipped-not-present` here throws away the record of the work: the entry loses
+its `files_changed`, and Step 9 then reports "No changes were required" over an
+edit that is sitting in the diff. `set-status` refuses that transition (exit 2)
+rather than leaving it to be spotted later, by which point the evidence is gone.
+
+Only two statuses are ever written in this step, and only on failure: back to
+`detected` if the fix did not hold, or `failed` if re-checking it could not be
+done.
 
 Nothing should remain `detected` at the end of this step; confirm with
 `list-issues --status detected,pending`. Anything still listed is unresolved and

@@ -112,6 +112,69 @@ _ADAPTER_PKG = {
     "spark": "dbt-spark",
 }
 
+# Throwaway profile bodies for the parse gate, one per adapter we install. Values
+# are fake; the field *names* are not — dbt validates a profile's required keys
+# before it parses anything, so a stub missing one fails the gate for a reason
+# that has nothing to do with the project. Keep in step with _ADAPTER_PKG.
+_DUMMY_OUTPUTS: dict[str, dict[str, object]] = {
+    "postgres": {
+        "type": "postgres",
+        "host": "localhost",
+        "port": 5432,
+        "user": "dbt",
+        "password": "dbt",
+        "dbname": "dbt",
+        "schema": "public",
+        "threads": 1,
+    },
+    "snowflake": {
+        "type": "snowflake",
+        "account": "dummy",
+        "user": "dbt",
+        "password": "dbt",
+        "role": "accountadmin",
+        "database": "dbt",
+        "warehouse": "dbt",
+        "schema": "public",
+        "threads": 1,
+    },
+    "redshift": {
+        "type": "redshift",
+        "host": "localhost",
+        "port": 5439,
+        "user": "dbt",
+        "password": "dbt",
+        "dbname": "dbt",
+        "schema": "public",
+        "threads": 1,
+    },
+    "bigquery": {
+        # `oauth` rather than service-account: it needs no keyfile on disk, which
+        # a synthetic profile has no way to produce.
+        "type": "bigquery",
+        "method": "oauth",
+        "project": "dbt",
+        "dataset": "dbt",
+        "threads": 1,
+    },
+    "databricks": {
+        "type": "databricks",
+        "host": "localhost",
+        "http_path": "/sql/1.0/warehouses/dummy",
+        "token": "dbt",
+        "schema": "default",
+        "threads": 1,
+    },
+    "spark": {
+        "type": "spark",
+        "method": "thrift",
+        "host": "localhost",
+        "port": 10000,
+        "schema": "default",
+        "threads": 1,
+    },
+}
+
 VALID_STATUSES = {
     "pending", "detected", "handled-by-autofix", "fixed", "applied",
     "manual-required", "advisory", "skipped-not-present", "failed",
@@ -121,6 +184,11 @@ VALID_STATUSES = {
 # not yet resolved. Neither is an outcome — a run that ends with either is
 # incomplete, and the report says so.
 TERMINAL_STATUSES = VALID_STATUSES - {"pending", "detected"}
+
+# Statuses meaning "this issue was present and something was done about it". These
+# are the ones re-detection must never overwrite with `skipped-not-present`; see
+# cmd_set_status.
+RESOLVED_STATUSES = {"fixed", "applied", "handled-by-autofix", "flag-set"}
 
 
 def _vkey(v: str) -> tuple[int, int]:
@@ -331,6 +399,22 @@ def cmd_set_status(args) -> int:
     if rec is None:
         print(f"issue_id {args.issue_id} not in results (run init-results first)", file=sys.stderr)
         return 2
+    # A resolved issue cannot become "not present". Re-detection (Step 8) exists
+    # to confirm that fixes hold, and a fix that worked is *supposed* to stop
+    # detecting — so re-applying Step 3's "not present -> skipped-not-present"
+    # mapping there silently erases the work: the record loses its files, and the
+    # report goes on to say "No changes were required" over a real edit.
+    # Refused here rather than left to the agent to notice, because by the time
+    # it is visible the evidence of the fix is already gone.
+    current = rec.get("status", "pending")
+    if args.status == "skipped-not-present" and current in RESOLVED_STATUSES:
+        print(
+            f"refusing {args.issue_id}: {current} -> skipped-not-present. A resolved issue no "
+            "longer detecting is the fix being confirmed, not the issue being absent. Leave the "
+            f"status at {current}; if the fix genuinely did not hold, set 'detected' or 'failed'.",
+            file=sys.stderr,
+        )
+        return 2
     rec["status"] = args.status
     if args.files:
         rec["files_changed"] = [f for f in args.files.split(",") if f]
@@ -538,10 +622,39 @@ def _resolve_dbt(adapter: str | None, build: bool) -> str | None:
     return str(dbt) if dbt.exists() else None
 
 
-def _ensure_profiles_dir(project: Path, stack) -> str:
+def _dummy_profile(profile_name: str, adapter: str | None) -> str:
+    """A throwaway profile for the parse gate, typed to match `adapter`.
+
+    `dbt parse` never opens a connection, so the credentials are deliberately
+    fake. The **`type`** is not: dbt resolves it against the adapter installed in
+    the venv, and `_resolve_dbt` installs `dbt-<adapter>`. A postgres stub in a
+    Snowflake project therefore fails before a single project file is read, which
+    reads like a project problem and is not one.
+
+    Fake beats real here. Asking the customer for credentials to run a command
+    that never connects buys nothing, and a real profile risks parse-time
+    introspection reaching an actual warehouse.
+    """
+    key = (adapter or "").strip().lower()
+    if key in ("", "none", "core"):
+        key = "postgres"
+    output = _DUMMY_OUTPUTS.get(key)
+    if output is None:
+        # An adapter we have no stub for. `type` still has to name it, because
+        # that is what must match the installed adapter — falling back to
+        # postgres would be guaranteed wrong rather than possibly incomplete.
+        # Any missing required field surfaces as a profile error naming it.
+        output = {"type": key, "schema": "public", "threads": 1}
+    return yaml.safe_dump(
+        {profile_name: {"target": "dev", "outputs": {"dev": dict(output)}}},
+        sort_keys=False,
+    )
+
+
+def _ensure_profiles_dir(project: Path, stack, adapter: str | None = None) -> str:
     """Return a --profiles-dir. Prefer an env/project profiles.yml; otherwise
-    synthesize a dummy profile matching the project's `profile:` name (parse
-    does not connect, so dummy postgres creds are fine)."""
+    synthesize a dummy profile matching the project's `profile:` name and the
+    adapter its venv was built for (see {@link _dummy_profile})."""
     env_dir = os.environ.get("DBT_PROFILES_DIR")
     if env_dir and (Path(env_dir) / "profiles.yml").exists():
         return env_dir
@@ -553,20 +666,7 @@ def _ensure_profiles_dir(project: Path, stack) -> str:
         cfg = yaml.safe_load(dbt_project.read_text()) or {}
         profile_name = cfg.get("profile", "default")
     tmp = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix="dbtmig_prof_")))
-    (tmp / "profiles.yml").write_text(
-        f"{profile_name}:\n"
-        "  target: dev\n"
-        "  outputs:\n"
-        "    dev:\n"
-        "      type: postgres\n"
-        "      host: localhost\n"
-        "      port: 5432\n"
-        "      user: dbt\n"
-        "      password: dbt\n"
-        "      dbname: dbt\n"
-        "      schema: public\n"
-        "      threads: 1\n"
-    )
+    (tmp / "profiles.yml").write_text(_dummy_profile(profile_name, adapter))
     return str(tmp)
 
 
@@ -578,7 +678,11 @@ def cmd_parse(args) -> int:
         print(json.dumps({"ok": None, "reason": f"no dbt-core {TARGET_VERSION} available (set DBT_TARGET_VENV or install uv)"}))
         return 2
     with contextlib.ExitStack() as stack:
-        profiles_dir = _ensure_profiles_dir(project, stack)
+        # Same adapter the venv was built with, above: the stub's `type` has to
+        # match the adapter that is actually installed.
+        profiles_dir = _ensure_profiles_dir(
+            project, stack, args.adapter if args.adapter != "none" else None
+        )
         cmd = [dbt_bin, "parse", "--profiles-dir", profiles_dir, "--no-version-check"]
         if args.warn_error:
             cmd.append("--warn-error")

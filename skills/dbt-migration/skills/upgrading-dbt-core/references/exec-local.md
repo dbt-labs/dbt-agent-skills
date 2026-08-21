@@ -11,13 +11,25 @@ only says *how*. If you are in dbt platform Studio, you want
 - **`uvx` and `python`** are available — used to run `scripts/tools.py`,
   `dbt-autofix`, and a throwaway dbt-core 1.12 for the parse gate.
 - **`scripts/tools.py`** sits under this skill's directory and owns all
-  deterministic work. Run every command from the skill's directory.
+  deterministic work.
 
-Every command below is prefixed with:
+**Resolve `$SKILL_DIR` before your first command**: the absolute path of the
+directory holding `SKILL.md` — where this skill was installed, which is not the
+project and not necessarily your shell's starting directory. Every command below
+is prefixed with:
 
 ```bash
-uv run --with pyyaml python scripts/tools.py
+uv run --with pyyaml python "$SKILL_DIR/scripts/tools.py"
 ```
+
+Substitute the real path into each command literally. Each command runs in a
+fresh shell, so a variable you export in one does not exist in the next, and
+neither does a `cd`.
+
+The script does not care where it is run from: it locates `kb/` and
+`references/` relative to its own file, and every command takes the project as
+`--project-dir`. An absolute script path is all it needs — so there is nothing
+here to discover by trial.
 
 `$PROJECT` = the project's root directory. `$ADAPTER` = the adapter type (or
 `none`). `$FROM` = the starting version. `<id>` = an `issue_id` from the bundle.
@@ -45,12 +57,12 @@ migration started in one environment to resume in the other.
 
 ### `status-init`
 ```bash
-uv run --with pyyaml python scripts/tools.py status-init --project-dir "$PROJECT"
+uv run --with pyyaml python "$SKILL_DIR/scripts/tools.py" status-init --project-dir "$PROJECT"
 ```
 
 ### `status-set`
 ```bash
-uv run --with pyyaml python scripts/tools.py status-set --project-dir "$PROJECT" \
+uv run --with pyyaml python "$SKILL_DIR/scripts/tools.py" status-set --project-dir "$PROJECT" \
   --step <phase-id> --status <status> \
   --note "12 of 41 issues checked"
 ```
@@ -61,7 +73,7 @@ exit 2 if `status-init` has not run yet.
 
 ### `preflight`
 ```bash
-uv run --with pyyaml python scripts/tools.py preflight --project-dir "$PROJECT"
+uv run --with pyyaml python "$SKILL_DIR/scripts/tools.py" preflight --project-dir "$PROJECT"
 ```
 Prints JSON and **exits non-zero when unsafe**. Read `ok`; if false, relay
 `reason`.
@@ -78,14 +90,14 @@ none. If that file is missing — a working copy where CI has not generated the
 bundles yet — build it from the local `kb/` corpus:
 
 ```bash
-uv run --with pyyaml python scripts/tools.py collect --from-version "$FROM" --adapter "$ADAPTER"
+uv run --with pyyaml python "$SKILL_DIR/scripts/tools.py" collect --from-version "$FROM" --adapter "$ADAPTER"
 ```
 That writes the same path and prints it. Then read it. Do not regenerate a bundle
 that already exists.
 
 ### `init-results`
 ```bash
-uv run --with pyyaml python scripts/tools.py init-results \
+uv run --with pyyaml python "$SKILL_DIR/scripts/tools.py" init-results \
   --from-version "$FROM" --adapter "$ADAPTER" --project-dir "$PROJECT"
 ```
 Idempotent: preserves the status of any issue already recorded, which is what
@@ -93,25 +105,27 @@ makes a run resumable.
 
 ### `set-status`
 ```bash
-uv run --with pyyaml python scripts/tools.py set-status --project-dir "$PROJECT" \
+uv run --with pyyaml python "$SKILL_DIR/scripts/tools.py" set-status --project-dir "$PROJECT" \
   --issue-id <id> --status <status> \
   --files models/marts/customers.sql,models/staging/stg_orders.sql \
   --note "renamed + rewrote ref"
 ```
 `--files` is comma-separated and repo-relative. `--note` and `--files` are
-optional. Exits 2 on an unknown status or an issue id not in the results
-artifact.
+optional. Exits 2 on an unknown status, an issue id not in the results artifact,
+or an attempt to move a resolved issue (`fixed` / `applied` /
+`handled-by-autofix` / `flag-set`) to `skipped-not-present` — see Step 8 in
+SKILL.md for why that transition is always a mistake.
 
 ### `list-issues`
 ```bash
-uv run --with pyyaml python scripts/tools.py list-issues --project-dir "$PROJECT" \
+uv run --with pyyaml python "$SKILL_DIR/scripts/tools.py" list-issues --project-dir "$PROJECT" \
   --status detected --automation-type agentic,deterministic --ids-only
 ```
 `--status` and `--automation-type` both accept comma-separated values.
 
 ### `autofix`
 ```bash
-uv run --with pyyaml python scripts/tools.py autofix --project-dir "$PROJECT" \
+uv run --with pyyaml python "$SKILL_DIR/scripts/tools.py" autofix --project-dir "$PROJECT" \
   --from-version "$FROM"
 ```
 Runs **`dbt-autofix migrate-1x --from "$FROM" --to 1.8`** and returns the
@@ -126,19 +140,27 @@ after it is behavior-flag gated and pinned by `set-flag`, never rewritten.
 
 ### `set-flag`
 ```bash
-uv run --with pyyaml python scripts/tools.py set-flag --project-dir "$PROJECT" --issue-id <id>
+uv run --with pyyaml python "$SKILL_DIR/scripts/tools.py" set-flag --project-dir "$PROJECT" --issue-id <id>
 ```
 Pins the flag named in that issue's `behavior_flag.name` to `false` under
 `flags:` in `dbt_project.yml`. Never hand-edit the file to do this.
 
 ### `parse`
 ```bash
-uv run --with pyyaml python scripts/tools.py parse --project-dir "$PROJECT" \
+uv run --with pyyaml python "$SKILL_DIR/scripts/tools.py" parse --project-dir "$PROJECT" \
   --adapter "$ADAPTER" --warn-error
 ```
 Builds a throwaway dbt-core 1.12 virtualenv and a dummy profile as needed, runs
 `dbt parse` against it, and returns `{ok, output}`. The 1.12 venv is what makes
 this gate mean anything — never substitute the project's own dbt.
+
+**Pass the project's real `$ADAPTER`.** It selects both the adapter installed in
+the venv and the `type:` of the synthesized profile, and those two have to agree:
+a mismatch fails the gate on profile resolution, before any project file is read,
+which reads like a project error and is not one. The credentials in that profile
+are fake by design — `dbt parse` never connects, so there is nothing here to ask
+the customer for, and a real profile would risk parse-time introspection reaching
+an actual warehouse.
 
 ### `jobs-file`
 
@@ -170,7 +192,7 @@ Undoes uncommitted changes to those files only.
 
 ### `report`
 ```bash
-uv run --with pyyaml python scripts/tools.py report --project-dir "$PROJECT"
+uv run --with pyyaml python "$SKILL_DIR/scripts/tools.py" report --project-dir "$PROJECT"
 ```
 Renders `target/dbt_migration_results.json` → `migration_report.md`, grouped by
 outcome.
