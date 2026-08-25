@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Validate the upgrading-dbt-core issue corpus.
 
-Checks, for every references/**/*.yaml file:
+Checks, for every kb/**/*.yaml file:
   1. Conformance to issues/_schema.json.
   2. issue_id uniqueness across the whole corpus.
   3. sort_order uniqueness across the whole corpus.
@@ -23,7 +23,7 @@ import re
 import sys
 from pathlib import Path
 
-CHANGES_DIR = Path(__file__).resolve().parent.parent / "references"
+CHANGES_DIR = Path(__file__).resolve().parent.parent / "kb"
 SCHEMA_PATH = CHANGES_DIR / "_schema.json"
 
 # sort_order band per version (from_version -> (low, high) inclusive)

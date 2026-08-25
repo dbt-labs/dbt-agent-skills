@@ -16,14 +16,17 @@ Run with PyYAML available, e.g.:
     uv run --with pyyaml python tools.py report --project-dir .
 
 Commands:
-  collect        Ordered list of issues for (from_version, adapter) as JSON. The
-                 single source of truth for "which issues, in what order".
+  collect        Ordered list of issues for (from_version, adapter), written to
+                 references/kb_<from_version>_<warehouse>.json. The single source
+                 of truth for "which issues, in what order".
+  collect-all    Regenerate every bundle (committed; CI diffs them after editing kb/).
   init-results   Write target/dbt_migration_results.json seeded from `collect`,
                  every issue status = "pending" (idempotent: keeps existing statuses).
   set-status     Update one issue's status/files/notes in the results artifact.
   report         Render target/dbt_migration_results.json -> migration_report.md.
   preflight      Git safety gate: not on main/master, working tree clean.
-  autofix        Run dbt-autofix in the project; return the files it changed (JSON).
+  autofix        Run `dbt-autofix migrate-1x` in the project; return the files it
+                 changed (JSON).
   parse          Run `dbt parse` on a throwaway target-version dbt-core; return {ok, output}.
 """
 from __future__ import annotations
@@ -46,9 +49,13 @@ except ImportError as exc:  # pragma: no cover
 
 HERE = Path(__file__).resolve().parent
 SKILL_ROOT = HERE.parent
-ISSUES_DIR = SKILL_ROOT / "references"
+ISSUES_DIR = SKILL_ROOT / "kb"
+# Where `collect` writes its output: one JSON file per (from_version, adapter),
+# so the agent reads a single stable artifact instead of a giant stdout blob.
+COLLECT_DIR = SKILL_ROOT / "references"
 RESULTS_REL = Path("target") / "dbt_migration_results.json"
 REPORT_REL = Path("migration_report.md")
+
 # Coarse, human-facing progress for whoever is watching the run (the VS Code
 # extension renders it as a stepper). Distinct from RESULTS_REL, which is
 # per-issue bookkeeping: this is one row per phase of the procedure, and it is
@@ -79,6 +86,11 @@ STATUS_VALUES = {"pending", "in_progress", "waiting_input", "complete", "failed"
 
 AUTOFIX_SPEC = "git+https://github.com/dbt-labs/dbt-autofix.git"
 
+# Upper bound for `dbt-autofix migrate-1x`. Deterministic rewriting stops at 1.8:
+# every backwards-incompatible change after it is gated behind a behavior-change
+# flag, which this skill pins via set-flag rather than rewriting.
+AUTOFIX_TO_VERSION = "1.8"
+
 # The core version every project is migrated to. Projects are no longer taken one
 # minor bump at a time — they go all the way to this version, so the parse gate
 # runs this version too.
@@ -100,6 +112,69 @@ _ADAPTER_PKG = {
     "spark": "dbt-spark",
 }
 
+# Throwaway profile bodies for the parse gate, one per adapter we install. Values
+# are fake; the field *names* are not — dbt validates a profile's required keys
+# before it parses anything, so a stub missing one fails the gate for a reason
+# that has nothing to do with the project. Keep in step with _ADAPTER_PKG.
+_DUMMY_OUTPUTS: dict[str, dict[str, object]] = {
+    "postgres": {
+        "type": "postgres",
+        "host": "localhost",
+        "port": 5432,
+        "user": "dbt",
+        "password": "dbt",
+        "dbname": "dbt",
+        "schema": "public",
+        "threads": 1,
+    },
+    "snowflake": {
+        "type": "snowflake",
+        "account": "dummy",
+        "user": "dbt",
+        "password": "dbt",
+        "role": "accountadmin",
+        "database": "dbt",
+        "warehouse": "dbt",
+        "schema": "public",
+        "threads": 1,
+    },
+    "redshift": {
+        "type": "redshift",
+        "host": "localhost",
+        "port": 5439,
+        "user": "dbt",
+        "password": "dbt",
+        "dbname": "dbt",
+        "schema": "public",
+        "threads": 1,
+    },
+    "bigquery": {
+        # `oauth` rather than service-account: it needs no keyfile on disk, which
+        # a synthetic profile has no way to produce.
+        "type": "bigquery",
+        "method": "oauth",
+        "project": "dbt",
+        "dataset": "dbt",
+        "threads": 1,
+    },
+    "databricks": {
+        "type": "databricks",
+        "host": "localhost",
+        "http_path": "/sql/1.0/warehouses/dummy",
+        "token": "dbt",
+        "schema": "default",
+        "threads": 1,
+    },
+    "spark": {
+        "type": "spark",
+        "method": "thrift",
+        "host": "localhost",
+        "port": 10000,
+        "schema": "default",
+        "threads": 1,
+    },
+}
+
 VALID_STATUSES = {
     "pending", "detected", "handled-by-autofix", "fixed", "applied",
     "manual-required", "advisory", "skipped-not-present", "failed",
@@ -109,6 +184,11 @@ VALID_STATUSES = {
 # not yet resolved. Neither is an outcome — a run that ends with either is
 # incomplete, and the report says so.
 TERMINAL_STATUSES = VALID_STATUSES - {"pending", "detected"}
+
+# Statuses meaning "this issue was present and something was done about it". These
+# are the ones re-detection must never overwrite with `skipped-not-present`; see
+# cmd_set_status.
+RESOLVED_STATUSES = {"fixed", "applied", "handled-by-autofix", "flag-set"}
 
 
 def _vkey(v: str) -> tuple[int, int]:
@@ -216,13 +296,73 @@ def cmd_status_set(args) -> int:
     return 2
 
 
+def _warehouse_slug(adapter: str | None) -> str:
+    wh = (adapter or "").strip().lower()
+    return "core" if wh in ("", "none", "core") else wh
+
+
+def collect_path(from_version: str, adapter: str | None) -> Path:
+    """references/kb_<from_version>_<warehouse>.json, versions dotless to match
+    the kb file naming (1.7 -> 1_7)."""
+    return COLLECT_DIR / f"kb_{from_version.replace('.', '_')}_{_warehouse_slug(adapter)}.json"
+
+
+def _write_collected(from_version: str, adapter: str | None) -> tuple[Path, int]:
+    """Write one bundle. Deliberately contains no timestamp: these files are
+    committed, and CI regenerates them and diffs, so the output must depend only
+    on the kb corpus — not on when it ran."""
+    issues = load_collected(from_version, adapter)
+    out = collect_path(from_version, adapter)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps({
+        "from_version": from_version,
+        "warehouse": _warehouse_slug(adapter),
+        "target_version": TARGET_VERSION,
+        "count": len(issues),
+        "issues": issues,
+    }, indent=2) + "\n")
+    return out, len(issues)
+
+
 def cmd_collect(args) -> int:
-    issues = load_collected(args.from_version, args.adapter)
+    out, n = _write_collected(args.from_version, args.adapter)
     if args.ids_only:
-        for i in issues:
+        for i in load_collected(args.from_version, args.adapter):
             print(i["issue_id"])
-    else:
-        print(json.dumps(issues, indent=2))
+    print(f"collected {n} issues -> {out}")
+    return 0
+
+
+def kb_from_versions() -> list[str]:
+    """Every from_version the corpus actually uses, oldest first."""
+    seen = {str(yaml.safe_load(f.read_text())["from_version"])
+            for f in ISSUES_DIR.glob("*/*.yaml") if not f.name.startswith("_")}
+    return sorted(seen, key=_vkey)
+
+
+def kb_warehouses() -> list[str]:
+    """core + every adapter directory in the corpus."""
+    return ["core"] + sorted(d.name for d in ISSUES_DIR.iterdir()
+                             if d.is_dir() and d.name != "core")
+
+
+def cmd_collect_all(args) -> int:
+    """Regenerate every (from_version, warehouse) bundle. Run this after editing
+    the kb; CI reruns it and fails if the committed bundles drift."""
+    written = []
+    for v in kb_from_versions():
+        for wh in kb_warehouses():
+            out, n = _write_collected(v, wh)
+            written.append((out, n))
+    if args.prune:
+        keep = {p for p, _ in written}
+        for stale in sorted(COLLECT_DIR.glob("kb_*.json")):
+            if stale not in keep:
+                stale.unlink()
+                print(f"removed stale {stale.name}")
+    for out, n in written:
+        print(f"{out.name}: {n} issues")
+    print(f"wrote {len(written)} bundles -> {COLLECT_DIR}")
     return 0
 
 
@@ -258,6 +398,22 @@ def cmd_set_status(args) -> int:
     rec = data.get(args.issue_id)
     if rec is None:
         print(f"issue_id {args.issue_id} not in results (run init-results first)", file=sys.stderr)
+        return 2
+    # A resolved issue cannot become "not present". Re-detection (Step 8) exists
+    # to confirm that fixes hold, and a fix that worked is *supposed* to stop
+    # detecting — so re-applying Step 3's "not present -> skipped-not-present"
+    # mapping there silently erases the work: the record loses its files, and the
+    # report goes on to say "No changes were required" over a real edit.
+    # Refused here rather than left to the agent to notice, because by the time
+    # it is visible the evidence of the fix is already gone.
+    current = rec.get("status", "pending")
+    if args.status == "skipped-not-present" and current in RESOLVED_STATUSES:
+        print(
+            f"refusing {args.issue_id}: {current} -> skipped-not-present. A resolved issue no "
+            "longer detecting is the fix being confirmed, not the issue being absent. Leave the "
+            f"status at {current}; if the fix genuinely did not hold, set 'detected' or 'failed'.",
+            file=sys.stderr,
+        )
         return 2
     rec["status"] = args.status
     if args.files:
@@ -416,7 +572,20 @@ def cmd_autofix(args) -> int:
     before = git("status", "--porcelain").stdout
     # Pin the interpreter: dbt-autofix's mashumaro dependency crashes on import
     # under Python 3.14 (UnserializableField on Optional[bool]); 3.11 is known-good.
-    cmd = ["uvx", "--python", "3.11", "--from", AUTOFIX_SPEC, "dbt-autofix", "deprecations"]
+    #
+    # `migrate-1x`, not `deprecations`: this skill replays 1.x -> 1.x version
+    # boundaries, which is exactly that subcommand's job ("no Fusion/v1.10
+    # deprecation fixes"). --from is the project's actual starting version, not
+    # the tool's 1.3 default, so autofix applies the same hops the bundle covers
+    # -- an out-of-range rule would change files that map onto no collected
+    # issue. --to stays at 1.8 because everything after it is behavior-flag
+    # gated and pinned by set-flag, never rewritten.
+    # --project-dir explicitly: migrate-1x's default is the cwd captured when its
+    # module is imported, which happens to be right here only because cwd=project
+    # below. Say it outright rather than depend on that.
+    cmd = ["uvx", "--python", "3.11", "--from", AUTOFIX_SPEC, "dbt-autofix",
+           "migrate-1x", "--project-dir", str(project),
+           "--from", str(args.from_version), "--to", AUTOFIX_TO_VERSION]
     proc = subprocess.run(cmd, cwd=str(project), capture_output=True, text=True)
     after_names = git("diff", "--name-only").stdout.split()
     untracked = [l[3:] for l in git("status", "--porcelain").stdout.splitlines()
@@ -453,10 +622,39 @@ def _resolve_dbt(adapter: str | None, build: bool) -> str | None:
     return str(dbt) if dbt.exists() else None
 
 
-def _ensure_profiles_dir(project: Path, stack) -> str:
+def _dummy_profile(profile_name: str, adapter: str | None) -> str:
+    """A throwaway profile for the parse gate, typed to match `adapter`.
+
+    `dbt parse` never opens a connection, so the credentials are deliberately
+    fake. The **`type`** is not: dbt resolves it against the adapter installed in
+    the venv, and `_resolve_dbt` installs `dbt-<adapter>`. A postgres stub in a
+    Snowflake project therefore fails before a single project file is read, which
+    reads like a project problem and is not one.
+
+    Fake beats real here. Asking the customer for credentials to run a command
+    that never connects buys nothing, and a real profile risks parse-time
+    introspection reaching an actual warehouse.
+    """
+    key = (adapter or "").strip().lower()
+    if key in ("", "none", "core"):
+        key = "postgres"
+    output = _DUMMY_OUTPUTS.get(key)
+    if output is None:
+        # An adapter we have no stub for. `type` still has to name it, because
+        # that is what must match the installed adapter — falling back to
+        # postgres would be guaranteed wrong rather than possibly incomplete.
+        # Any missing required field surfaces as a profile error naming it.
+        output = {"type": key, "schema": "public", "threads": 1}
+    return yaml.safe_dump(
+        {profile_name: {"target": "dev", "outputs": {"dev": dict(output)}}},
+        sort_keys=False,
+    )
+
+
+def _ensure_profiles_dir(project: Path, stack, adapter: str | None = None) -> str:
     """Return a --profiles-dir. Prefer an env/project profiles.yml; otherwise
-    synthesize a dummy profile matching the project's `profile:` name (parse
-    does not connect, so dummy postgres creds are fine)."""
+    synthesize a dummy profile matching the project's `profile:` name and the
+    adapter its venv was built for (see {@link _dummy_profile})."""
     env_dir = os.environ.get("DBT_PROFILES_DIR")
     if env_dir and (Path(env_dir) / "profiles.yml").exists():
         return env_dir
@@ -468,20 +666,7 @@ def _ensure_profiles_dir(project: Path, stack) -> str:
         cfg = yaml.safe_load(dbt_project.read_text()) or {}
         profile_name = cfg.get("profile", "default")
     tmp = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix="dbtmig_prof_")))
-    (tmp / "profiles.yml").write_text(
-        f"{profile_name}:\n"
-        "  target: dev\n"
-        "  outputs:\n"
-        "    dev:\n"
-        "      type: postgres\n"
-        "      host: localhost\n"
-        "      port: 5432\n"
-        "      user: dbt\n"
-        "      password: dbt\n"
-        "      dbname: dbt\n"
-        "      schema: public\n"
-        "      threads: 1\n"
-    )
+    (tmp / "profiles.yml").write_text(_dummy_profile(profile_name, adapter))
     return str(tmp)
 
 
@@ -493,7 +678,11 @@ def cmd_parse(args) -> int:
         print(json.dumps({"ok": None, "reason": f"no dbt-core {TARGET_VERSION} available (set DBT_TARGET_VENV or install uv)"}))
         return 2
     with contextlib.ExitStack() as stack:
-        profiles_dir = _ensure_profiles_dir(project, stack)
+        # Same adapter the venv was built with, above: the stub's `type` has to
+        # match the adapter that is actually installed.
+        profiles_dir = _ensure_profiles_dir(
+            project, stack, args.adapter if args.adapter != "none" else None
+        )
         cmd = [dbt_bin, "parse", "--profiles-dir", profiles_dir, "--no-version-check"]
         if args.warn_error:
             cmd.append("--warn-error")
@@ -702,11 +891,22 @@ def main() -> int:
     p = argparse.ArgumentParser(description="Deterministic helpers for the upgrading-dbt-core skill")
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    c = sub.add_parser("collect")
+    c = sub.add_parser(
+        "collect",
+        help="write references/kb_<from_version>_<warehouse>.json for the applicable issues")
     c.add_argument("--from-version", required=True)
-    c.add_argument("--adapter", default=None)
-    c.add_argument("--ids-only", action="store_true")
+    c.add_argument("--adapter", default=None,
+                   help="warehouse/adapter (snowflake, redshift, ...); omit or 'none' for core-only")
+    c.add_argument("--ids-only", action="store_true",
+                   help="also print the collected issue ids to stdout")
     c.set_defaults(func=cmd_collect)
+
+    ca = sub.add_parser(
+        "collect-all",
+        help="regenerate every references/kb_<version>_<warehouse>.json bundle")
+    ca.add_argument("--prune", action="store_true",
+                    help="delete kb_*.json bundles no longer produced by the corpus")
+    ca.set_defaults(func=cmd_collect_all)
 
     ir = sub.add_parser("init-results")
     ir.add_argument("--from-version", required=True)
@@ -751,8 +951,12 @@ def main() -> int:
     pf.add_argument("--project-dir", required=True)
     pf.set_defaults(func=cmd_preflight)
 
-    af = sub.add_parser("autofix")
+    af = sub.add_parser("autofix",
+                        help="run `dbt-autofix migrate-1x` over the project; report the files it changed")
     af.add_argument("--project-dir", required=True)
+    af.add_argument("--from-version", required=True,
+                    help="the project's starting minor (1.3-1.7); passed to migrate-1x --from so "
+                         "autofix replays the same hops the issue bundle covers")
     af.set_defaults(func=cmd_autofix)
 
     pa = sub.add_parser("parse")
