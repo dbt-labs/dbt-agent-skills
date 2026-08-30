@@ -93,7 +93,7 @@ These skills work with AI agents that support the [Agent Skills](https://agentsk
 ### dbt (analytics engineering)
 
 | Skill | Description |
-|-------|-------------|
+| :---- | :---------- |
 | `using-dbt-for-analytics-engineering` | Build and modify dbt models, debug errors, explore data sources, write tests |
 | `adding-dbt-unit-test` | Add unit tests for dbt models, practice test-driven development |
 | `maintaining-dbt-documentation` | Audit model/column doc coverage and draft missing descriptions in the project's own style |
@@ -110,7 +110,7 @@ These skills work with AI agents that support the [Agent Skills](https://agentsk
 These skills are typically used once during a migration project rather than in every agent session.
 
 | Skill | Description |
-|-------|-------------|
+| :---- | :---------- |
 | `migrating-dbt-core-to-fusion` | Migrate dbt projects from dbt Core to the Fusion engine |
 | `migrating-dbt-project-across-platforms` | Migrate dbt projects across data platforms |
 | `upgrading-dbt-core` | Upgrade a dbt-core v1 project (1.3-1.7) to the latest dbt-core, applying breaking, behavior, and deprecated changes |

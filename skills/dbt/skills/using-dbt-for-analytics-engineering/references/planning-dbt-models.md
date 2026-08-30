@@ -26,7 +26,7 @@ Create a spreadsheet or markdown table with the **ideal output** you want to pro
 _In practice, use `dbt_utils.generate_surrogate_key` for the surrogate key_
 
 | inventory_level_id       | date       | product_id | product_name | quantity_on_hand | value_on_hand |
-|--------------------------|------------|------------|--------------|------------------|---------------|
+| :----------------------- | :--------- | :--------- | :----------- | :--------------- | :------------ |
 | 2024-01-01_SKU-001       | 2024-01-01 | SKU-001    | Widget A     | 100              | 2500.00       |
 | 2024-01-01_SKU-002       | 2024-01-01 | SKU-002    | Widget B     | 50               | 1250.00       |
 | 2024-01-02_SKU-001       | 2024-01-02 | SKU-001    | Widget A     | 95               | 2375.00       |
@@ -67,7 +67,7 @@ Based on your query needs, mock each table you're selecting from:
 **Upstream model:** `product_transactions` (one record per inventory transaction)
 
 | transaction_id | transaction_date | product_id | transaction_type | quantity | unit_cost |
-|----------------|------------------|------------|------------------|----------|-----------|
+| :------------- | :--------------- | :--------- | :--------------- | :------- | :-------- |
 | 1              | 2024-01-01       | SKU-001    | purchase         | 100      | 25.00     |
 | 2              | 2024-01-01       | SKU-001    | sale             | -5       | 25.00     |
 | 3              | 2024-01-02       | SKU-001    | return           | 3        | 25.00     |
@@ -131,7 +131,7 @@ Now that you know what inputs you need, look at the actual resources available i
 In order of preference, the possible outcomes are:
 
 | Priority | Scenario | Behaviour |
-|----------|----------|-----------|
+| :------- | :------- | :-------- |
 | 1 | Exact match exists | Use it directly |
 | 2 | Partial match exists | Extend it, plan changes recursively if needed |
 | 3 | No match | Create a new model, recursively repeating the planning process |

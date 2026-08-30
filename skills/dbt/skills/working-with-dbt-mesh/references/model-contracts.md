@@ -47,11 +47,13 @@ models:
 ## Supported Materializations
 
 Contracts work with:
+
 - `table`
 - `view` (names and types enforced, but constraints are not)
 - `incremental` (requires `on_schema_change: append_new_columns` or `on_schema_change: fail`)
 
 Contracts do **NOT** work with:
+
 - `ephemeral` models
 - `materialized_view`
 - Python models
@@ -61,7 +63,7 @@ Contracts do **NOT** work with:
 Constraints provide pre-build data quality enforcement. They differ from tests:
 
 | Aspect | Constraints | Tests |
-|--------|-------------|-------|
+| :----- | :---------- | :---- |
 | Timing | Build-time (pre-flight) | Post-build (post-flight) |
 | Effect on failure | Model is not materialized | Model exists but test fails |
 | Scope | Shape and nullability | Data quality and business rules |
@@ -85,7 +87,7 @@ columns:
 **Platform support varies.** Not all warehouses enforce all constraint types:
 
 | Constraint | PostgreSQL | Snowflake | BigQuery | Redshift | Databricks |
-|------------|-----------|-----------|----------|----------|------------|
+| :--------- | :--------- | :-------- | :------- | :------- | :--------- |
 | `not_null` | Enforced | Enforced | Enforced | Enforced | Enforced |
 | `unique` | Enforced | Not enforced | Not enforced | Not enforced | Not enforced |
 | `primary_key` | Enforced | Not enforced | Not enforced | Not enforced | Not enforced |
@@ -96,6 +98,7 @@ Even when not enforced by the warehouse, constraints serve as documentation and 
 ## Data Type Aliasing
 
 dbt automatically aliases generic types to platform-specific types. For example, `string` becomes:
+
 - `text` on PostgreSQL
 - `varchar` on Snowflake and Redshift
 - `string` on BigQuery and Databricks
@@ -116,6 +119,7 @@ models:
 ## Breaking Changes
 
 dbt flags these as contract-breaking changes:
+
 - Removing an existing column
 - Changing a column's data type
 - Removing or modifying a constraint
@@ -142,7 +146,7 @@ Without `on_schema_change`, schema drift between the YAML contract and the datab
 ## Common Mistakes
 
 | Mistake | Fix |
-|---------|-----|
+| :------ | :-- |
 | Listing only some columns | Declare every column — contracts require completeness |
 | Omitting `data_type` | Every column must have a `data_type` |
 | Using contracts on ephemeral models | Switch to `table`, `view`, or `incremental` |

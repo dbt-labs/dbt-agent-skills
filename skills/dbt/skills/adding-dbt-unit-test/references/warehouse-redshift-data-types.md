@@ -1,4 +1,4 @@
-### Redshift
+# Redshift
 
 Platform-specific data type examples:
 

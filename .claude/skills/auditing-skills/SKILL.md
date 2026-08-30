@@ -16,7 +16,7 @@ Audit published skills against third-party security scanners and quality reviewe
 [skills.sh](https://skills.sh) runs three independent security audits on every published skill:
 
 | Auditor | Focus | Detail Page Pattern |
-|---------|-------|-------------------|
+| :------ | :-----| :-------------------|
 | **Gen Agent Trust Hub** | Remote code execution, prompt injection, data exfiltration, command execution | `/security/agent-trust-hub` |
 | **Socket** | Supply chain and dependency risks | `/security/socket` |
 | **Snyk** | Credential handling, external dependencies, third-party content exposure | `/security/snyk` |
@@ -146,7 +146,7 @@ Install [tool-name](https://github.com/org/tool-name) (a first-party tool mainta
 #### Activation (will the agent find this skill?)
 
 | Dimension | What it checks |
-|-----------|---------------|
+| :-------- | :------------- |
 | **Specificity** | Does the description name concrete actions, not just vague categories? |
 | **Completeness** | Does it explain both *what* the skill does and *when* to use it? |
 | **Trigger Term Quality** | Does it use words users would naturally say? |
@@ -157,7 +157,7 @@ Each scores 1-3. Low Specificity (1/3) is the most common failure.
 #### Implementation (will the agent follow this skill?)
 
 | Dimension | What it checks |
-|-----------|---------------|
+| :-------- | :------------- |
 | **Conciseness** | Is the content lean, or does it waste tokens on redundant/explanatory text? |
 | **Actionability** | Does it provide copy-paste ready commands and concrete examples? |
 | **Workflow Clarity** | Are multi-step processes sequenced with validation checkpoints? |

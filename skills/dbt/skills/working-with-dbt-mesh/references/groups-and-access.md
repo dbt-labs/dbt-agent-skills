@@ -71,7 +71,7 @@ Groups apply to: models, seeds, snapshots, tests, analyses, metrics, semantic mo
 Access modifiers control which models can `ref` yours:
 
 | Access | Who Can Reference | Use Case |
-|--------|-------------------|----------|
+| :----- | :---------------- | :------- |
 | **`private`** | Same group only | Internal implementation details, rapidly changing models |
 | **`protected`** | Same project (or installed as a package) | Standard intra-project models (this is the default) |
 | **`public`** | Any group, package, or project | Stable APIs intended for cross-team or cross-project consumption |
@@ -125,7 +125,7 @@ Or in SQL:
 Access and contracts are complementary:
 
 | Access Level | Contract Recommended? | Why |
-|-------------|----------------------|-----|
+| :----------- | :-------------------- | :-- |
 | `public` | Yes | Consumers outside your project depend on schema stability |
 | `protected` | Optional | Useful for high-criticality intra-project models |
 | `private` | No | Internal models change frequently; contracts add friction |
@@ -172,6 +172,7 @@ models:
 ```
 
 In this setup:
+
 - `fct_revenue` is available to anyone (public, contracted)
 - `int_revenue_daily` is only available within the finance group
 - `fct_campaigns` is available to all models in the same project but not to other projects
@@ -188,7 +189,7 @@ In this setup:
 ## Common Mistakes
 
 | Mistake | Fix |
-|---------|-----|
+| :------ | :-- |
 | Not assigning a group to private models | `private` access requires a `group` — dbt errors without one |
 | Making everything `public` | Only public-ify models that are intentional cross-team APIs |
 | Creating groups that don't map to real teams | Groups need an owner who can respond when things break |

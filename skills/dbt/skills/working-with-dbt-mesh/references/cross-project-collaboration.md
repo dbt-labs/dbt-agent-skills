@@ -101,7 +101,7 @@ select ...
 ## Advantages Over Package Dependencies
 
 | Aspect | Cross-Project Refs | Package Dependencies |
-|--------|-------------------|----------------------|
+| :----- | :----------------- | :------------------- |
 | Code installed | Metadata only | Full source code |
 | Can accidentally build upstream | No | Yes (common mistake) |
 | Parse time impact | Minimal | Increases with package size |
@@ -128,7 +128,7 @@ When both projects have staging environments configured, dbt Cloud automatically
 
 Two projects can depend on each other (e.g. `finance` uses models from `marketing` AND `marketing` uses models from `finance`). dbt allows this as long as there are no **node-level cycles**.
 
-```
+```bash
 finance/fct_revenue → marketing/dim_campaigns  ✅ OK (project-level cycle)
 finance/fct_revenue → marketing/dim_campaigns → finance/fct_revenue  ❌ Node-level cycle
 ```
@@ -156,16 +156,18 @@ When working in a downstream project and you need to understand what's available
 1. **Check `dependencies.yml`** for declared upstream projects
 2. **Use the dbt Cloud Catalog** (if available) to browse public models across all projects
 3. **Use `dbt ls`** to list available models:
+
    ```bash
    # List all models available from an upstream project
    dbt ls --resource-type model --output-keys name,access --select source:core_platform+
    ```
+
 4. **Check upstream YAML files** for `access: public` models and their contract definitions
 
 ## Common Mistakes
 
 | Mistake | Fix |
-|---------|-----|
+| :------ | :-- |
 | Using single-argument `ref()` for cross-project models | Always use `ref('project_name', 'model_name')` |
 | Mismatched project name in `dependencies.yml` | Must exactly match the upstream `dbt_project.yml` `name` (case-sensitive) |
 | No production job run in upstream project | Run at least one successful production deployment job before referencing |

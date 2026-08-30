@@ -193,7 +193,7 @@ jq '.nodes["model.project_name.model_name"].columns' target/catalog.json
 ## Common Mistakes
 
 | Mistake | Fix |
-|---------|-----|
+| :------ | :-- |
 | Giving up when SL can't answer directly | Get compiled SQL and modify it |
 | Querying staging models | Use `get_mart_models` first |
 | Reading full manifest.json | Use jq to filter |

@@ -1,4 +1,4 @@
-## Unit testing a model that depends on ephemeral model(s)
+# Unit testing a model that depends on ephemeral model(s)
 
 If you want to unit test a model that depends on an ephemeral model, you must use `format: sql` for that input.
 

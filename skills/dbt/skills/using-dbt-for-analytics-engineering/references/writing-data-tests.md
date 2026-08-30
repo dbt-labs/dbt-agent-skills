@@ -86,7 +86,7 @@ Not all tests provide equal value. Use this framework to prioritize:
 ### Tier 1: Always Add (Structural Integrity)
 
 | Situation | Test | Why |
-|-----------|------|-----|
+| :-------- | :--- | :-- |
 | Primary key column | `unique` | Broken PKs break everything downstream |
 | Primary key column | `not_null` | Broken PKs break everything downstream |
 | Foreign key referencing another table | `relationships` | Catches broken joins early |
@@ -94,21 +94,21 @@ Not all tests provide equal value. Use this framework to prioritize:
 ### Tier 2: Add When Discovery Warrants (Data Quality)
 
 | Situation | Test | Why |
-|-----------|------|-----|
+| :-------- | :--- | :-- |
 | Enum column with known set of values found via proactive discovery or `dbt show` | `accepted_values` | Catches new invalid values |
 | Non-PK column used in logic, proactive discovery or `dbt show` confirmed 0% nulls | `not_null` | Catches regressions |
 
 ### Tier 3: Selective Use (Business Logic)
 
 | Situation | Test | Why |
-|-----------|------|-----|
+| :-------- | :--- | :-- |
 | Logic spans multiple columns | `expression_is_true` | Detects subtle logic bugs |
 | Constrained value set such as ages or dates | `accepted_range` | Avoids illogical values like 200 year old person or login before account creation |
 
 ### Tier 4: Avoid Unless Justified
 
 | Test | Problem |
-|------|---------|
+| :--- | :------ |
 | `not_null` on every column | Low signal, high cost |
 | Multiple `expression_is_true` per model | Expensive, hard to read and maintain |
 | `unique` on non-PK columns | Unnecessary and likely wrong |
@@ -122,7 +122,7 @@ Check that required packages are installed (see [managing-packages](./managing-p
 If you used the instructions in [discovering-data](./discovering-data.md), your findings tell you exactly what to test:
 
 | Discovery Finding | Test Action |
-|-------------------|-------------|
+| :---------------- | :---------- |
 | "Verified unique, no nulls" | Add `unique` + `not_null` |
 | "X% orphan records" | Add `relationships` with `severity: warn` if >1% |
 | "Small number of well-known values present" | Add `accepted_values` |

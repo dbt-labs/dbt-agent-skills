@@ -3,6 +3,7 @@
 Complete catalog of dbt-core to Fusion migration error patterns, organized by type.
 
 ## Contents
+
 - [YAML Issues](#yaml-issues)
 - [Package Issues](#package-issues)
 - [Config/API Changes](#configapi-changes)
@@ -16,7 +17,7 @@ Complete catalog of dbt-core to Fusion migration error patterns, organized by ty
 ## YAML Issues
 
 | Error Code | Signal | Fix |
-|------------|--------|-----|
+| :--------- | :----- | :-- |
 | `dbt1013` | "YAML mapping values not allowed" | Fix YAML syntax (quotes, indentation, remove extra colons) |
 | `dbt1060` | "Unexpected key in config" | Move custom keys to `meta:` section (but check if it's a misspelling first — see below) |
 | `dbt0102` | "No tables defined for source" | Delete empty source definition, or move config to `dbt_project.yml` |
@@ -46,7 +47,7 @@ models:
 ## Package Issues
 
 | Error Code | Signal | Fix |
-|------------|--------|-----|
+| :--------- | :----- | :-- |
 | `dbt1001` | "Failed to parse package-lock.yml" or malformed lockfile | Delete `package-lock.yml` (it will regenerate on `dbt deps`) |
 | `dbt1005` | "Package not in lookup map" | Update package version in `packages.yml` |
 | `dbt8999` | "Cannot combine non-exact versions" | Use exact pins (e.g., `"==1.0.0"`) |
@@ -74,7 +75,7 @@ packages:
 ## Config/API Changes
 
 | Error Code | Signal | Pattern | Fix |
-|------------|--------|---------|-----|
+| :--------- | :----- | :------ | :-- |
 | `dbt1501` | "Argument must be a string or a list. Received: (empty)" | `config.require('meta').key_name` | `config.meta_require('key_name')` |
 | `dbt1501` | "unknown method: map has no method named meta_get" | `some_dict.meta_get('key', default)` | `some_dict.get('key', default)` |
 | `dbt1501` | "Duplicate doc block" | Duplicate doc block names | Rename or delete conflicting doc blocks |
@@ -106,7 +107,7 @@ packages:
 ## SQL/Jinja Issues
 
 | Error Code | Signal | Fix |
-|------------|--------|-----|
+| :--------- | :----- | :-- |
 | `dbt0214` | "Permission denied" | Check credentials or use `{{ ref() }}` / `{{ source() }}` |
 | `dbt1502` | Missing `{% endif %}`, "unexpected end of template" | Balance if/endif, for/endfor, macro/endmacro pairs |
 | `dbt1000` | "syntax error: unexpected identifier" with nested quotes | Use single quotes outside: `warn_if='{{ "text" }}'` |
@@ -136,7 +137,7 @@ tests:
 ## Static Analysis Issues
 
 | Error Code | Signal | Fix |
-|------------|--------|-----|
+| :--------- | :----- | :-- |
 | `dbt02xx` (in `analyses/`) | Static analysis errors in analyses directory | Add `{{ config(static_analysis='off') }}` at top of file |
 
 ### Example: Disable static analysis
@@ -152,7 +153,7 @@ FROM {{ ref('my_model') }}
 ## Source Name Issues
 
 | Error Code | Signal | Fix |
-|------------|--------|-----|
+| :--------- | :----- | :-- |
 | `dbt1005` | "Source 'Close CRM' not found" | Align `source()` references with YAML definitions |
 
 Fusion requires exact name matching. dbt-core was lenient with spaces vs underscores.
@@ -169,7 +170,7 @@ Fusion requires exact name matching. dbt-core was lenient with spaces vs undersc
 ## Schema/Model Issues
 
 | Error Code | Signal | Fix |
-|------------|--------|-----|
+| :--------- | :----- | :-- |
 | `dbt1005` | "Unused schema.yml entry for model 'ModelName'" | Remove orphaned YAML entry (model SQL doesn't exist) |
 | `dbt1021` | "Seed cast error" | Clean CSV (ISO dates, lowercase `null`, consistent columns) |
 | — | SQL parsing errors under static analysis | Suggest rewriting the logic (with user approval), or set `static_analysis: off` for the model |
@@ -178,7 +179,7 @@ Fusion requires exact name matching. dbt-core was lenient with spaces vs undersc
 ## Connection/Credential Errors
 
 | Error Code | Signal | Fix |
-|------------|--------|-----|
+| :--------- | :----- | :-- |
 | `dbt1308` | "constructing client", "connection", "authentication", "credentials" | Check `profiles.yml` and data platform credentials — not a migration issue |
 
 > **Tip**: These errors can often be caught early by running `dbt debug` (see Step 0).
@@ -188,7 +189,7 @@ Fusion requires exact name matching. dbt-core was lenient with spaces vs undersc
 These require Fusion engine updates. Alternatives can be suggested with caveats about risks and fragility.
 
 | Signal | Meaning | Action |
-|--------|---------|--------|
+| :----- | :------ | :----- |
 | MiniJinja filter differences (e.g. `truncate()` argument mismatch) | Fusion's MiniJinja engine doesn't support the same filter signatures as Jinja2 | Search GitHub issues, link if found. Some have clean workarounds (e.g. string slicing) |
 | Parser gaps / missing implementations | Feature not yet implemented in Fusion | Search GitHub issues |
 | Wrong materialization dispatched (e.g. seeds dispatched to table macro) | Internal dispatch bug | No user workaround — requires Fusion fix |

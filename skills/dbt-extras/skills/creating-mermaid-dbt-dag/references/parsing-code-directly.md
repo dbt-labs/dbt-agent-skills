@@ -62,6 +62,7 @@ Use the `Grep` tool (not bash grep) and `Glob` tool (not bash find) for all sear
 ## When to use
 
 Use this method **only** when:
+
 - All MCP lineage tools are unavailable
 - manifest.json is too large (>10MB) or doesn't exist
 - You just need a basic lineage view
@@ -70,6 +71,7 @@ Use this method **only** when:
 ## Important notes
 
 ⚠️ This method provides **best-effort lineage** and may be incomplete. If possible, try to:
+
 1. Generate a fresh manifest with `dbt parse` and use the manifest.json method instead
 2. Enable the dbt MCP server to use the tool-based approaches
 3. Warn the user that the lineage may be incomplete

@@ -5,12 +5,14 @@ Model versioning lets you introduce breaking changes to a contracted model while
 ## When to Version
 
 Version a model **only** for breaking changes to a contract:
+
 - Removing a column
 - Renaming a column
 - Changing a column's data type
 - Changing nullability constraints
 
 Do **NOT** version for:
+
 - Adding new columns (non-breaking)
 - Bug fixes (fix in place)
 - Performance optimizations (transparent to consumers)
@@ -93,7 +95,7 @@ Within a version's `columns` key:
 Each version needs its own SQL file:
 
 | Version | SQL File |
-|---------|----------|
+| :------ | :------- |
 | v1 (latest) | `fct_orders.sql` or `fct_orders_v1.sql` |
 | v2 (prerelease) | `fct_orders_v2.sql` |
 | Old version | `fct_orders_v1.sql` |
@@ -112,7 +114,7 @@ versions:
 ## Database Naming
 
 | Version State | Default Relation Name |
-|---------------|----------------------|
+| :------------ | :-------------------- |
 | Latest version | `fct_orders_v{N}` (or `fct_orders` via `alias`) |
 | Non-latest version | `fct_orders_v{N}` |
 | Latest version pointer (opt-in) | `fct_orders` — view resolving to the latest version (built-in `latest_version_pointer` on v1.12+, currently **beta**; `create_latest_version_view` post-hook on ≤1.11) |
@@ -265,18 +267,22 @@ dbt run -s fct_orders,version:latest
 2. **Create the SQL file** for the new version
 3. **Deploy** — both versions now exist in the warehouse
 4. **Verify the migration window is open** — the consumer's relation must still return the old columns:
+
    ```bash
    dbt show --inline "select <old_col> from {{ target.schema }}.<unsuffixed_relation>"
    ```
+
    A `column does not exist` error means `latest_version` was promoted too early and the consumer is already broken.
 5. **Notify consumers** to migrate their `ref()` calls to the new version (or pin to the old one)
 6. **Bump `latest_version`** to the new version once consumers have migrated — this is a breaking release for any unsuffixed consumer that hasn't migrated, so confirm migration first
 7. **Set deprecation date** on the old version (optional):
+
    ```yaml
    versions:
      - v: 1
        deprecation_date: 2025-06-01 00:00:00.00+00:00
    ```
+
 8. **Remove the old version** after the deprecation window has passed
 
 ## Unit Tests and Versions
@@ -295,7 +301,7 @@ unit_tests:
 ## Common Mistakes
 
 | Mistake | Fix |
-|---------|-----|
+| :------ | :-- |
 | Versioning for additive changes | New columns are non-breaking — just add them to the contract |
 | Bumping `latest_version` before consumers migrate | Keep `latest_version` on the old version until migration is complete |
 | Leaving no pointer to the latest version | Consumers querying the unsuffixed name break when you bump `latest_version`. ≥1.12: enable `latest_version_pointer` (currently **beta**); ≤1.11: use the `create_latest_version_view` post-hook (see [Latest Version Pointer](#latest-version-pointer)). `config.alias` pins one version to a name — it is not a moving pointer. |

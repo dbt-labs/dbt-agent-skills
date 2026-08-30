@@ -14,6 +14,7 @@ The primary criterion is **DAG position**, not naming convention. Focus on:
 2. **Models with significant transformation logic** — Even if mid-DAG, any model with complex joins, calculations, or case statements should be tested. The more business logic a model contains, the more important it is to verify.
 
 **Skip**:
+
 - **Staging models** — Simple 1:1 source mappings; if sources are correct, staging will be correct
 - **Pass-through models** — Models that just rename columns or filter rows without business logic
 
@@ -60,6 +61,7 @@ dbt show --select fct_orders --limit 10
 ```
 
 **Select rows that exercise key logic**:
+
 - Rows that hit different branches of `CASE WHEN` statements
 - Rows with NULL values in columns that have COALESCE/NVL logic
 - Rows with edge case values (zero quantities, negative amounts, boundary dates)
@@ -107,6 +109,7 @@ All tests must pass. If any fail, fix them before proceeding — failed tests on
 ### Large or complex models
 
 For models with many input sources or complex joins:
+
 - Start with a minimal test covering the primary join path
 - Add additional tests for specific business logic branches
 - You don't need to test every column — focus on calculated/derived columns
@@ -114,6 +117,7 @@ For models with many input sources or complex joins:
 ### Handling platform-specific functions in test data
 
 If the source model uses platform-specific functions that produce specific data types:
+
 - Use literal values in test expectations rather than function calls
 - Focus on the business-meaningful output values, not intermediate representations
 
