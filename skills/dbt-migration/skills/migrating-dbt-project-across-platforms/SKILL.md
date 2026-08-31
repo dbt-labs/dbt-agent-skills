@@ -71,7 +71,7 @@ Run `dbtf compile` on the **source** platform target to confirm the project comp
 dbtf compile
 ```
 
-If there are errors on the source platform, those must be resolved first before starting the migration. The `migrating-dbt-core-to-fusion` skill can help resolve Fusion compatibility issues.
+If there are errors on the source platform, those must be resolved first before starting the migration. The `migrating-dbt-core-to-v2` skill can help resolve v2 compatibility issues.
 
 #### Step 3: Generate unit tests on source platform
 

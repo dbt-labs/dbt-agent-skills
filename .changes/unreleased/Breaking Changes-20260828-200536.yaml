@@ -1,0 +1,6 @@
+kind: Breaking Changes
+body: Rename migrating-dbt-core-to-fusion skill to migrating-dbt-core-to-v2 (dbt v2 naming rollout)
+time: 2026-08-28T20:05:36.000000Z
+custom:
+    Author: kendru
+    Issue: "N/A"
