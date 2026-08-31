@@ -32,6 +32,20 @@ context:
       surrounding SQL clearly consumes the package's version.
     - Example: `ref('customers')` -> `ref('my_project', 'customers')` or
       `ref('dbt_utils', 'customers')`. Leave unambiguous refs untouched.
-    - After edits run `dbt parse`; a remaining AmbiguousAliasError names the offending ref and node.
+    - NEVER edit anything under dbt_packages/ (or any other installed/vendored-package directory) to
+      make this issue resolve. dbt regenerates that directory from `dbt deps`; a hand-edit there is
+      silently discarded on the customer's next `dbt deps` run, so it is not a real fix no matter how
+      clean the resulting parse looks in this session.
+    - The two-arg ref rewrite can still leave the project unable to parse if the local model and the
+      package model also collide on their materialized relation identifier (same schema + alias) --
+      a separate problem from name ambiguity, and NOT something this issue's fix touches. If that
+      happens, do not alias or rename the package's model to work around it: record it
+      manual-required, name both colliding nodes and their shared relation identifier, and say the
+      customer needs to alias one of them (in their own project config, not by hand-editing the
+      installed package) or exclude/replace the package model. Leave the ref rewrite you already made
+      in place; only the relation-collision part is manual-required.
+    - After edits run `dbt parse`; a remaining AmbiguousAliasError names the offending ref and node. A
+      relation-identifier collision (not AmbiguousAliasError) is the manual-required case above, not
+      a signal to keep editing.
     - If you cannot determine which package is intended, record it in the results report
       rather than guessing — picking the wrong package silently changes lineage.
