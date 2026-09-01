@@ -215,6 +215,38 @@ class TestGradeCommand:
         mock_grader.assert_called_once()
         assert (run_dir / "grades.yaml").exists()
 
+    def test_grade_auto_without_run_id_echoes_resolved_run_name(
+        self, tmp_path: Path, monkeypatch: MagicMock
+    ) -> None:
+        """grade --auto with no run_id echoes the resolved run name, not 'None'."""
+        monkeypatch.chdir(tmp_path)
+
+        scenarios_dir = tmp_path / "scenarios"
+        scenario_dir = scenarios_dir / "test-scenario"
+        scenario_dir.mkdir(parents=True)
+        (scenario_dir / "scenario.md").write_text("# Test")
+        (scenario_dir / "prompt.txt").write_text("Do something")
+
+        runs_dir = tmp_path / "runs"
+        run_dir = runs_dir / "2024-01-15-120000"
+        skill_set_dir = run_dir / "test-scenario" / "skill-set-1"
+        skill_set_dir.mkdir(parents=True)
+        (skill_set_dir / "output.md").write_text("I did the thing")
+        (skill_set_dir / "metadata.yaml").write_text(
+            yaml.dump({"skills_available": ["skill-a"], "skills_invoked": ["skill-a"]})
+        )
+
+        with patch("skill_eval.grader.call_claude_grader") as mock_grader:
+            mock_grader.return_value = "success: true\nscore: 4\ntool_usage: appropriate\nnotes: Good"
+
+            with patch("skill_eval.cli.is_interactive", return_value=False):
+                result = runner.invoke(app, ["grade", "--auto"])
+
+        assert result.exit_code == 0
+        assert "Auto-grading run: 2024-01-15-120000" in result.output
+        assert "Run: uv run skill-eval report 2024-01-15-120000" in result.output
+        assert "None" not in result.output
+
     def test_grade_auto_computes_skill_usage(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
         """grade --auto computes skill usage from metadata."""
         monkeypatch.chdir(tmp_path)

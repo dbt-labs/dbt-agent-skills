@@ -359,7 +359,7 @@ def grade(
     run_dir = find_run(runs_dir, run_id, latest=latest)
 
     if auto:
-        typer.echo(f"Auto-grading run: {run_id}")
+        typer.echo(f"Auto-grading run: {run_dir.name}")
         typer.echo()
 
         # Count scenarios and skill sets for progress
@@ -419,7 +419,7 @@ def grade(
         save_grades(run_dir, grades)
         grades_file = run_dir / "grades.yaml"
         typer.echo(f"\nGrades saved to: {grades_file}")
-        typer.echo(f"Run: uv run skill-eval report {run_id}")
+        typer.echo(f"Run: uv run skill-eval report {run_dir.name}")
     else:
         grades_file = init_grades_file(run_dir)
 
@@ -436,7 +436,7 @@ def grade(
                 typer.echo(f"    {skill_set_dir.name}/output.md")
 
         typer.echo(f"\nEdit {grades_file} to record your grades.")
-        typer.echo(f"Then run: uv run skill-eval report {run_id}")
+        typer.echo(f"Then run: uv run skill-eval report {run_dir.name}")
 
 
 @app.command()
