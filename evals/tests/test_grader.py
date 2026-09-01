@@ -10,6 +10,7 @@ from skill_eval.grader import (
     build_grading_prompt,
     call_claude_grader,
     compute_skill_usage,
+    load_grades,
     parse_grade_response,
 )
 from skill_eval.models import Grade
@@ -318,3 +319,30 @@ def test_compute_skill_usage_handles_extra_invocations() -> None:
 
     assert invoked == ["skill-a", "skill-external"]
     assert pct == 100.0  # 1/1 available skill was used
+
+
+def test_load_grades_returns_empty_dict_when_missing(tmp_path: Path) -> None:
+    """load_grades returns {} when grades.yaml doesn't exist."""
+    assert load_grades(tmp_path) == {}
+
+
+def test_load_grades_returns_empty_dict_for_empty_file(tmp_path: Path) -> None:
+    """An empty grades.yaml (parses to None) doesn't crash load_grades."""
+    (tmp_path / "grades.yaml").write_text("")
+
+    assert load_grades(tmp_path) == {}
+
+
+def test_load_grades_returns_empty_dict_for_non_mapping_yaml(tmp_path: Path) -> None:
+    """A grades.yaml that parses to a list, not a mapping, doesn't crash load_grades."""
+    (tmp_path / "grades.yaml").write_text("- oops\n- not\n- a\n- mapping\n")
+
+    assert load_grades(tmp_path) == {}
+
+
+def test_load_grades_returns_valid_grades(tmp_path: Path) -> None:
+    """A well-formed grades.yaml is returned as-is."""
+    grades = {"graded_at": "2026-01-01", "grader": "human", "results": {"a": {"b": {"success": True}}}}
+    (tmp_path / "grades.yaml").write_text(yaml.dump(grades))
+
+    assert load_grades(tmp_path) == grades
