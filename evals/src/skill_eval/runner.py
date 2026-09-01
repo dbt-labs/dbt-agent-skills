@@ -659,7 +659,6 @@ class Runner:
             skills=skill_set.skills,
             mcp_servers=skill_set.mcp_servers if skill_set.mcp_servers else None,
         )
-        configured_skill_names = self._configured_skill_names(env_dir / ".claude" / "skills")
 
         # Load .env vars for setup commands and Claude
         dot_env_vars: dict[str, str] = {}
@@ -718,8 +717,12 @@ class Runner:
         (output_dir / "raw.jsonl").write_text(raw_json)
 
         # Scope skills_available down to skills this eval actually configured
-        # (skill_set.skills) — `claude` also reports globally installed
-        # plugin/marketplace skills, which aren't part of what's being tested.
+        # (skill_set.skills, plus anything a setup command installed) —
+        # `claude` also reports globally installed plugin/marketplace skills,
+        # which aren't part of what's being tested. Computed now rather than
+        # right after prepare_environment so it also picks up skills a setup
+        # command (e.g. `npx skills add ... -a claude-code`) installed.
+        configured_skill_names = self._configured_skill_names(env_dir / ".claude" / "skills")
         reported_available = parsed.get("skills_available", [])
         eval_skills_available = [s for s in reported_available if s in configured_skill_names]
         other_skills_available = [s for s in reported_available if s not in configured_skill_names]

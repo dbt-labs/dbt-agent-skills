@@ -326,6 +326,60 @@ def test_run_scenario_scopes_skills_available_to_configured_skills(tmp_path: Pat
     assert metadata["skills_available_other"] == ["design-sync", "verify"]
 
 
+def test_run_scenario_scopes_skills_installed_by_setup_command(tmp_path: Path) -> None:
+    """A skill installed by a setup command (not skill_set.skills) still counts as configured."""
+    from skill_eval.models import Scenario, SkillSet
+
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    (evals_dir / "runs").mkdir()
+
+    scenario_dir = tmp_path / "scenarios" / "test"
+    scenario_dir.mkdir(parents=True)
+
+    scenario = Scenario(name="test-scenario", path=scenario_dir, prompt="Fix the bug", skill_sets=[])
+    # No `skills:` entries - this skill only shows up via the setup command,
+    # mirroring `npx skills add <url> -a claude-code` installing into
+    # .claude/skills after prepare_environment has already run.
+    skill_set = SkillSet(
+        name="with-setup-skill",
+        model="sonnet",
+        skills=[],
+        setup=[
+            "mkdir -p .claude/skills/setup-installed-skill && "
+            "printf -- '---\\nname: setup-installed-skill\\ndescription: test\\n---\\n\\nBody' "
+            "> .claude/skills/setup-installed-skill/SKILL.md"
+        ],
+    )
+
+    runner = Runner(evals_dir=evals_dir)
+    run_dir = runner.create_run_dir()
+
+    def mock_run_claude(env_dir, prompt, mcp_config_path, allowed_tools, model=None, strict_mcp_config=True, ctx_logger=None, extra_env=None):
+        return (
+            {
+                "output_text": "Done",
+                "skills_invoked": ["setup-installed-skill"],
+                "tools_used": [],
+                "skills_available": ["setup-installed-skill", "design-sync"],
+            },
+            True,
+            None,
+            "",
+        )
+
+    with patch.object(runner, "run_claude", side_effect=mock_run_claude):
+        result = runner.run_scenario(scenario, skill_set, run_dir)
+
+    assert result.success is True
+
+    import yaml
+
+    metadata = yaml.safe_load((run_dir / "test-scenario" / "with-setup-skill" / "metadata.yaml").read_text())
+    assert metadata["skills_available"] == ["setup-installed-skill"]
+    assert metadata["skills_available_other"] == ["design-sync"]
+
+
 def test_runner_is_url_detection(tmp_path: Path) -> None:
     """Runner correctly identifies HTTP(S) URLs."""
     evals_dir = tmp_path / "evals"
