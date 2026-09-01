@@ -319,8 +319,34 @@ class TestReportCommand:
 class TestReviewCommand:
     """Tests for the 'review' command."""
 
-    def test_review_finds_transcripts(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
-        """review command finds and reports transcript files."""
+    def test_review_generates_index_page(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """review command generates a single review.html index and opens it."""
+        monkeypatch.chdir(tmp_path)
+
+        # Create scenarios dir so find_evals_root can locate evals root
+        (tmp_path / "scenarios").mkdir()
+
+        runs_dir = tmp_path / "runs"
+        run_dir = runs_dir / "2024-01-15-120000"
+        skill_set_dir = run_dir / "test-scenario" / "skill-set-1"
+        transcript_dir = skill_set_dir / "transcript"
+        transcript_dir.mkdir(parents=True)
+        (transcript_dir / "index.html").write_text("<html></html>")
+
+        with patch("skill_eval.cli.is_interactive", return_value=False):
+            with patch("webbrowser.open") as mock_open:
+                result = runner.invoke(app, ["review"])
+
+        assert result.exit_code == 0
+        review_file = run_dir / "review.html"
+        assert "Review index:" in result.output
+        assert review_file.exists()
+        assert "test-scenario" in review_file.read_text()
+        assert "skill-set-1" in review_file.read_text()
+        mock_open.assert_called_once_with(f"file://{review_file}")
+
+    def test_review_tabs_flag_opens_each_transcript(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """review --tabs opens each transcript individually, like the old default."""
         monkeypatch.chdir(tmp_path)
 
         # Create scenarios dir so find_evals_root can locate evals root
@@ -334,7 +360,7 @@ class TestReviewCommand:
 
         with patch("skill_eval.cli.is_interactive", return_value=False):
             with patch("webbrowser.open") as mock_open:
-                result = runner.invoke(app, ["review"])
+                result = runner.invoke(app, ["review", "--tabs"])
 
         assert result.exit_code == 0
         assert "Opening 1 transcript" in result.output
@@ -541,7 +567,8 @@ class TestBaseDirOption:
             result = runner.invoke(app, ["review", "--base-dir", str(custom_dir)])
 
         assert result.exit_code == 0
-        assert "Opening 1 transcript" in result.output
+        assert "Review index:" in result.output
+        assert (run_dir / "review.html").exists()
 
 
 class TestVersionFlag:

@@ -467,9 +467,12 @@ def review(
     run_id: Optional[str] = typer.Argument(None, help="Run ID (full or partial). Defaults to latest run."),
     latest: bool = typer.Option(False, "--latest", "-l", help="Use latest run without prompting"),
     base_dir: Optional[Path] = typer.Option(None, "--base-dir", "-d", help="Evals root directory (default: auto-detected)"),
+    tabs: bool = typer.Option(False, "--tabs", help="Open every transcript in its own browser tab instead of the index page"),
 ) -> None:
-    """Open HTML transcripts in browser for review."""
+    """Open a review index page (or every transcript tab with --tabs)."""
     import webbrowser
+
+    from skill_eval.reporter import save_review_html
 
     evals_dir = _get_evals_dir(base_dir)
     runs_dir = evals_dir / "runs"
@@ -483,13 +486,17 @@ def review(
         typer.echo(f"Error: No transcripts found in {run_dir}", err=True)
         raise typer.Exit(1)
 
-    typer.echo(f"Opening {len(transcripts)} transcript(s)...")
+    if tabs:
+        typer.echo(f"Opening {len(transcripts)} transcript(s)...")
+        for transcript in sorted(transcripts):
+            rel_path = transcript.relative_to(run_dir)
+            typer.echo(f"  {rel_path}")
+            webbrowser.open(f"file://{transcript}")
+        return
 
-    for transcript in sorted(transcripts):
-        # Show which transcript we're opening
-        rel_path = transcript.relative_to(run_dir)
-        typer.echo(f"  {rel_path}")
-        webbrowser.open(f"file://{transcript}")
+    review_file = save_review_html(run_dir)
+    typer.echo(f"Review index: {review_file}")
+    webbrowser.open(f"file://{review_file}")
 
 
 @app.command()

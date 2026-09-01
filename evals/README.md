@@ -54,9 +54,12 @@ uv run skill-eval run --all --parallel --workers 8    # custom worker count (def
 # Verbose mode (shows tool calls and skill invocations)
 uv run skill-eval run <scenario-name> --verbose       # or -v
 
-# Review transcripts in browser (opens HTML files)
+# Review a run: generates review.html (one sortable table, links to each
+# transcript + output, cost/tokens/duration/subagent use per skill set) and
+# opens that single page
 uv run skill-eval review              # latest run
 uv run skill-eval review <run-id>     # specific run
+uv run skill-eval review --tabs       # old behavior: open every transcript in its own tab
 
 # Grade outputs from a run (creates grades.yaml for manual review)
 uv run skill-eval grade <run-id>
@@ -433,7 +436,7 @@ Stall detection helps catch runs that get stuck waiting for tool approval when u
 1. **Create a scenario** - `skill-eval new <name>` scaffolds the directory structure
 2. **Configure skill sets** - Edit `skill-sets.yaml` to specify skills, MCP servers, and tool permissions
 3. **Run evaluation** - `skill-eval run <scenario>` executes Claude with each configuration
-4. **Review transcripts** - `skill-eval review` opens HTML transcripts in browser
+4. **Review transcripts** - `skill-eval review` opens a single index page with links, cost/token/subagent metrics, and a sortable table (use `--tabs` for the old one-tab-per-transcript behavior)
 5. **Grade outputs** - `skill-eval grade <run-id>` (manual) or `--auto` (Claude-graded)
 6. **Generate report** - `skill-eval report <run-id>` shows comparison summary
 
