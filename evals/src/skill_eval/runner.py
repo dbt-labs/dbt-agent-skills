@@ -466,6 +466,8 @@ class Runner:
         prompt: str,
         mcp_config_path: Path | None = None,
         allowed_tools: list[str] | None = None,
+        model: str | None = None,
+        strict_mcp_config: bool = True,
         timeout: int = 600,
         stall_timeout: int = 60,
         ctx_logger=None,
@@ -478,6 +480,10 @@ class Runner:
             prompt: The prompt to send
             mcp_config_path: Optional path to MCP config
             allowed_tools: Optional list of allowed tools
+            model: Model alias or ID to pass via `--model` (e.g. "sonnet", "opus")
+            strict_mcp_config: If True (default), pass --strict-mcp-config so only
+                mcp_config_path's servers are used — Claude Desktop/user/project
+                MCP servers are ignored. Set False to allow those to load too.
             timeout: Maximum total runtime in seconds (default: 600 = 10 min)
             stall_timeout: Kill if no output for this many seconds (default: 60)
             ctx_logger: Optional logger with bound context (scenario, skill_set)
@@ -496,6 +502,12 @@ class Runner:
             "--verbose",
             "--output-format", "stream-json",
         ]
+
+        if model:
+            cmd.extend(["--model", model])
+
+        if strict_mcp_config:
+            cmd.append("--strict-mcp-config")
 
         # Use allowed_tools if specified, otherwise skip all permissions
         if allowed_tools:
@@ -636,6 +648,8 @@ class Runner:
             prompt,
             mcp_config_path,
             skill_set.allowed_tools if skill_set.allowed_tools else None,
+            model=skill_set.model,
+            strict_mcp_config=skill_set.strict_mcp_config,
             ctx_logger=ctx_logger,
             extra_env=dot_env_vars if dot_env_vars else None,
         )

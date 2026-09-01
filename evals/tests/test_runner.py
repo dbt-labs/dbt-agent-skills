@@ -549,8 +549,8 @@ def test_run_parallel_executes_all_tasks(tmp_path: Path) -> None:
         skill_sets=[],
     )
 
-    skill_set1 = SkillSet(name="skill-set-1", skills=[])
-    skill_set2 = SkillSet(name="skill-set-2", skills=[])
+    skill_set1 = SkillSet(name="skill-set-1", model="sonnet", skills=[])
+    skill_set2 = SkillSet(name="skill-set-2", model="sonnet", skills=[])
 
     tasks = [
         RunTask(scenario=scenario1, skill_set=skill_set1, run_dir=run_dir),
@@ -602,7 +602,7 @@ def test_run_parallel_calls_progress_callback(tmp_path: Path) -> None:
     )
 
     tasks = [
-        RunTask(scenario=scenario, skill_set=SkillSet(name=f"set-{i}", skills=[]), run_dir=run_dir)
+        RunTask(scenario=scenario, skill_set=SkillSet(name=f"set-{i}", model="sonnet", skills=[]), run_dir=run_dir)
         for i in range(3)
     ]
 
@@ -647,8 +647,8 @@ def test_run_parallel_handles_task_failure(tmp_path: Path) -> None:
     )
 
     tasks = [
-        RunTask(scenario=scenario, skill_set=SkillSet(name="success", skills=[]), run_dir=run_dir),
-        RunTask(scenario=scenario, skill_set=SkillSet(name="failure", skills=[]), run_dir=run_dir),
+        RunTask(scenario=scenario, skill_set=SkillSet(name="success", model="sonnet", skills=[]), run_dir=run_dir),
+        RunTask(scenario=scenario, skill_set=SkillSet(name="failure", model="sonnet", skills=[]), run_dir=run_dir),
     ]
 
     def mock_run_scenario(scenario, skill_set, run_dir):
@@ -698,7 +698,7 @@ def test_run_parallel_respects_max_workers(tmp_path: Path) -> None:
     )
 
     tasks = [
-        RunTask(scenario=scenario, skill_set=SkillSet(name=f"set-{i}", skills=[]), run_dir=run_dir)
+        RunTask(scenario=scenario, skill_set=SkillSet(name=f"set-{i}", model="sonnet", skills=[]), run_dir=run_dir)
         for i in range(6)
     ]
 
@@ -907,6 +907,7 @@ def test_run_scenario_appends_extra_prompt(tmp_path: Path) -> None:
 
     skill_set = SkillSet(
         name="with-extra",
+        model="sonnet",
         skills=[],
         extra_prompt="Check if any skill can help.",
     )
@@ -916,7 +917,7 @@ def test_run_scenario_appends_extra_prompt(tmp_path: Path) -> None:
 
     captured_prompt = None
 
-    def mock_run_claude(env_dir, prompt, mcp_config_path, allowed_tools, ctx_logger=None, extra_env=None):
+    def mock_run_claude(env_dir, prompt, mcp_config_path, allowed_tools, model=None, strict_mcp_config=True, ctx_logger=None, extra_env=None):
         nonlocal captured_prompt
         captured_prompt = prompt
         return {"output_text": "Done", "skills_invoked": [], "tools_used": []}, True, None, ""
@@ -947,6 +948,7 @@ def test_run_scenario_no_extra_prompt_unchanged(tmp_path: Path) -> None:
 
     skill_set = SkillSet(
         name="no-extra",
+        model="sonnet",
         skills=[],
         # No extra_prompt set (defaults to "")
     )
@@ -956,7 +958,7 @@ def test_run_scenario_no_extra_prompt_unchanged(tmp_path: Path) -> None:
 
     captured_prompt = None
 
-    def mock_run_claude(env_dir, prompt, mcp_config_path, allowed_tools, ctx_logger=None, extra_env=None):
+    def mock_run_claude(env_dir, prompt, mcp_config_path, allowed_tools, model=None, strict_mcp_config=True, ctx_logger=None, extra_env=None):
         nonlocal captured_prompt
         captured_prompt = prompt
         return {"output_text": "Done", "skills_invoked": [], "tools_used": []}, True, None, ""
@@ -999,6 +1001,171 @@ def test_run_claude_normal_completion(tmp_path: Path) -> None:
 
     assert success is True
     assert error is None
+
+
+def test_run_claude_passes_model_flag(tmp_path: Path) -> None:
+    """run_claude includes --model <model> in the claude command when given."""
+    import io
+
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    env_dir = tmp_path / "env"
+    env_dir.mkdir()
+    (env_dir / ".claude").mkdir()
+
+    runner = Runner(evals_dir=evals_dir)
+
+    mock_proc = MagicMock()
+    mock_proc.poll.side_effect = [None, 0]
+    mock_proc.returncode = 0
+    mock_proc.stdout = io.StringIO('{"type":"result","result":"done"}\n')
+    mock_proc.stderr = io.StringIO("")
+
+    with patch.object(runner_module.subprocess, "Popen", return_value=mock_proc) as mock_popen:
+        with patch.object(runner_module.select, "select", return_value=([mock_proc.stdout], [], [])):
+            runner.run_claude(env_dir, "test prompt", model="sonnet", timeout=10, stall_timeout=5)
+
+    cmd = mock_popen.call_args.args[0]
+    assert "--model" in cmd
+    assert cmd[cmd.index("--model") + 1] == "sonnet"
+
+
+def test_run_claude_omits_model_flag_when_not_given(tmp_path: Path) -> None:
+    """run_claude does not add --model when no model is passed."""
+    import io
+
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    env_dir = tmp_path / "env"
+    env_dir.mkdir()
+    (env_dir / ".claude").mkdir()
+
+    runner = Runner(evals_dir=evals_dir)
+
+    mock_proc = MagicMock()
+    mock_proc.poll.side_effect = [None, 0]
+    mock_proc.returncode = 0
+    mock_proc.stdout = io.StringIO('{"type":"result","result":"done"}\n')
+    mock_proc.stderr = io.StringIO("")
+
+    with patch.object(runner_module.subprocess, "Popen", return_value=mock_proc) as mock_popen:
+        with patch.object(runner_module.select, "select", return_value=([mock_proc.stdout], [], [])):
+            runner.run_claude(env_dir, "test prompt", timeout=10, stall_timeout=5)
+
+    cmd = mock_popen.call_args.args[0]
+    assert "--model" not in cmd
+
+
+def test_run_claude_adds_strict_mcp_config_by_default(tmp_path: Path) -> None:
+    """run_claude adds --strict-mcp-config unless explicitly disabled."""
+    import io
+
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    env_dir = tmp_path / "env"
+    env_dir.mkdir()
+    (env_dir / ".claude").mkdir()
+
+    runner = Runner(evals_dir=evals_dir)
+
+    mock_proc = MagicMock()
+    mock_proc.poll.side_effect = [None, 0]
+    mock_proc.returncode = 0
+    mock_proc.stdout = io.StringIO('{"type":"result","result":"done"}\n')
+    mock_proc.stderr = io.StringIO("")
+
+    with patch.object(runner_module.subprocess, "Popen", return_value=mock_proc) as mock_popen:
+        with patch.object(runner_module.select, "select", return_value=([mock_proc.stdout], [], [])):
+            runner.run_claude(env_dir, "test prompt", timeout=10, stall_timeout=5)
+
+    cmd = mock_popen.call_args.args[0]
+    assert "--strict-mcp-config" in cmd
+
+
+def test_run_claude_can_disable_strict_mcp_config(tmp_path: Path) -> None:
+    """run_claude omits --strict-mcp-config when strict_mcp_config=False."""
+    import io
+
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    env_dir = tmp_path / "env"
+    env_dir.mkdir()
+    (env_dir / ".claude").mkdir()
+
+    runner = Runner(evals_dir=evals_dir)
+
+    mock_proc = MagicMock()
+    mock_proc.poll.side_effect = [None, 0]
+    mock_proc.returncode = 0
+    mock_proc.stdout = io.StringIO('{"type":"result","result":"done"}\n')
+    mock_proc.stderr = io.StringIO("")
+
+    with patch.object(runner_module.subprocess, "Popen", return_value=mock_proc) as mock_popen:
+        with patch.object(runner_module.select, "select", return_value=([mock_proc.stdout], [], [])):
+            runner.run_claude(env_dir, "test prompt", strict_mcp_config=False, timeout=10, stall_timeout=5)
+
+    cmd = mock_popen.call_args.args[0]
+    assert "--strict-mcp-config" not in cmd
+
+
+def test_run_scenario_passes_skill_set_model_to_run_claude(tmp_path: Path) -> None:
+    """run_scenario forwards skill_set.model to run_claude."""
+    from skill_eval.models import Scenario, SkillSet
+
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    (evals_dir / "runs").mkdir()
+
+    scenario_dir = tmp_path / "scenarios" / "test"
+    scenario_dir.mkdir(parents=True)
+
+    scenario = Scenario(name="test-scenario", path=scenario_dir, prompt="Fix the bug", skill_sets=[])
+    skill_set = SkillSet(name="opus-set", model="opus", skills=[])
+
+    runner = Runner(evals_dir=evals_dir)
+    run_dir = runner.create_run_dir()
+
+    captured_model = None
+
+    def mock_run_claude(env_dir, prompt, mcp_config_path, allowed_tools, model=None, strict_mcp_config=True, ctx_logger=None, extra_env=None):
+        nonlocal captured_model
+        captured_model = model
+        return {"output_text": "Done", "skills_invoked": [], "tools_used": []}, True, None, ""
+
+    with patch.object(runner, "run_claude", side_effect=mock_run_claude):
+        runner.run_scenario(scenario, skill_set, run_dir)
+
+    assert captured_model == "opus"
+
+
+def test_run_scenario_passes_skill_set_strict_mcp_config_to_run_claude(tmp_path: Path) -> None:
+    """run_scenario forwards skill_set.strict_mcp_config to run_claude."""
+    from skill_eval.models import Scenario, SkillSet
+
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    (evals_dir / "runs").mkdir()
+
+    scenario_dir = tmp_path / "scenarios" / "test"
+    scenario_dir.mkdir(parents=True)
+
+    scenario = Scenario(name="test-scenario", path=scenario_dir, prompt="Fix the bug", skill_sets=[])
+    skill_set = SkillSet(name="opt-out", model="sonnet", skills=[], strict_mcp_config=False)
+
+    runner = Runner(evals_dir=evals_dir)
+    run_dir = runner.create_run_dir()
+
+    captured_strict = None
+
+    def mock_run_claude(env_dir, prompt, mcp_config_path, allowed_tools, model=None, strict_mcp_config=True, ctx_logger=None, extra_env=None):
+        nonlocal captured_strict
+        captured_strict = strict_mcp_config
+        return {"output_text": "Done", "skills_invoked": [], "tools_used": []}, True, None, ""
+
+    with patch.object(runner, "run_claude", side_effect=mock_run_claude):
+        runner.run_scenario(scenario, skill_set, run_dir)
+
+    assert captured_strict is False
 
 
 def test_run_claude_total_timeout(tmp_path: Path) -> None:
@@ -1146,6 +1313,7 @@ def test_setup_commands_run_in_env_dir(tmp_path: Path) -> None:
 
     skill_set = SkillSet(
         name="with-setup",
+        model="sonnet",
         skills=[],
         setup=["echo $MY_VAR > setup_output.txt"],
     )
@@ -1153,7 +1321,7 @@ def test_setup_commands_run_in_env_dir(tmp_path: Path) -> None:
     runner = Runner(evals_dir=evals_dir)
     run_dir = runner.create_run_dir()
 
-    def mock_run_claude(env_dir, prompt, mcp_config_path, allowed_tools, ctx_logger=None, extra_env=None):
+    def mock_run_claude(env_dir, prompt, mcp_config_path, allowed_tools, model=None, strict_mcp_config=True, ctx_logger=None, extra_env=None):
         # Verify setup command ran and created the file
         output_file = env_dir / "setup_output.txt"
         assert output_file.exists()
@@ -1186,6 +1354,7 @@ def test_setup_command_failure_stops_run(tmp_path: Path) -> None:
 
     skill_set = SkillSet(
         name="bad-setup",
+        model="sonnet",
         skills=[],
         setup=["exit 1"],
     )

@@ -38,7 +38,7 @@ class TestRunCommand:
         scenario_dir.mkdir(parents=True)
         (scenario_dir / "prompt.txt").write_text("Do something")
         (scenario_dir / "skill-sets.yaml").write_text(
-            yaml.dump({"sets": [{"name": "baseline", "skills": []}]})
+            yaml.dump({"sets": [{"name": "baseline", "model": "sonnet", "skills": []}]})
         )
 
         # Mock the runner to avoid actually running Claude
@@ -63,7 +63,7 @@ class TestRunCommand:
         scenario_dir.mkdir(parents=True)
         (scenario_dir / "prompt.txt").write_text("Do something")
         (scenario_dir / "skill-sets.yaml").write_text(
-            yaml.dump({"sets": [{"name": "baseline", "skills": []}]})
+            yaml.dump({"sets": [{"name": "baseline", "model": "sonnet", "skills": []}]})
         )
 
         with patch("skill_eval.runner.Runner") as MockRunner:
@@ -86,7 +86,7 @@ class TestRunCommand:
         scenario_dir.mkdir(parents=True)
         (scenario_dir / "prompt.txt").write_text("Do something")
         (scenario_dir / "skill-sets.yaml").write_text(
-            yaml.dump({"sets": [{"name": "set1"}, {"name": "set2"}]})
+            yaml.dump({"sets": [{"name": "set1", "model": "sonnet"}, {"name": "set2", "model": "sonnet"}]})
         )
 
         with patch("skill_eval.runner.Runner") as MockRunner:
@@ -108,7 +108,7 @@ class TestRunCommand:
             d = scenarios_dir / name
             d.mkdir(parents=True)
             (d / "prompt.txt").write_text("Do something")
-            (d / "skill-sets.yaml").write_text(yaml.dump({"sets": [{"name": "baseline"}]}))
+            (d / "skill-sets.yaml").write_text(yaml.dump({"sets": [{"name": "baseline", "model": "sonnet"}]}))
 
         with patch("skill_eval.runner.Runner") as MockRunner:
             mock_runner = MockRunner.return_value
@@ -389,7 +389,7 @@ class TestRootDiscovery:
         scenario_dir.mkdir(parents=True)
         (scenario_dir / "prompt.txt").write_text("Do something")
         (scenario_dir / "skill-sets.yaml").write_text(
-            yaml.dump({"sets": [{"name": "baseline", "skills": []}]})
+            yaml.dump({"sets": [{"name": "baseline", "model": "sonnet", "skills": []}]})
         )
 
         monkeypatch.chdir(tmp_path)
@@ -513,7 +513,7 @@ class TestBaseDirOption:
         scenario_dir.mkdir(parents=True)
         (scenario_dir / "prompt.txt").write_text("Do something")
         (scenario_dir / "skill-sets.yaml").write_text(
-            yaml.dump({"sets": [{"name": "baseline", "skills": []}]})
+            yaml.dump({"sets": [{"name": "baseline", "model": "sonnet", "skills": []}]})
         )
         monkeypatch.chdir(tmp_path)
 
