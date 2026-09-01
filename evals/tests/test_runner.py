@@ -131,6 +131,68 @@ def test_parse_json_output_extracts_metadata(tmp_path: Path) -> None:
     assert result["output_tokens"] == 100
     assert "Read" in result["tools_used"]
     assert "I found the issue." in result["output_text"]
+    assert result["tool_call_count"] == 1
+    assert result["subagents_used"] is False
+    assert result["subagent_count"] == 0
+
+
+def test_parse_json_output_separates_subagent_activity(tmp_path: Path) -> None:
+    """Subagent (sidechain) text/tools are kept out of the main-thread counters."""
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    runner = Runner(evals_dir=evals_dir)
+
+    ndjson = """{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Task","input":{"subagent_type":"Explore"}}]},"parent_tool_use_id":null}
+{"type":"assistant","message":{"content":[{"type":"text","text":"Exploring the repo..."}]},"parent_tool_use_id":"toolu_task1"}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{}}]},"parent_tool_use_id":"toolu_task1"}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Grep","input":{}}]},"parent_tool_use_id":"toolu_task1"}
+{"type":"assistant","message":{"content":[{"type":"text","text":"Here is the final answer."}]},"parent_tool_use_id":null}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{}}]},"parent_tool_use_id":null}"""
+
+    result = runner._parse_json_output(ndjson)
+
+    # Main-thread output only - no subagent narration leaking into output.md
+    assert result["output_text"] == "Here is the final answer."
+
+    # Main-thread tool counters exclude the subagent's calls
+    assert result["tool_call_count"] == 2  # Task + Read (main thread)
+    assert sorted(result["tools_used"]) == ["Read", "Task"]
+
+    # Subagent activity tracked separately
+    assert result["subagents_used"] is True
+    assert result["subagent_count"] == 1
+    assert result["subagent_tool_call_count"] == 2  # Read + Grep (sidechain)
+    assert sorted(result["subagent_tools_used"]) == ["Grep", "Read"]
+
+
+def test_parse_json_output_merges_skills_invoked_across_subagents(tmp_path: Path) -> None:
+    """A Skill invoked by a subagent still counts as invoked for grading."""
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    runner = Runner(evals_dir=evals_dir)
+
+    ndjson = """{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Task","input":{}}]},"parent_tool_use_id":null}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Skill","input":{"skill":"debugging-dbt-errors"}}]},"parent_tool_use_id":"toolu_task1"}"""
+
+    result = runner._parse_json_output(ndjson)
+
+    assert result["skills_invoked"] == ["debugging-dbt-errors"]
+
+
+def test_parse_json_output_counts_repeated_tool_calls(tmp_path: Path) -> None:
+    """tool_call_count counts every call, not just distinct tool names."""
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    runner = Runner(evals_dir=evals_dir)
+
+    ndjson = """{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{}}]}}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{}}]}}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Grep","input":{}}]}}"""
+
+    result = runner._parse_json_output(ndjson)
+
+    assert result["tool_call_count"] == 3
+    assert sorted(result["tools_used"]) == ["Grep", "Read"]
 
 
 def test_parse_json_output_handles_empty_input(tmp_path: Path) -> None:
@@ -177,6 +239,91 @@ def test_runner_prepares_environment_with_folder_path(tmp_path: Path) -> None:
     # Supporting files are also copied
     assert (skill_dest / "helper.sh").exists()
     assert "helper" in (skill_dest / "helper.sh").read_text()
+
+
+def test_configured_skill_names_uses_frontmatter_name(tmp_path: Path) -> None:
+    """_configured_skill_names reads the `name` field from SKILL.md frontmatter."""
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    runner = Runner(evals_dir=evals_dir)
+
+    skills_dir = tmp_path / "skills"
+    skill_folder = skills_dir / "on-disk-folder-name"
+    skill_folder.mkdir(parents=True)
+    (skill_folder / "SKILL.md").write_text(
+        "---\nname: real-frontmatter-name\ndescription: test\n---\n\nBody"
+    )
+
+    assert runner._configured_skill_names(skills_dir) == ["real-frontmatter-name"]
+
+
+def test_configured_skill_names_falls_back_to_folder_name(tmp_path: Path) -> None:
+    """_configured_skill_names falls back to the folder name without frontmatter."""
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    runner = Runner(evals_dir=evals_dir)
+
+    skills_dir = tmp_path / "skills"
+    skill_folder = skills_dir / "no-frontmatter-skill"
+    skill_folder.mkdir(parents=True)
+    (skill_folder / "SKILL.md").write_text("Just a body, no frontmatter")
+
+    assert runner._configured_skill_names(skills_dir) == ["no-frontmatter-skill"]
+
+
+def test_configured_skill_names_handles_missing_dir(tmp_path: Path) -> None:
+    """_configured_skill_names returns [] when the skills dir doesn't exist."""
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    runner = Runner(evals_dir=evals_dir)
+
+    assert runner._configured_skill_names(tmp_path / "does-not-exist") == []
+
+
+def test_run_scenario_scopes_skills_available_to_configured_skills(tmp_path: Path) -> None:
+    """metadata.yaml's skills_available only includes skills this eval added."""
+    from skill_eval.models import Scenario, SkillSet
+
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    (evals_dir / "runs").mkdir()
+
+    # skill lives in repo_dir (evals_dir.parent), same layout as other skill-copy tests
+    repo_dir = evals_dir.parent
+    skill_dir = repo_dir / "skills" / "my-skill"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text("---\nname: my-skill\ndescription: test\n---\n\nBody")
+
+    scenario_dir = tmp_path / "scenarios" / "test"
+    scenario_dir.mkdir(parents=True)
+
+    scenario = Scenario(name="test-scenario", path=scenario_dir, prompt="Fix the bug", skill_sets=[])
+    skill_set = SkillSet(name="with-skill", model="sonnet", skills=["skills/my-skill"])
+
+    runner = Runner(evals_dir=evals_dir)
+    run_dir = runner.create_run_dir()
+
+    def mock_run_claude(env_dir, prompt, mcp_config_path, allowed_tools, model=None, strict_mcp_config=True, ctx_logger=None, extra_env=None):
+        return (
+            {
+                "output_text": "Done",
+                "skills_invoked": ["my-skill"],
+                "tools_used": [],
+                "skills_available": ["my-skill", "design-sync", "verify"],
+            },
+            True,
+            None,
+            "",
+        )
+
+    with patch.object(runner, "run_claude", side_effect=mock_run_claude):
+        runner.run_scenario(scenario, skill_set, run_dir)
+
+    import yaml
+
+    metadata = yaml.safe_load((run_dir / "test-scenario" / "with-skill" / "metadata.yaml").read_text())
+    assert metadata["skills_available"] == ["my-skill"]
+    assert metadata["skills_available_other"] == ["design-sync", "verify"]
 
 
 def test_runner_is_url_detection(tmp_path: Path) -> None:

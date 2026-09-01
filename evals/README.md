@@ -359,11 +359,18 @@ skills_invoked:
   - debugging-dbt-errors
 skills_available:
   - debugging-dbt-errors
+skills_available_other:
+  - some-globally-installed-plugin-skill
 tools_used:
   - Read
   - Edit
   - Glob
   - Skill
+tool_call_count: 12
+subagents_used: false
+subagent_count: 0
+subagent_tools_used: []
+subagent_tool_call_count: 0
 mcp_servers: []
 model: claude-opus-4-5-20251101
 duration_ms: 31476
@@ -372,6 +379,33 @@ total_cost_usd: 0.1425935
 input_tokens: 125241
 output_tokens: 1177
 ```
+
+`skills_available` is scoped to only the skills this set's `skills:` list actually added — it's what
+grading and reporting use for skill-usage percentages. `claude` may also report other skills that happen
+to be installed globally (plugins, marketplace skills) that have nothing to do with the scenario; those
+are recorded separately as `skills_available_other` for visibility but excluded from grading.
+
+#### Subagents
+
+When Claude uses the `Task` tool, the spawned subagent's own turns stream inline as a "sidechain"
+alongside the main conversation. These fields keep that separate from the main thread:
+
+- `output.md` / `output_text` only ever contains the main thread's own text — a subagent's narration
+  never leaks into what gets graded as "the answer".
+- `tools_used` / `tool_call_count` count only main-thread tool calls. `subagent_tools_used` /
+  `subagent_tool_call_count` cover everything called from inside subagents.
+- `skills_invoked` is **not** split — a Skill invoked from inside a subagent still counts as the skill
+  having been used for this task.
+- `subagents_used` / `subagent_count` flag whether (and how many times) a set delegated to a subagent
+  at all, since that changes how to read the other numbers below.
+
+`duration_ms` and `total_cost_usd`/token counts come straight from `claude`'s own `result` message and
+are **not** split — `duration_ms` is wall-clock time for the whole process, so it inherently includes
+however long any subagents took. Whether `total_cost_usd`/token counts include subagent API calls wasn't
+verified here (the raw per-message `usage` fields don't reconcile cleanly enough to derive it
+independently — see `subagent_tool_call_count` as the closest available proxy for "how much subagent
+work happened"). `num_turns` empirically only counts main-thread turns, not subagent turns, but this is
+observed behavior, not documented by `claude` itself.
 
 ### changes/
 

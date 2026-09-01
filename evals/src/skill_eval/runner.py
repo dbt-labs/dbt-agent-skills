@@ -205,6 +205,30 @@ class Runner:
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(src, dest)
 
+    def _configured_skill_names(self, skills_dir: Path) -> list[str]:
+        """Names of skills copied into skills_dir for this eval (from SKILL.md frontmatter).
+
+        Falls back to the containing folder's name if a SKILL.md has no `name`
+        in its frontmatter or isn't parseable. This is what the eval actually
+        added — used to filter out unrelated skills/plugins (e.g. globally
+        installed ones) that `claude` may also report as available.
+        """
+        names = []
+        for skill_md in sorted(skills_dir.glob("*/SKILL.md")):
+            name = skill_md.parent.name
+            text = skill_md.read_text()
+            if text.startswith("---"):
+                end = text.find("\n---", 3)
+                if end != -1:
+                    try:
+                        frontmatter = yaml.safe_load(text[3:end])
+                        if isinstance(frontmatter, dict) and frontmatter.get("name"):
+                            name = frontmatter["name"]
+                    except yaml.YAMLError:
+                        pass
+            names.append(name)
+        return names
+
     def _generate_transcript(
         self, env_dir: Path, output_dir: Path, scenario_name: str, skill_set_name: str, log=None
     ) -> None:
@@ -319,12 +343,29 @@ class Runner:
     def _parse_json_output(self, json_str: str) -> dict:
         """Parse NDJSON (newline-delimited JSON) output from Claude stream-json format.
 
-        Returns dict with: output_text, skills_invoked, tools_used, and run metadata.
+        A `Task` tool call spawns a subagent whose own turns are streamed inline
+        as assistant/user messages with `parent_tool_use_id` set (a "sidechain").
+        Those are kept separate from the main thread's counters below:
+
+        - `output_text` is built only from main-thread text, so a subagent's own
+          narration never ends up in output.md and gets graded as the answer.
+        - `tools_used`/`tool_call_count` count main-thread tool calls only;
+          `subagent_tools_used`/`subagent_tool_call_count` cover sidechain calls.
+        - `skills_invoked` is deliberately NOT split — a Skill invoked from
+          inside a subagent still means the skill was used for this task.
+
+        Returns dict with: output_text, skills_invoked, tools_used, subagent
+        usage, and run metadata.
         """
         result = {
             "output_text": "",
             "skills_invoked": [],
             "tools_used": [],
+            "tool_call_count": 0,
+            "subagents_used": False,
+            "subagent_count": 0,
+            "subagent_tools_used": [],
+            "subagent_tool_call_count": 0,
             # From init message
             "model": None,
             "skills_available": [],
@@ -340,6 +381,10 @@ class Runner:
         text_parts = []
         skills_invoked = []
         tools_used = set()
+        tool_call_count = 0
+        subagent_tools_used = set()
+        subagent_tool_call_count = 0
+        subagent_count = 0
 
         # Parse each line as separate JSON (NDJSON format)
         for line in json_str.strip().split("\n"):
@@ -361,17 +406,24 @@ class Runner:
 
             # Extract text and tool usage from assistant messages
             if msg.get("type") == "assistant":
+                is_subagent = bool(msg.get("parent_tool_use_id"))
                 for content in msg.get("message", {}).get("content", []):
                     if isinstance(content, dict):
                         if content.get("type") == "text":
                             text = content.get("text", "").strip()
-                            if text:
+                            if text and not is_subagent:
                                 text_parts.append(text)
                         elif content.get("type") == "tool_use":
                             tool_name = content.get("name", "")
-                            if tool_name:
+                            if tool_name == "Task":
+                                subagent_count += 1
+                            if tool_name and is_subagent:
+                                subagent_tools_used.add(tool_name)
+                                subagent_tool_call_count += 1
+                            elif tool_name:
                                 tools_used.add(tool_name)
-                            # Check if it's a Skill invocation
+                                tool_call_count += 1
+                            # Check if it's a Skill invocation (main thread or subagent)
                             if tool_name == "Skill":
                                 skill_input = content.get("input", {})
                                 skill_name = skill_input.get("skill", "")
@@ -389,7 +441,12 @@ class Runner:
 
         result["output_text"] = "\n\n".join(text_parts)
         result["skills_invoked"] = skills_invoked
+        result["subagent_count"] = subagent_count
+        result["subagents_used"] = subagent_count > 0
+        result["subagent_tools_used"] = list(subagent_tools_used)
+        result["subagent_tool_call_count"] = subagent_tool_call_count
         result["tools_used"] = list(tools_used)
+        result["tool_call_count"] = tool_call_count
 
         return result
 
@@ -602,6 +659,7 @@ class Runner:
             skills=skill_set.skills,
             mcp_servers=skill_set.mcp_servers if skill_set.mcp_servers else None,
         )
+        configured_skill_names = self._configured_skill_names(env_dir / ".claude" / "skills")
 
         # Load .env vars for setup commands and Claude
         dot_env_vars: dict[str, str] = {}
@@ -659,12 +717,25 @@ class Runner:
         (output_dir / "output.md").write_text(parsed.get("output_text", ""))
         (output_dir / "raw.jsonl").write_text(raw_json)
 
+        # Scope skills_available down to skills this eval actually configured
+        # (skill_set.skills) — `claude` also reports globally installed
+        # plugin/marketplace skills, which aren't part of what's being tested.
+        reported_available = parsed.get("skills_available", [])
+        eval_skills_available = [s for s in reported_available if s in configured_skill_names]
+        other_skills_available = [s for s in reported_available if s not in configured_skill_names]
+
         # Save metadata
         metadata = {
             "success": success,
             "skills_invoked": parsed.get("skills_invoked", []),
-            "skills_available": parsed.get("skills_available", []),
+            "skills_available": eval_skills_available,
+            "skills_available_other": other_skills_available,
             "tools_used": parsed.get("tools_used", []),
+            "tool_call_count": parsed.get("tool_call_count", 0),
+            "subagents_used": parsed.get("subagents_used", False),
+            "subagent_count": parsed.get("subagent_count", 0),
+            "subagent_tools_used": parsed.get("subagent_tools_used", []),
+            "subagent_tool_call_count": parsed.get("subagent_tool_call_count", 0),
             "mcp_servers": parsed.get("mcp_servers", []),
             "model": parsed.get("model"),
             "duration_ms": parsed.get("duration_ms"),
