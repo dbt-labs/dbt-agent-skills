@@ -38,7 +38,7 @@ class TestRunCommand:
         scenario_dir.mkdir(parents=True)
         (scenario_dir / "prompt.txt").write_text("Do something")
         (scenario_dir / "skill-sets.yaml").write_text(
-            yaml.dump({"sets": [{"name": "baseline", "skills": []}]})
+            yaml.dump({"sets": [{"name": "baseline", "model": "sonnet", "skills": []}]})
         )
 
         # Mock the runner to avoid actually running Claude
@@ -63,7 +63,7 @@ class TestRunCommand:
         scenario_dir.mkdir(parents=True)
         (scenario_dir / "prompt.txt").write_text("Do something")
         (scenario_dir / "skill-sets.yaml").write_text(
-            yaml.dump({"sets": [{"name": "baseline", "skills": []}]})
+            yaml.dump({"sets": [{"name": "baseline", "model": "sonnet", "skills": []}]})
         )
 
         with patch("skill_eval.runner.Runner") as MockRunner:
@@ -86,7 +86,7 @@ class TestRunCommand:
         scenario_dir.mkdir(parents=True)
         (scenario_dir / "prompt.txt").write_text("Do something")
         (scenario_dir / "skill-sets.yaml").write_text(
-            yaml.dump({"sets": [{"name": "set1"}, {"name": "set2"}]})
+            yaml.dump({"sets": [{"name": "set1", "model": "sonnet"}, {"name": "set2", "model": "sonnet"}]})
         )
 
         with patch("skill_eval.runner.Runner") as MockRunner:
@@ -108,7 +108,7 @@ class TestRunCommand:
             d = scenarios_dir / name
             d.mkdir(parents=True)
             (d / "prompt.txt").write_text("Do something")
-            (d / "skill-sets.yaml").write_text(yaml.dump({"sets": [{"name": "baseline"}]}))
+            (d / "skill-sets.yaml").write_text(yaml.dump({"sets": [{"name": "baseline", "model": "sonnet"}]}))
 
         with patch("skill_eval.runner.Runner") as MockRunner:
             mock_runner = MockRunner.return_value
@@ -215,6 +215,38 @@ class TestGradeCommand:
         mock_grader.assert_called_once()
         assert (run_dir / "grades.yaml").exists()
 
+    def test_grade_auto_without_run_id_echoes_resolved_run_name(
+        self, tmp_path: Path, monkeypatch: MagicMock
+    ) -> None:
+        """grade --auto with no run_id echoes the resolved run name, not 'None'."""
+        monkeypatch.chdir(tmp_path)
+
+        scenarios_dir = tmp_path / "scenarios"
+        scenario_dir = scenarios_dir / "test-scenario"
+        scenario_dir.mkdir(parents=True)
+        (scenario_dir / "scenario.md").write_text("# Test")
+        (scenario_dir / "prompt.txt").write_text("Do something")
+
+        runs_dir = tmp_path / "runs"
+        run_dir = runs_dir / "2024-01-15-120000"
+        skill_set_dir = run_dir / "test-scenario" / "skill-set-1"
+        skill_set_dir.mkdir(parents=True)
+        (skill_set_dir / "output.md").write_text("I did the thing")
+        (skill_set_dir / "metadata.yaml").write_text(
+            yaml.dump({"skills_available": ["skill-a"], "skills_invoked": ["skill-a"]})
+        )
+
+        with patch("skill_eval.grader.call_claude_grader") as mock_grader:
+            mock_grader.return_value = "success: true\nscore: 4\ntool_usage: appropriate\nnotes: Good"
+
+            with patch("skill_eval.cli.is_interactive", return_value=False):
+                result = runner.invoke(app, ["grade", "--auto"])
+
+        assert result.exit_code == 0
+        assert "Auto-grading run: 2024-01-15-120000" in result.output
+        assert "Run: uv run skill-eval report 2024-01-15-120000" in result.output
+        assert "None" not in result.output
+
     def test_grade_auto_computes_skill_usage(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
         """grade --auto computes skill usage from metadata."""
         monkeypatch.chdir(tmp_path)
@@ -319,8 +351,34 @@ class TestReportCommand:
 class TestReviewCommand:
     """Tests for the 'review' command."""
 
-    def test_review_finds_transcripts(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
-        """review command finds and reports transcript files."""
+    def test_review_generates_index_page(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """review command generates a single review.html index and opens it."""
+        monkeypatch.chdir(tmp_path)
+
+        # Create scenarios dir so find_evals_root can locate evals root
+        (tmp_path / "scenarios").mkdir()
+
+        runs_dir = tmp_path / "runs"
+        run_dir = runs_dir / "2024-01-15-120000"
+        skill_set_dir = run_dir / "test-scenario" / "skill-set-1"
+        transcript_dir = skill_set_dir / "transcript"
+        transcript_dir.mkdir(parents=True)
+        (transcript_dir / "index.html").write_text("<html></html>")
+
+        with patch("skill_eval.cli.is_interactive", return_value=False):
+            with patch("webbrowser.open") as mock_open:
+                result = runner.invoke(app, ["review"])
+
+        assert result.exit_code == 0
+        review_file = run_dir / "review.html"
+        assert "Review index:" in result.output
+        assert review_file.exists()
+        assert "test-scenario" in review_file.read_text()
+        assert "skill-set-1" in review_file.read_text()
+        mock_open.assert_called_once_with(f"file://{review_file}")
+
+    def test_review_tabs_flag_opens_each_transcript(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """review --tabs opens each transcript individually, like the old default."""
         monkeypatch.chdir(tmp_path)
 
         # Create scenarios dir so find_evals_root can locate evals root
@@ -334,14 +392,14 @@ class TestReviewCommand:
 
         with patch("skill_eval.cli.is_interactive", return_value=False):
             with patch("webbrowser.open") as mock_open:
-                result = runner.invoke(app, ["review"])
+                result = runner.invoke(app, ["review", "--tabs"])
 
         assert result.exit_code == 0
         assert "Opening 1 transcript" in result.output
         mock_open.assert_called_once()
 
-    def test_review_no_transcripts_errors(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
-        """review command errors when no transcripts found."""
+    def test_review_tabs_no_transcripts_errors(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """review --tabs errors when no transcripts found."""
         monkeypatch.chdir(tmp_path)
 
         # Create scenarios dir so find_evals_root can locate evals root
@@ -352,10 +410,34 @@ class TestReviewCommand:
         run_dir.mkdir(parents=True)
 
         with patch("skill_eval.cli.is_interactive", return_value=False):
-            result = runner.invoke(app, ["review"])
+            result = runner.invoke(app, ["review", "--tabs"])
 
         assert result.exit_code == 1
         assert "No transcripts found" in result.output
+
+    def test_review_generates_index_without_transcripts(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """review (default) still generates an index page when transcripts are missing."""
+        monkeypatch.chdir(tmp_path)
+
+        # Create scenarios dir so find_evals_root can locate evals root
+        (tmp_path / "scenarios").mkdir()
+
+        runs_dir = tmp_path / "runs"
+        run_dir = runs_dir / "2024-01-15-120000"
+        skill_set_dir = run_dir / "test-scenario" / "skill-set-1"
+        skill_set_dir.mkdir(parents=True)
+        (skill_set_dir / "metadata.yaml").write_text(yaml.dump({"success": True}))
+        # No transcript/index.html - e.g. transcript generation failed or was disabled
+
+        with patch("skill_eval.cli.is_interactive", return_value=False):
+            with patch("webbrowser.open") as mock_open:
+                result = runner.invoke(app, ["review"])
+
+        assert result.exit_code == 0
+        review_file = run_dir / "review.html"
+        assert review_file.exists()
+        assert "test-scenario" in review_file.read_text()
+        mock_open.assert_called_once_with(f"file://{review_file}")
 
     def test_review_latest_flag(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
         """review --latest uses most recent run."""
@@ -389,7 +471,7 @@ class TestRootDiscovery:
         scenario_dir.mkdir(parents=True)
         (scenario_dir / "prompt.txt").write_text("Do something")
         (scenario_dir / "skill-sets.yaml").write_text(
-            yaml.dump({"sets": [{"name": "baseline", "skills": []}]})
+            yaml.dump({"sets": [{"name": "baseline", "model": "sonnet", "skills": []}]})
         )
 
         monkeypatch.chdir(tmp_path)
@@ -513,7 +595,7 @@ class TestBaseDirOption:
         scenario_dir.mkdir(parents=True)
         (scenario_dir / "prompt.txt").write_text("Do something")
         (scenario_dir / "skill-sets.yaml").write_text(
-            yaml.dump({"sets": [{"name": "baseline", "skills": []}]})
+            yaml.dump({"sets": [{"name": "baseline", "model": "sonnet", "skills": []}]})
         )
         monkeypatch.chdir(tmp_path)
 
@@ -541,7 +623,8 @@ class TestBaseDirOption:
             result = runner.invoke(app, ["review", "--base-dir", str(custom_dir)])
 
         assert result.exit_code == 0
-        assert "Opening 1 transcript" in result.output
+        assert "Review index:" in result.output
+        assert (run_dir / "review.html").exists()
 
 
 class TestVersionFlag:

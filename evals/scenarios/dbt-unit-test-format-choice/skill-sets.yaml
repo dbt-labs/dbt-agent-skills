@@ -1,7 +1,9 @@
 sets:
   - name: no-skills
+    model: sonnet
     skills: []
 
   - name: add-unit-test-skill
+    model: sonnet
     skills:
       - skills/dbt/skills/adding-dbt-unit-test

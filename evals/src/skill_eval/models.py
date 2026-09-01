@@ -27,11 +27,15 @@ class SkillSet:
     """A combination of skills and MCP servers to test."""
 
     name: str
+    model: str
     skills: list[str] = field(default_factory=list)
     mcp_servers: dict = field(default_factory=dict)  # MCP server config (mcpServers format)
     allowed_tools: list[str] = field(default_factory=list)  # If empty, allows all tools
     extra_prompt: str = ""  # Additional text appended to the base prompt
     setup: list[str] = field(default_factory=list)  # Commands to run before Claude
+    # If True (default), only MCP servers from this set's mcp_servers are used —
+    # Claude Desktop / user / project MCP config is ignored. Set to False to opt out.
+    strict_mcp_config: bool = True
 
 
 @dataclass
@@ -59,17 +63,41 @@ def load_scenario(scenario_dir: Path) -> Scenario:
     with skill_sets_file.open() as f:
         data = yaml.safe_load(f)
 
-    skill_sets = [
-        SkillSet(
-            name=s["name"],
-            skills=s.get("skills", []),
-            mcp_servers=s.get("mcp_servers", {}),
-            allowed_tools=s.get("allowed_tools", []),
-            extra_prompt=s.get("extra_prompt", ""),
-            setup=s.get("setup", []),
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"skill-sets.yaml in '{name}' is empty or not a mapping with a 'sets' list."
         )
-        for s in data.get("sets", [])
-    ]
+
+    sets = data.get("sets", [])
+    if not isinstance(sets, list):
+        raise ValueError(f"skill-sets.yaml in '{name}' has a 'sets' key that isn't a list.")
+
+    skill_sets = []
+    for s in sets:
+        if not isinstance(s, dict):
+            raise ValueError(
+                f"skill-sets.yaml in '{name}' has a set entry that isn't a mapping: {s!r}"
+            )
+        if not s.get("name"):
+            raise ValueError(f"skill-sets.yaml in '{name}' has a set entry missing a 'name'.")
+        if not s.get("model"):
+            raise ValueError(
+                f"skill-sets.yaml in '{name}' is missing a required 'model' field "
+                f"for set '{s.get('name', '?')}'. Every set must declare a model "
+                "(e.g. `model: sonnet`) so runs are reproducible."
+            )
+        skill_sets.append(
+            SkillSet(
+                name=s["name"],
+                model=s["model"],
+                skills=s.get("skills", []),
+                mcp_servers=s.get("mcp_servers", {}),
+                allowed_tools=s.get("allowed_tools", []),
+                extra_prompt=s.get("extra_prompt", ""),
+                setup=s.get("setup", []),
+                strict_mcp_config=s.get("strict_mcp_config", True),
+            )
+        )
 
     description = ""
     scenario_md = scenario_dir / "scenario.md"

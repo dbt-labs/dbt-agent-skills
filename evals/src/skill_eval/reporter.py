@@ -1,8 +1,10 @@
 """Report generation for skill evaluation."""
 
+import html as html_lib
 from collections import Counter, defaultdict
 from pathlib import Path
 
+import yaml
 from rich.console import Console
 from rich.table import Table
 
@@ -270,3 +272,253 @@ def save_report(run_dir: Path, reports_dir: Path) -> Path:
     report_file = reports_dir / f"{run_dir.name}.md"
     report_file.write_text(report)
     return report_file
+
+
+def _safe_number(value: object, default: float | None = None) -> float | None:
+    """Coerce a metadata/grades value to a plain number, or `default` if it isn't one.
+
+    metadata.yaml and grades.yaml can be hand-edited or corrupted; a non-numeric
+    value here must not reach an f-string meant to hold a number (data-sort
+    attributes, HTML attribute text) unescaped.
+    """
+    if isinstance(value, bool):
+        return default
+    return value if isinstance(value, (int, float)) else default
+
+
+def _format_duration(duration_ms: int | float | None) -> str:
+    """Format milliseconds as e.g. '1m 05s' or '3.2s'."""
+    if duration_ms is None:
+        return "-"
+    seconds = duration_ms / 1000
+    minutes, seconds = divmod(seconds, 60)
+    if minutes:
+        return f"{int(minutes)}m {seconds:02.0f}s"
+    return f"{seconds:.1f}s"
+
+
+def _format_cost(cost: float | None) -> str:
+    """Format a USD cost, e.g. '$0.1426'."""
+    return "-" if cost is None else f"${cost:.4f}"
+
+
+def _format_tokens(n: int | float | None) -> str:
+    """Format a token count with thousands separators."""
+    return "-" if n is None else f"{n:,}"
+
+
+def collect_review_rows(run_dir: Path) -> list[dict]:
+    """Gather per (scenario, skill_set) run data for the review index page."""
+    grades = load_grades(run_dir).get("results", {})
+
+    rows = []
+    for scenario_dir in sorted(p for p in run_dir.iterdir() if p.is_dir()):
+        scenario_name = scenario_dir.name
+        for skill_set_dir in sorted(p for p in scenario_dir.iterdir() if p.is_dir()):
+            skill_set_name = skill_set_dir.name
+
+            metadata_file = skill_set_dir / "metadata.yaml"
+            metadata: dict = {}
+            if metadata_file.exists():
+                loaded = yaml.safe_load(metadata_file.read_text())
+                metadata = loaded if isinstance(loaded, dict) else {}
+
+            transcript = skill_set_dir / "transcript" / "index.html"
+            output_md = skill_set_dir / "output.md"
+
+            rows.append(
+                {
+                    "scenario": scenario_name,
+                    "skill_set": skill_set_name,
+                    "metadata": metadata,
+                    "transcript_rel": transcript.relative_to(run_dir).as_posix() if transcript.exists() else None,
+                    "output_rel": output_md.relative_to(run_dir).as_posix() if output_md.exists() else None,
+                    "grade": grades.get(scenario_name, {}).get(skill_set_name),
+                }
+            )
+    return rows
+
+
+_REVIEW_CSS = """
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+         margin: 2rem; color: #1c1e21; background: #fff; }
+  h1 { font-size: 1.3rem; margin-bottom: 0.2rem; }
+  .subtitle { color: #666; margin-top: 0; margin-bottom: 1.2rem; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+  th, td { padding: 0.4rem 0.6rem; border-bottom: 1px solid #e3e5e8; text-align: left; white-space: nowrap; }
+  th { position: sticky; top: 0; background: #f5f6f8; cursor: pointer; user-select: none; }
+  th:hover { background: #ebedf0; }
+  th.sorted::after { content: " \\25BE"; }
+  tbody tr:hover { background: #f9fafb; }
+  td.right, th.right { text-align: right; }
+  td.center, th.center { text-align: center; }
+  .ok { color: #16794c; font-weight: bold; }
+  .fail { color: #c0392b; font-weight: bold; }
+  .unknown { color: #999; }
+  a { color: #0b5cff; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+"""
+
+_REVIEW_SORT_JS = """
+  const sortValue = (td) => {
+    const nested = td.querySelector("[data-sort]");
+    return nested ? nested.dataset.sort : td.innerText;
+  };
+  document.querySelectorAll("th[data-idx]").forEach((th) => {
+    th.addEventListener("click", () => {
+      const idx = Number(th.dataset.idx);
+      const numeric = th.dataset.numeric === "1";
+      const table = th.closest("table");
+      const tbody = table.querySelector("tbody");
+      const rows = Array.from(tbody.querySelectorAll("tr"));
+      const asc = th.dataset.dir !== "asc";
+      rows.sort((a, b) => {
+        let x = sortValue(a.children[idx]);
+        let y = sortValue(b.children[idx]);
+        if (numeric) { x = parseFloat(x) || 0; y = parseFloat(y) || 0; }
+        return asc ? (x > y ? 1 : x < y ? -1 : 0) : (x < y ? 1 : x > y ? -1 : 0);
+      });
+      rows.forEach((row) => tbody.appendChild(row));
+      table.querySelectorAll("th").forEach((h) => { h.classList.remove("sorted"); h.dataset.dir = ""; });
+      th.classList.add("sorted");
+      th.dataset.dir = asc ? "asc" : "desc";
+    });
+  });
+"""
+
+
+def generate_review_html(run_dir: Path) -> str:
+    """Generate a single HTML page indexing every run with links + key metrics.
+
+    Replaces opening one browser tab per transcript: one page, one table,
+    sortable by clicking column headers, with links out to each transcript
+    and raw output.
+    """
+    rows = collect_review_rows(run_dir)
+
+    columns = [
+        ("Scenario", False),
+        ("Skill Set", False),
+        ("Model", False),
+        ("Result", False),
+        ("Score", True),
+        ("Duration", True),
+        ("Turns", True),
+        ("Tool calls", True),
+        ("Distinct tools", True),
+        ("Subagents", True),
+        ("Skills", True),
+        ("MCP servers", False),
+        ("Cost", True),
+        ("Tokens (in/out)", True),
+        ("Links", False),
+    ]
+    header_html = "".join(
+        f'<th data-idx="{i}" data-numeric="{"1" if numeric else "0"}">{html_lib.escape(label)}</th>'
+        for i, (label, numeric) in enumerate(columns)
+    )
+
+    body_rows = []
+    for row in rows:
+        m = row["metadata"]
+        grade = row["grade"]
+
+        success = m.get("success")
+        if success:
+            status_html = '<span class="ok">&#10003;</span>'
+            status_sort = "2"
+        elif success is False:
+            status_html = '<span class="fail">&#10007;</span>'
+            status_sort = "0"
+        else:
+            status_html = '<span class="unknown">?</span>'
+            status_sort = "1"
+
+        score = _safe_number(grade.get("score")) if grade else None
+        score_html = f"{score}/5" if score is not None else "-"
+
+        skills_available = m.get("skills_available", [])
+        skills_invoked = m.get("skills_invoked", [])
+        skills_html = f"{len(skills_invoked)}/{len(skills_available)}" if skills_available else "-"
+        skills_sort = len(skills_invoked) / len(skills_available) if skills_available else -1
+
+        tools_used = m.get("tools_used", [])
+        mcp_servers = m.get("mcp_servers", [])
+        mcp_names = (
+            ", ".join(s.get("name", "?") if isinstance(s, dict) else str(s) for s in mcp_servers) or "-"
+        )
+
+        subagent_count = _safe_number(m.get("subagent_count", 0), default=0)
+        if m.get("subagents_used"):
+            subagent_tools = ", ".join(m.get("subagent_tools_used", []))
+            subagent_call_count = _safe_number(m.get("subagent_tool_call_count", 0), default=0)
+            subagent_title = f'title="{html_lib.escape(subagent_tools)} ({subagent_call_count} calls)"'
+            subagent_html = f'<span {subagent_title}>{subagent_count}</span>'
+        else:
+            subagent_html = "-"
+
+        links = []
+        if row["transcript_rel"]:
+            links.append(f'<a href="{html_lib.escape(row["transcript_rel"])}">transcript</a>')
+        if row["output_rel"]:
+            links.append(f'<a href="{html_lib.escape(row["output_rel"])}">output</a>')
+        links_html = " &middot; ".join(links) if links else "-"
+
+        duration_ms = _safe_number(m.get("duration_ms"))
+        cost = _safe_number(m.get("total_cost_usd"))
+        num_turns = _safe_number(m.get("num_turns"))
+        tool_call_count = _safe_number(m.get("tool_call_count", 0), default=0)
+
+        model_name = m.get("model")
+        model_text = html_lib.escape(str(model_name)) if model_name else "-"
+
+        cells = [
+            html_lib.escape(row["scenario"]),
+            html_lib.escape(row["skill_set"]),
+            model_text,
+            f'<span data-sort="{status_sort}">{status_html}</span>',
+            f'<span data-sort="{score if score is not None else -1}">{score_html}</span>',
+            f'<span data-sort="{duration_ms or 0}">{_format_duration(duration_ms)}</span>',
+            num_turns if num_turns is not None else "-",
+            tool_call_count,
+            len(tools_used),
+            f'<span data-sort="{subagent_count}">{subagent_html}</span>',
+            f'<span data-sort="{skills_sort}">{skills_html}</span>',
+            html_lib.escape(mcp_names),
+            f'<span data-sort="{cost or 0}">{_format_cost(cost)}</span>',
+            f"{_format_tokens(_safe_number(m.get('input_tokens')))} / {_format_tokens(_safe_number(m.get('output_tokens')))}",
+            links_html,
+        ]
+        classes = ["", "", "", "center", "center", "right", "right", "right", "right", "right", "right", "", "right", "right", ""]
+        cells_html = "".join(
+            f'<td class="{cls}">{val}</td>' if cls else f"<td>{val}</td>"
+            for cls, val in zip(classes, cells)
+        )
+        body_rows.append(f"<tr>{cells_html}</tr>")
+
+    run_name = html_lib.escape(run_dir.name)
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Eval Review: {run_name}</title>
+<style>{_REVIEW_CSS}</style>
+</head>
+<body>
+<h1>Eval Review: {run_name}</h1>
+<p class="subtitle">{len(rows)} run(s) &middot; click a column header to sort</p>
+<table>
+<thead><tr>{header_html}</tr></thead>
+<tbody>{"".join(body_rows)}</tbody>
+</table>
+<script>{_REVIEW_SORT_JS}</script>
+</body>
+</html>
+"""
+
+
+def save_review_html(run_dir: Path) -> Path:
+    """Generate and save the review index page inside the run directory."""
+    review_file = run_dir / "review.html"
+    review_file.write_text(generate_review_html(run_dir))
+    return review_file

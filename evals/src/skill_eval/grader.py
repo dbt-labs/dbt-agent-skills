@@ -273,12 +273,18 @@ def init_grades_file(run_dir: Path) -> Path:
 
 
 def load_grades(run_dir: Path) -> dict:
-    """Load grades from a run directory."""
+    """Load grades from a run directory.
+
+    Returns {} if grades.yaml is missing, empty, or doesn't parse to a
+    mapping (e.g. hand-edited/corrupted), so callers can rely on the
+    declared `dict` return type without their own guard.
+    """
     grades_file = run_dir / "grades.yaml"
     if not grades_file.exists():
         return {}
     with grades_file.open() as f:
-        return yaml.safe_load(f)
+        loaded = yaml.safe_load(f)
+    return loaded if isinstance(loaded, dict) else {}
 
 
 def save_grades(run_dir: Path, grades: dict) -> None:

@@ -1,6 +1,7 @@
 sets:
   # Baseline: No MCP, no skills - limited to reading local files
   - name: no-skills
+    model: sonnet
     skills: []
     allowed_tools:
       - Read
@@ -25,6 +26,7 @@ sets:
 
   # Full setup: skill + MCP server
   - name: with-skill-and-mcp
+    model: sonnet
     skills:
       # - skills/dbt/skills/troubleshooting-dbt-job-errors
     mcp_servers:

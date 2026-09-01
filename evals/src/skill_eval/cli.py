@@ -359,7 +359,7 @@ def grade(
     run_dir = find_run(runs_dir, run_id, latest=latest)
 
     if auto:
-        typer.echo(f"Auto-grading run: {run_id}")
+        typer.echo(f"Auto-grading run: {run_dir.name}")
         typer.echo()
 
         # Count scenarios and skill sets for progress
@@ -419,7 +419,7 @@ def grade(
         save_grades(run_dir, grades)
         grades_file = run_dir / "grades.yaml"
         typer.echo(f"\nGrades saved to: {grades_file}")
-        typer.echo(f"Run: uv run skill-eval report {run_id}")
+        typer.echo(f"Run: uv run skill-eval report {run_dir.name}")
     else:
         grades_file = init_grades_file(run_dir)
 
@@ -436,7 +436,7 @@ def grade(
                 typer.echo(f"    {skill_set_dir.name}/output.md")
 
         typer.echo(f"\nEdit {grades_file} to record your grades.")
-        typer.echo(f"Then run: uv run skill-eval report {run_id}")
+        typer.echo(f"Then run: uv run skill-eval report {run_dir.name}")
 
 
 @app.command()
@@ -467,29 +467,39 @@ def review(
     run_id: Optional[str] = typer.Argument(None, help="Run ID (full or partial). Defaults to latest run."),
     latest: bool = typer.Option(False, "--latest", "-l", help="Use latest run without prompting"),
     base_dir: Optional[Path] = typer.Option(None, "--base-dir", "-d", help="Evals root directory (default: auto-detected)"),
+    tabs: bool = typer.Option(False, "--tabs", help="Open every transcript in its own browser tab instead of the index page"),
 ) -> None:
-    """Open HTML transcripts in browser for review."""
+    """Open a review index page (or every transcript tab with --tabs)."""
     import webbrowser
+
+    from skill_eval.reporter import save_review_html
 
     evals_dir = _get_evals_dir(base_dir)
     runs_dir = evals_dir / "runs"
 
     run_dir = find_run(runs_dir, run_id, latest=latest)
 
-    # Find all transcript index.html files
-    transcripts = list(run_dir.glob("**/transcript/index.html"))
+    if tabs:
+        # Find all transcript index.html files
+        transcripts = list(run_dir.glob("**/transcript/index.html"))
 
-    if not transcripts:
-        typer.echo(f"Error: No transcripts found in {run_dir}", err=True)
-        raise typer.Exit(1)
+        if not transcripts:
+            typer.echo(f"Error: No transcripts found in {run_dir}", err=True)
+            raise typer.Exit(1)
 
-    typer.echo(f"Opening {len(transcripts)} transcript(s)...")
+        typer.echo(f"Opening {len(transcripts)} transcript(s)...")
+        for transcript in sorted(transcripts):
+            rel_path = transcript.relative_to(run_dir)
+            typer.echo(f"  {rel_path}")
+            webbrowser.open(f"file://{transcript}")
+        return
 
-    for transcript in sorted(transcripts):
-        # Show which transcript we're opening
-        rel_path = transcript.relative_to(run_dir)
-        typer.echo(f"  {rel_path}")
-        webbrowser.open(f"file://{transcript}")
+    # The index page doesn't need transcripts to be useful — it can still
+    # show cost/tokens/duration/etc. from metadata.yaml even if transcript
+    # generation failed or was disabled for a run.
+    review_file = save_review_html(run_dir)
+    typer.echo(f"Review index: {review_file}")
+    webbrowser.open(f"file://{review_file}")
 
 
 @app.command()
