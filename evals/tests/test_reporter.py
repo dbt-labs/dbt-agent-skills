@@ -9,6 +9,7 @@ from skill_eval.reporter import (
     _format_cost,
     _format_duration,
     _format_tokens,
+    _safe_number,
     collect_review_rows,
     generate_review_html,
 )
@@ -241,3 +242,43 @@ def test_generate_review_html_sort_js_reads_nested_data_sort(tmp_path: Path) -> 
     assert 'nested = td.querySelector("[data-sort]")' in html
     # The old broken pattern must be gone
     assert "a.children[idx].dataset.sort" not in html
+
+
+def test_safe_number() -> None:
+    assert _safe_number(3) == 3
+    assert _safe_number(3.5) == 3.5
+    assert _safe_number(None) is None
+    assert _safe_number("3") is None  # strings aren't coerced, just defaulted
+    assert _safe_number(True) is None  # bools aren't numbers here
+    assert _safe_number("oops", default=0) == 0
+
+
+def test_generate_review_html_handles_corrupted_numeric_metadata(tmp_path: Path) -> None:
+    """Non-numeric values in hand-edited metadata.yaml/grades.yaml don't crash
+    the page or break out of an HTML attribute unescaped."""
+    run_dir = _make_run(tmp_path)
+    metadata_file = run_dir / "my-scenario" / "with-mcp" / "metadata.yaml"
+    metadata = yaml.safe_load(metadata_file.read_text())
+    metadata["num_turns"] = '"><script>alert(1)</script>'
+    metadata["tool_call_count"] = "not-a-number"
+    metadata["duration_ms"] = "not-a-number"
+    metadata["total_cost_usd"] = "not-a-number"
+    metadata["input_tokens"] = "not-a-number"
+    metadata["output_tokens"] = "not-a-number"
+    metadata["model"] = ["not", "a", "string"]
+    metadata["subagents_used"] = True
+    metadata["subagent_count"] = "not-a-number"
+    metadata["subagent_tool_call_count"] = '"><img src=x>'
+    metadata["subagent_tools_used"] = ["Read"]
+    metadata_file.write_text(yaml.dump(metadata))
+
+    grades = {"results": {"my-scenario": {"with-mcp": {"success": True, "score": '"><script>'}}}}
+    (run_dir / "grades.yaml").write_text(yaml.dump(grades))
+
+    html = generate_review_html(run_dir)  # must not raise
+
+    # The payloads themselves must not appear unescaped (the page's own
+    # legitimate <script> tag for sorting is fine and expected).
+    assert '"><script>alert(1)</script>' not in html
+    assert '"><img src=x>' not in html
+    assert '"><script>' not in html

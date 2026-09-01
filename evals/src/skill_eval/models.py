@@ -78,6 +78,8 @@ def load_scenario(scenario_dir: Path) -> Scenario:
             raise ValueError(
                 f"skill-sets.yaml in '{name}' has a set entry that isn't a mapping: {s!r}"
             )
+        if not s.get("name"):
+            raise ValueError(f"skill-sets.yaml in '{name}' has a set entry missing a 'name'.")
         if not s.get("model"):
             raise ValueError(
                 f"skill-sets.yaml in '{name}' is missing a required 'model' field "

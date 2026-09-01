@@ -105,6 +105,18 @@ def test_load_scenario_rejects_non_mapping_set_entry(tmp_path: Path) -> None:
         load_scenario(scenario_dir)
 
 
+def test_load_scenario_rejects_set_entry_missing_name(tmp_path: Path) -> None:
+    """A set entry without a 'name' raises a clear ValueError, not a KeyError."""
+    scenario_dir = tmp_path / "test-scenario"
+    scenario_dir.mkdir()
+    (scenario_dir / "scenario.md").write_text("# Test")
+    (scenario_dir / "prompt.txt").write_text("Fix the bug")
+    (scenario_dir / "skill-sets.yaml").write_text("sets:\n  - model: sonnet\n    skills: []\n")
+
+    with pytest.raises(ValueError, match="test-scenario"):
+        load_scenario(scenario_dir)
+
+
 def test_load_scenario_strict_mcp_config_defaults_true(tmp_path: Path) -> None:
     """strict_mcp_config defaults to True when omitted from skill-sets.yaml."""
     scenario_dir = tmp_path / "test-scenario"

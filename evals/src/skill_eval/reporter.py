@@ -274,6 +274,18 @@ def save_report(run_dir: Path, reports_dir: Path) -> Path:
     return report_file
 
 
+def _safe_number(value: object, default: float | None = None) -> float | None:
+    """Coerce a metadata/grades value to a plain number, or `default` if it isn't one.
+
+    metadata.yaml and grades.yaml can be hand-edited or corrupted; a non-numeric
+    value here must not reach an f-string meant to hold a number (data-sort
+    attributes, HTML attribute text) unescaped.
+    """
+    if isinstance(value, bool):
+        return default
+    return value if isinstance(value, (int, float)) else default
+
+
 def _format_duration(duration_ms: int | float | None) -> str:
     """Format milliseconds as e.g. '1m 05s' or '3.2s'."""
     if duration_ms is None:
@@ -290,7 +302,7 @@ def _format_cost(cost: float | None) -> str:
     return "-" if cost is None else f"${cost:.4f}"
 
 
-def _format_tokens(n: int | None) -> str:
+def _format_tokens(n: int | float | None) -> str:
     """Format a token count with thousands separators."""
     return "-" if n is None else f"{n:,}"
 
@@ -422,7 +434,7 @@ def generate_review_html(run_dir: Path) -> str:
             status_html = '<span class="unknown">?</span>'
             status_sort = "1"
 
-        score = grade.get("score") if grade else None
+        score = _safe_number(grade.get("score")) if grade else None
         score_html = f"{score}/5" if score is not None else "-"
 
         skills_available = m.get("skills_available", [])
@@ -436,10 +448,11 @@ def generate_review_html(run_dir: Path) -> str:
             ", ".join(s.get("name", "?") if isinstance(s, dict) else str(s) for s in mcp_servers) or "-"
         )
 
-        subagent_count = m.get("subagent_count", 0)
+        subagent_count = _safe_number(m.get("subagent_count", 0), default=0)
         if m.get("subagents_used"):
             subagent_tools = ", ".join(m.get("subagent_tools_used", []))
-            subagent_title = f'title="{html_lib.escape(subagent_tools)} ({m.get("subagent_tool_call_count", 0)} calls)"'
+            subagent_call_count = _safe_number(m.get("subagent_tool_call_count", 0), default=0)
+            subagent_title = f'title="{html_lib.escape(subagent_tools)} ({subagent_call_count} calls)"'
             subagent_html = f'<span {subagent_title}>{subagent_count}</span>'
         else:
             subagent_html = "-"
@@ -451,24 +464,29 @@ def generate_review_html(run_dir: Path) -> str:
             links.append(f'<a href="{html_lib.escape(row["output_rel"])}">output</a>')
         links_html = " &middot; ".join(links) if links else "-"
 
-        duration_ms = m.get("duration_ms")
-        cost = m.get("total_cost_usd")
+        duration_ms = _safe_number(m.get("duration_ms"))
+        cost = _safe_number(m.get("total_cost_usd"))
+        num_turns = _safe_number(m.get("num_turns"))
+        tool_call_count = _safe_number(m.get("tool_call_count", 0), default=0)
+
+        model_name = m.get("model")
+        model_text = html_lib.escape(str(model_name)) if model_name else "-"
 
         cells = [
             html_lib.escape(row["scenario"]),
             html_lib.escape(row["skill_set"]),
-            html_lib.escape(m.get("model") or "-"),
+            model_text,
             f'<span data-sort="{status_sort}">{status_html}</span>',
             f'<span data-sort="{score if score is not None else -1}">{score_html}</span>',
             f'<span data-sort="{duration_ms or 0}">{_format_duration(duration_ms)}</span>',
-            m.get("num_turns") if m.get("num_turns") is not None else "-",
-            m.get("tool_call_count", 0),
+            num_turns if num_turns is not None else "-",
+            tool_call_count,
             len(tools_used),
             f'<span data-sort="{subagent_count}">{subagent_html}</span>',
             f'<span data-sort="{skills_sort}">{skills_html}</span>',
             html_lib.escape(mcp_names),
             f'<span data-sort="{cost or 0}">{_format_cost(cost)}</span>',
-            f"{_format_tokens(m.get('input_tokens'))} / {_format_tokens(m.get('output_tokens'))}",
+            f"{_format_tokens(_safe_number(m.get('input_tokens')))} / {_format_tokens(_safe_number(m.get('output_tokens')))}",
             links_html,
         ]
         classes = ["", "", "", "center", "center", "right", "right", "right", "right", "right", "right", "", "right", "right", ""]
