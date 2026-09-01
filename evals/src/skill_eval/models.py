@@ -68,8 +68,16 @@ def load_scenario(scenario_dir: Path) -> Scenario:
             f"skill-sets.yaml in '{name}' is empty or not a mapping with a 'sets' list."
         )
 
+    sets = data.get("sets", [])
+    if not isinstance(sets, list):
+        raise ValueError(f"skill-sets.yaml in '{name}' has a 'sets' key that isn't a list.")
+
     skill_sets = []
-    for s in data.get("sets", []):
+    for s in sets:
+        if not isinstance(s, dict):
+            raise ValueError(
+                f"skill-sets.yaml in '{name}' has a set entry that isn't a mapping: {s!r}"
+            )
         if not s.get("model"):
             raise ValueError(
                 f"skill-sets.yaml in '{name}' is missing a required 'model' field "

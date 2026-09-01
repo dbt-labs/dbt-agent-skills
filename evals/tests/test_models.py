@@ -81,6 +81,30 @@ def test_load_scenario_rejects_non_mapping_skill_sets_yaml(tmp_path: Path) -> No
         load_scenario(scenario_dir)
 
 
+def test_load_scenario_rejects_non_list_sets_key(tmp_path: Path) -> None:
+    """A 'sets' key that isn't a list (e.g. a mapping) raises a clear ValueError."""
+    scenario_dir = tmp_path / "test-scenario"
+    scenario_dir.mkdir()
+    (scenario_dir / "scenario.md").write_text("# Test")
+    (scenario_dir / "prompt.txt").write_text("Fix the bug")
+    (scenario_dir / "skill-sets.yaml").write_text("sets:\n  foo: bar\n")
+
+    with pytest.raises(ValueError, match="test-scenario"):
+        load_scenario(scenario_dir)
+
+
+def test_load_scenario_rejects_non_mapping_set_entry(tmp_path: Path) -> None:
+    """A set entry that isn't a mapping (e.g. a bare string) raises a clear ValueError."""
+    scenario_dir = tmp_path / "test-scenario"
+    scenario_dir.mkdir()
+    (scenario_dir / "scenario.md").write_text("# Test")
+    (scenario_dir / "prompt.txt").write_text("Fix the bug")
+    (scenario_dir / "skill-sets.yaml").write_text("sets:\n  - just-a-string\n")
+
+    with pytest.raises(ValueError, match="test-scenario"):
+        load_scenario(scenario_dir)
+
+
 def test_load_scenario_strict_mcp_config_defaults_true(tmp_path: Path) -> None:
     """strict_mcp_config defaults to True when omitted from skill-sets.yaml."""
     scenario_dir = tmp_path / "test-scenario"

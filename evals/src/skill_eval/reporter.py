@@ -308,7 +308,8 @@ def collect_review_rows(run_dir: Path) -> list[dict]:
             metadata_file = skill_set_dir / "metadata.yaml"
             metadata: dict = {}
             if metadata_file.exists():
-                metadata = yaml.safe_load(metadata_file.read_text()) or {}
+                loaded = yaml.safe_load(metadata_file.read_text())
+                metadata = loaded if isinstance(loaded, dict) else {}
 
             transcript = skill_set_dir / "transcript" / "index.html"
             output_md = skill_set_dir / "output.md"

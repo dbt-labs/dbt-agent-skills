@@ -160,6 +160,19 @@ def test_collect_review_rows_reads_metadata_and_links(tmp_path: Path) -> None:
     assert row["grade"] is None  # No grades.yaml in this run
 
 
+def test_collect_review_rows_handles_non_mapping_metadata(tmp_path: Path) -> None:
+    """A corrupt/partial metadata.yaml that parses to a non-mapping doesn't crash review."""
+    run_dir = tmp_path / "runs" / "2026-01-01-000000"
+    skill_set_dir = run_dir / "my-scenario" / "with-mcp"
+    skill_set_dir.mkdir(parents=True)
+    # e.g. a truncated write leaving only a YAML list behind
+    (skill_set_dir / "metadata.yaml").write_text("- oops\n- not\n- a\n- mapping\n")
+
+    rows = collect_review_rows(run_dir)
+
+    assert rows[0]["metadata"] == {}
+
+
 def test_collect_review_rows_attaches_grade_when_present(tmp_path: Path) -> None:
     """collect_review_rows pulls in the score from grades.yaml if it exists."""
     run_dir = _make_run(tmp_path)
