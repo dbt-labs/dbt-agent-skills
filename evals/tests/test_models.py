@@ -57,6 +57,30 @@ sets:
         load_scenario(scenario_dir)
 
 
+def test_load_scenario_rejects_empty_skill_sets_yaml(tmp_path: Path) -> None:
+    """An empty or non-mapping skill-sets.yaml raises a clear ValueError, not AttributeError."""
+    scenario_dir = tmp_path / "test-scenario"
+    scenario_dir.mkdir()
+    (scenario_dir / "scenario.md").write_text("# Test")
+    (scenario_dir / "prompt.txt").write_text("Fix the bug")
+    (scenario_dir / "skill-sets.yaml").write_text("")
+
+    with pytest.raises(ValueError, match="test-scenario"):
+        load_scenario(scenario_dir)
+
+
+def test_load_scenario_rejects_non_mapping_skill_sets_yaml(tmp_path: Path) -> None:
+    """A skill-sets.yaml that's a list (not a mapping) raises a clear ValueError."""
+    scenario_dir = tmp_path / "test-scenario"
+    scenario_dir.mkdir()
+    (scenario_dir / "scenario.md").write_text("# Test")
+    (scenario_dir / "prompt.txt").write_text("Fix the bug")
+    (scenario_dir / "skill-sets.yaml").write_text("- just\n- a\n- list\n")
+
+    with pytest.raises(ValueError, match="test-scenario"):
+        load_scenario(scenario_dir)
+
+
 def test_load_scenario_strict_mcp_config_defaults_true(tmp_path: Path) -> None:
     """strict_mcp_config defaults to True when omitted from skill-sets.yaml."""
     scenario_dir = tmp_path / "test-scenario"

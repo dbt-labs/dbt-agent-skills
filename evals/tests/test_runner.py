@@ -195,6 +195,25 @@ def test_parse_json_output_counts_repeated_tool_calls(tmp_path: Path) -> None:
     assert sorted(result["tools_used"]) == ["Grep", "Read"]
 
 
+def test_parse_json_output_returns_tools_used_in_sorted_order(tmp_path: Path) -> None:
+    """tools_used/subagent_tools_used are sorted for stable metadata.yaml output."""
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    runner = Runner(evals_dir=evals_dir)
+
+    ndjson = """{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Write","input":{}}]}}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Grep","input":{}}]}}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{}}]}}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Task","input":{}}]},"parent_tool_use_id":null}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{}}]},"parent_tool_use_id":"toolu_task1"}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{}}]},"parent_tool_use_id":"toolu_task1"}"""
+
+    result = runner._parse_json_output(ndjson)
+
+    assert result["tools_used"] == ["Grep", "Read", "Task", "Write"]
+    assert result["subagent_tools_used"] == ["Bash", "Read"]
+
+
 def test_parse_json_output_handles_empty_input(tmp_path: Path) -> None:
     """NDJSON parser handles empty input gracefully."""
     evals_dir = tmp_path / "evals"

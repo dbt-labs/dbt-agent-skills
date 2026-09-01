@@ -398,8 +398,8 @@ class TestReviewCommand:
         assert "Opening 1 transcript" in result.output
         mock_open.assert_called_once()
 
-    def test_review_no_transcripts_errors(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
-        """review command errors when no transcripts found."""
+    def test_review_tabs_no_transcripts_errors(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """review --tabs errors when no transcripts found."""
         monkeypatch.chdir(tmp_path)
 
         # Create scenarios dir so find_evals_root can locate evals root
@@ -410,10 +410,34 @@ class TestReviewCommand:
         run_dir.mkdir(parents=True)
 
         with patch("skill_eval.cli.is_interactive", return_value=False):
-            result = runner.invoke(app, ["review"])
+            result = runner.invoke(app, ["review", "--tabs"])
 
         assert result.exit_code == 1
         assert "No transcripts found" in result.output
+
+    def test_review_generates_index_without_transcripts(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
+        """review (default) still generates an index page when transcripts are missing."""
+        monkeypatch.chdir(tmp_path)
+
+        # Create scenarios dir so find_evals_root can locate evals root
+        (tmp_path / "scenarios").mkdir()
+
+        runs_dir = tmp_path / "runs"
+        run_dir = runs_dir / "2024-01-15-120000"
+        skill_set_dir = run_dir / "test-scenario" / "skill-set-1"
+        skill_set_dir.mkdir(parents=True)
+        (skill_set_dir / "metadata.yaml").write_text(yaml.dump({"success": True}))
+        # No transcript/index.html - e.g. transcript generation failed or was disabled
+
+        with patch("skill_eval.cli.is_interactive", return_value=False):
+            with patch("webbrowser.open") as mock_open:
+                result = runner.invoke(app, ["review"])
+
+        assert result.exit_code == 0
+        review_file = run_dir / "review.html"
+        assert review_file.exists()
+        assert "test-scenario" in review_file.read_text()
+        mock_open.assert_called_once_with(f"file://{review_file}")
 
     def test_review_latest_flag(self, tmp_path: Path, monkeypatch: MagicMock) -> None:
         """review --latest uses most recent run."""

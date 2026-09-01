@@ -443,9 +443,9 @@ class Runner:
         result["skills_invoked"] = skills_invoked
         result["subagent_count"] = subagent_count
         result["subagents_used"] = subagent_count > 0
-        result["subagent_tools_used"] = list(subagent_tools_used)
+        result["subagent_tools_used"] = sorted(subagent_tools_used)
         result["subagent_tool_call_count"] = subagent_tool_call_count
-        result["tools_used"] = list(tools_used)
+        result["tools_used"] = sorted(tools_used)
         result["tool_call_count"] = tool_call_count
 
         return result

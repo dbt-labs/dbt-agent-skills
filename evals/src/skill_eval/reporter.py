@@ -347,6 +347,10 @@ _REVIEW_CSS = """
 """
 
 _REVIEW_SORT_JS = """
+  const sortValue = (td) => {
+    const nested = td.querySelector("[data-sort]");
+    return nested ? nested.dataset.sort : td.innerText;
+  };
   document.querySelectorAll("th[data-idx]").forEach((th) => {
     th.addEventListener("click", () => {
       const idx = Number(th.dataset.idx);
@@ -356,8 +360,8 @@ _REVIEW_SORT_JS = """
       const rows = Array.from(tbody.querySelectorAll("tr"));
       const asc = th.dataset.dir !== "asc";
       rows.sort((a, b) => {
-        let x = a.children[idx].dataset.sort ?? a.children[idx].innerText;
-        let y = b.children[idx].dataset.sort ?? b.children[idx].innerText;
+        let x = sortValue(a.children[idx]);
+        let y = sortValue(b.children[idx]);
         if (numeric) { x = parseFloat(x) || 0; y = parseFloat(y) || 0; }
         return asc ? (x > y ? 1 : x < y ? -1 : 0) : (x < y ? 1 : x > y ? -1 : 0);
       });

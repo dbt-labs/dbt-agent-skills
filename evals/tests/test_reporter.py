@@ -210,3 +210,21 @@ def test_generate_review_html_shows_dash_when_no_subagents(tmp_path: Path) -> No
     html = generate_review_html(run_dir)
 
     assert "<th data-idx=\"9\" data-numeric=\"1\">Subagents</th>" in html
+
+
+def test_generate_review_html_sort_js_reads_nested_data_sort(tmp_path: Path) -> None:
+    """Sort JS must read data-sort from the nested <span>, not the <td> itself.
+
+    Numeric columns (Duration, Cost, Score, Subagents, Skills) put their raw
+    sortable value on a nested <span data-sort="...">, since the <td> holds
+    formatted display text. The click handler has to look there, not just at
+    the <td>'s own (nonexistent) dataset.
+    """
+    run_dir = _make_run(tmp_path)
+
+    html = generate_review_html(run_dir)
+
+    assert "sortValue(a.children[idx])" in html
+    assert 'nested = td.querySelector("[data-sort]")' in html
+    # The old broken pattern must be gone
+    assert "a.children[idx].dataset.sort" not in html

@@ -63,6 +63,11 @@ def load_scenario(scenario_dir: Path) -> Scenario:
     with skill_sets_file.open() as f:
         data = yaml.safe_load(f)
 
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"skill-sets.yaml in '{name}' is empty or not a mapping with a 'sets' list."
+        )
+
     skill_sets = []
     for s in data.get("sets", []):
         if not s.get("model"):
