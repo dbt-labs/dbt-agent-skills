@@ -16,7 +16,7 @@ These skills are **not** slash commands or user-invoked actions. Once installed,
 - **Semantic layer**: Create metrics, dimensions, and semantic models with MetricFlow
 - **dbt Mesh**: Work with multi-project setups, cross-project refs, model governance (contracts, versions, access)
 - **Platform operations**: Troubleshoot job failures, configure the dbt MCP server
-- **Migration**: Move projects from dbt Core to the Fusion engine
+- **Migration**: Move projects from dbt Core to dbt v2
 
 ## Installation
 
@@ -111,7 +111,7 @@ These skills are typically used once during a migration project rather than in e
 
 | Skill | Description |
 |-------|-------------|
-| `migrating-dbt-core-to-fusion` | Migrate dbt projects from dbt Core to the Fusion engine |
+| `migrating-dbt-core-to-v2` | Migrate dbt projects from dbt Core to dbt v2 |
 | `migrating-dbt-project-across-platforms` | Migrate dbt projects across data platforms |
 | `upgrading-dbt-core` | Upgrade a dbt-core v1 project (1.3-1.7) to the latest dbt-core, applying breaking, behavior, and deprecated changes |
 
