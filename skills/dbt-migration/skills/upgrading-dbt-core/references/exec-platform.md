@@ -13,7 +13,8 @@ locally is done with a Studio tool below.
 Three consequences worth stating plainly:
 
 - **`dbt_command` accepts exactly two binaries: `dbt` and `dbt-autofix`.** Nothing
-  else is on the allowlist.
+  else is on the allowlist — notably not `dbt-migrate-1x` (see `autofix` below),
+  which is why this migration's deterministic fixes are applied by hand here.
 - **You write the artifacts yourself** with `edit_file`. No script validates them,
   so the schemas in SKILL.md are the contract — never invent a field, a status
   value, or a phase id.
@@ -73,7 +74,7 @@ memory: read it, change the one record you mean to change, write it back.
 | `edit_file` | Every file change, including creating the artifacts |
 | `delete_file` | Remove a file a fix retires |
 | `git` (`status`, `branches`, `diff`, `checkout`, `commit`, `push`, `pull`, `revert`, `merge`) | Preflight, diffs for approval, undo. **No `stash`** |
-| `dbt_command`, `dbt_command_status`, `dbt_command_cancel` | The whole verification gate — `dbt parse`, then `dbt build` / `dbt test` — and the `dbt-autofix` run |
+| `dbt_command`, `dbt_command_status`, `dbt_command_cancel` | The whole verification gate — `dbt parse`, then `dbt build` / `dbt test`. **Not** the deterministic 1.x → 1.x fixes — `dbt-migrate-1x` is not on this tool's allowlist; see `autofix` below |
 | `request_user_input` | Every question you put to the user |
 | `get_job_details` | Read one job by id — its `execute_steps` and pinned `dbt_version`. This is how you build `migration_jobs.json` (`jobs-file`) |
 | `list_jobs` | Use with care: it returns every job in the **account**, not this project. Work from the legacy job ids you were given |
@@ -143,23 +144,18 @@ a run resumable.
 There is no query tool; the file is small enough to read whole.
 
 ### `autofix`
-`dbt_command` with:
 
-```
-dbt-autofix migrate-1x --from <FROM> --to 1.8
-```
+`dbt-autofix migrate-1x` is **Not available here.**
 
-then `git diff` to see which files it touched.
-
-The subcommand matters. `migrate-1x` is the 1.x → 1.x pass; `deprecations` is
-the Fusion/v1.10 pass and is **not** this migration. `--from` must be the
-project's real starting version, not the tool's 1.3 default, so autofix replays
-exactly the hops the bundle covers — an out-of-range rule would change files
-that map onto no collected issue. `--to` stays at 1.8 because everything after
-it is behavior-flag gated and pinned by `set-flag`, never rewritten.
-
-This is the one step that works the same way it does locally, because
-`dbt-autofix` is on the `dbt_command` allowlist.
+**So there is no separate autofix pass in this profile.** Treat every
+`detected` issue with `automation_type: deterministic` exactly like an
+`agentic` one in Step 5: apply the fix yourself per `context.fixing`, `git
+diff` to see what changed, then `set-status` `fixed` — never
+`handled-by-autofix`, which claims a tool did it and nothing did here. Skip
+Step 4 as its own pass (there is nothing for it to do); fold its issues into
+Step 5's work instead, and `status-set` `autofix` = `complete` immediately
+with a note saying why (`"no dbt-migrate-1x tool in Studio; N deterministic
+issues folded into Step 5"`).
 
 ### `set-flag`
 `edit_file` on `dbt_project.yml`, adding the flag named in that issue's

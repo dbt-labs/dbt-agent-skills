@@ -43,7 +43,7 @@ Each issue has an `automation_type` that decides how it is handled:
 
 | `automation_type` | How you handle it |
 |---|---|
-| `deterministic` | **`dbt-autofix` handles it.** You do not re-implement it — you run the `autofix` operation, then map its diff onto the issue and record it. |
+| `deterministic` | **Handled by a tool where your profile has one.** Locally, run the `autofix` operation (`dbt-migrate-1x`) and map its diff onto the issue. In Studio there is no such tool for this — apply the fix yourself per `context.fixing`, exactly like an `agentic` issue, then record it the same way; see your profile's `autofix` operation. |
 | `agentic` | **You apply the fix directly** (per `context.fixing`), then verify. |
 | `human` | **You propose the fix, show the diff, confirm with the user, then apply** (HITL). Never apply a `human` issue without explicit confirmation. |
 | `behavior_flag` | **The `set-flag` operation handles it**, only when detection found it present (Step 5). A post-1.8 change gated behind a flag: when the project actually exhibits the gated behavior, the flag named in the issue's `behavior_flag.name` is pinned to `false` in `dbt_project.yml`. Never pin one the project does not exhibit, and never "fix" the underlying behavior instead. |
@@ -95,7 +95,7 @@ invocations are written down.
 | `init-results` | Seed the results artifact from the bundle, all issues `pending` |
 | `set-status` | Record one issue's status, changed files, and notes |
 | `list-issues` | List issue ids from the results artifact, filtered |
-| `autofix` | Run `dbt-autofix` over the project and learn which files changed |
+| `autofix` | Run the deterministic 1.x → 1.x fix tool over the project and learn which files changed — **local only**; in Studio there is no such tool, so `deterministic` issues are fixed by hand in Step 5 instead |
 | `set-flag` | Pin one behavior-change flag to `false` in `dbt_project.yml` |
 | `parse` | Run `dbt parse` on dbt-core 1.12 — the first rung of the verification gate |
 | `verify-commands` | Re-run the customer's own job commands in-session (`dbt build` / `dbt test`) — profile-dependent |
@@ -117,7 +117,7 @@ currently on 1.5 and runs on Snowflake."
 2. `load-bundle` returns `references/kb_1_5_snowflake.json`, the applicable issues (1.5 through 1.11 bands); `init-results` seeds them all `pending`.
 3. Read the project's models, macros, and `dbt_project.yml` against the collected issues.
 4. Detection sweep marks the issues actually present as `detected`, the rest `skipped-not-present`.
-5. `autofix` runs `dbt-autofix`, resolving the `deterministic` issues it can.
+5. Locally, `autofix` runs `dbt-migrate-1x`, resolving the `deterministic` issues it can (in Studio, these are fixed by hand alongside the agentic ones instead).
 6. Remaining `agentic` issues are fixed directly; `behavior_flag` issues the project actually exhibits get pinned via `set-flag`; any `human` issue is shown as a diff and applied only after the user approves it.
 7. `parse` passes on dbt-core 1.12.
 8. Re-detection confirms every resolved issue is now absent; `report` writes `migration_report.md`.
@@ -139,7 +139,11 @@ currently on 1.5 and runs on Snowflake."
    "some dbt I chose still works". Never `dbt run-operation`, never
    `--target`/`--profile` to point somewhere else, and never a warehouse the
    session was not already connected to.
-2. **Do not rebuild `dbt-autofix`.** `deterministic` issues are its job.
+2. **Do not rebuild a tool by hand where your profile has one.** Locally,
+   `deterministic` issues are `dbt-migrate-1x`'s job — do not re-implement what
+   it already does. Studio has no equivalent tool for this migration, so
+   applying `deterministic` issues yourself there is expected, not a rule
+   violation — see your profile's `autofix` operation.
 3. **Never mutate the environment.** `environment_change` issues are advisory
    edits only — no `pip`, no installs.
 4. **Never apply a `human` issue without confirmation.** Show the diff first.
@@ -229,7 +233,7 @@ The shape is **detect everything → fix everything → verify once → re-detec
 | 1 | Collect applicable issues |
 | 2 | Read the project |
 | 3 | Detection sweep — which issues actually exist (**no edits**) |
-| 4 | `dbt-autofix` (batch) |
+| 4 | Deterministic fixes (batch) |
 | 5 | Agentic fixes + behavior-flag pinning |
 | 6 | Human-in-the-loop fixes |
 | 7 | Verification gate — `dbt parse`, then the customer's job commands |
@@ -320,30 +324,39 @@ sweep is done, everything still to do is exactly `list-issues --status detected`
 
 `status-set` → `detect` = `complete`, note `"<n> of <n> issues present"`.
 
-### Step 4 — `dbt-autofix` (batch, deterministic issues)
+### Step 4 — Deterministic fixes (batch)
 
 `status-set` → `autofix` = `in_progress`.
 
-Run **`autofix`**, then map the files it changed onto the `detected`
+**Where your profile has a tool for this (local: `autofix`, i.e.
+`dbt-migrate-1x`)**, run it, then map the files it changed onto the `detected`
 `deterministic` issues: covered → `set-status` `handled-by-autofix` with those
-files. If autofix introduced a breakage, note it and revert that hunk. A
-`detected` `deterministic` issue that autofix missed stays `detected` and is
-fixed as a normal edit in Step 5.
+files. If it introduced a breakage, note it and revert that hunk. A `detected`
+`deterministic` issue it missed stays `detected` and is fixed as a normal edit
+in Step 5.
 
-**`handled-by-autofix` means autofix did it.** It is a claim about *which
+**Where your profile has no such tool (Studio)**, there is nothing to run in
+this step — `status-set` → `autofix` = `complete` immediately, with a note
+saying so, and fix every `detected` `deterministic` issue in Step 5 instead,
+exactly like an `agentic` one.
+
+**`handled-by-autofix` means the tool did it.** It is a claim about *which
 mechanism* produced the change, and the report is read as such — "your project
 needed no judgment calls here" is a materially different statement from "the
-agent rewrote this." Set it only for a file that actually appears in this step's
-`autofix` output. When you fix a `deterministic` issue yourself in Step 5
-because autofix missed it, the status is `fixed`, and the note says autofix did
-not cover it — do not relabel your own edit as autofix's work.
+agent rewrote this." Set it only for a file that actually appears in this
+step's tool output. When you fix a `deterministic` issue yourself in Step 5 —
+because the tool missed it, or because your profile has no tool at all — the
+status is `fixed`, and the note says why. `handled-by-autofix` is reserved for
+the tool's own output; never relabel your own edit as the tool's work.
 
-Autofix missing an issue it should own is itself worth surfacing: put it in the
-note (`"autofix did not cover this; applied manually"`) so a real gap in
-`dbt-autofix` shows up as a pattern across runs instead of being absorbed
+The tool missing an issue it should own is itself worth surfacing: put it in
+the note (`"dbt-migrate-1x did not cover this; applied manually"`) so a real
+gap in the tool shows up as a pattern across runs instead of being absorbed
 silently.
 
-`status-set` → `autofix` = `complete`, note `"autofix changed <n> files"`.
+`status-set` → `autofix` = `complete`, note `"autofix changed <n> files"`
+(local) or `"no tool in this profile; N deterministic issues folded into Step
+5"` (Studio).
 
 ### Step 5 — Agentic fixes
 

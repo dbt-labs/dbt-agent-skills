@@ -25,8 +25,8 @@ Commands:
   set-status     Update one issue's status/files/notes in the results artifact.
   report         Render target/dbt_migration_results.json -> migration_report.md.
   preflight      Git safety gate: not on main/master, working tree clean.
-  autofix        Run `dbt-autofix migrate-1x` in the project; return the files it
-                 changed (JSON).
+  autofix        Run `dbt-migrate-1x` in the project; return the files it
+                 changed (JSON). Local execution only — see cmd_autofix.
   parse          Run `dbt parse` on a throwaway target-version dbt-core; return {ok, output}.
 """
 from __future__ import annotations
@@ -72,7 +72,7 @@ MIGRATION_STEPS: list[tuple[str, str]] = [
     ("collect", "Collect applicable issues"),
     ("read-project", "Read the project"),
     ("detect", "Detection sweep"),
-    ("autofix", "Run dbt-autofix"),
+    ("autofix", "Deterministic fixes"),
     ("agentic-fixes", "Apply agentic fixes"),
     ("human-fixes", "Confirm human-in-the-loop fixes"),
     ("parse", "Validate with dbt parse"),
@@ -84,9 +84,9 @@ MIGRATION_STEPS: list[tuple[str, str]] = [
 # a spinner would tell them to keep waiting when they are the ones being waited on.
 STATUS_VALUES = {"pending", "in_progress", "waiting_input", "complete", "failed"}
 
-AUTOFIX_SPEC = "git+https://github.com/dbt-labs/dbt-autofix.git"
+MIGRATE_1X_SPEC = "git+https://github.com/dbt-labs/dbt-autofix.git#subdirectory=packages/dbt_migrate_1x"
 
-# Upper bound for `dbt-autofix migrate-1x`. Deterministic rewriting stops at 1.8:
+# Upper bound for `dbt-migrate-1x`. Deterministic rewriting stops at 1.8:
 # every backwards-incompatible change after it is gated behind a behavior-change
 # flag, which this skill pins via set-flag rather than rewriting.
 AUTOFIX_TO_VERSION = "1.8"
@@ -559,10 +559,13 @@ def cmd_report(args) -> int:
 
 
 def cmd_autofix(args) -> int:
-    """Run dbt-autofix in the project and report the files it changed.
+    """Run dbt-migrate-1x in the project and report the files it changed.
 
-    dbt-autofix intentionally mutates the repo; the agent maps the returned
-    changed files onto the `deterministic` issues. Requires network + uvx.
+    dbt-migrate-1x intentionally mutates the repo; the agent maps the returned
+    changed files onto the `deterministic` issues. Requires network + uvx —
+    and therefore a shell, so this command is local-execution only. Studio has
+    no equivalent tool call: its profile fixes `deterministic` issues the same
+    way it fixes `agentic` ones (see exec-platform.md's `autofix` operation).
     """
     project = Path(args.project_dir).resolve()
 
@@ -570,21 +573,23 @@ def cmd_autofix(args) -> int:
         return subprocess.run(["git", "-C", str(project), *a], capture_output=True, text=True)
 
     before = git("status", "--porcelain").stdout
-    # Pin the interpreter: dbt-autofix's mashumaro dependency crashes on import
-    # under Python 3.14 (UnserializableField on Optional[bool]); 3.11 is known-good.
+    # Pin the interpreter: dbt-migrate-1x depends on dbt-autofix's refactor
+    # engine, whose mashumaro dependency crashes on import under Python 3.14
+    # (UnserializableField on Optional[bool]); 3.11 is known-good.
     #
-    # `migrate-1x`, not `deprecations`: this skill replays 1.x -> 1.x version
-    # boundaries, which is exactly that subcommand's job ("no Fusion/v1.10
-    # deprecation fixes"). --from is the project's actual starting version, not
-    # the tool's 1.3 default, so autofix applies the same hops the bundle covers
-    # -- an out-of-range rule would change files that map onto no collected
-    # issue. --to stays at 1.8 because everything after it is behavior-flag
-    # gated and pinned by set-flag, never rewritten.
-    # --project-dir explicitly: migrate-1x's default is the cwd captured when its
-    # module is imported, which happens to be right here only because cwd=project
-    # below. Say it outright rather than depend on that.
-    cmd = ["uvx", "--python", "3.11", "--from", AUTOFIX_SPEC, "dbt-autofix",
-           "migrate-1x", "--project-dir", str(project),
+    # No subcommand: dbt-migrate-1x is its own package now, not a dbt-autofix
+    # subcommand, so there is nothing here to confuse with `dbt-autofix
+    # deprecations` (the Fusion/v1.10 pass, which is not this migration). --from
+    # is the project's actual starting version, not the tool's 1.3 default, so
+    # it replays the same hops the bundle covers -- an out-of-range rule would
+    # change files that map onto no collected issue. --to stays at 1.8 because
+    # everything after it is behavior-flag gated and pinned by set-flag, never
+    # rewritten.
+    # --project-dir explicitly: dbt-migrate-1x's default is the cwd captured
+    # when its module is imported, which happens to be right here only because
+    # cwd=project below. Say it outright rather than depend on that.
+    cmd = ["uvx", "--python", "3.11", "--from", MIGRATE_1X_SPEC,
+           "dbt-migrate-1x", "--project-dir", str(project),
            "--from", str(args.from_version), "--to", AUTOFIX_TO_VERSION]
     proc = subprocess.run(cmd, cwd=str(project), capture_output=True, text=True)
     after_names = git("diff", "--name-only").stdout.split()
@@ -952,11 +957,12 @@ def main() -> int:
     pf.set_defaults(func=cmd_preflight)
 
     af = sub.add_parser("autofix",
-                        help="run `dbt-autofix migrate-1x` over the project; report the files it changed")
+                        help="run `dbt-migrate-1x` over the project; report the files it changed "
+                             "(local execution only)")
     af.add_argument("--project-dir", required=True)
     af.add_argument("--from-version", required=True,
-                    help="the project's starting minor (1.3-1.7); passed to migrate-1x --from so "
-                         "autofix replays the same hops the issue bundle covers")
+                    help="the project's starting minor (1.3-1.7); passed to dbt-migrate-1x --from "
+                         "so it replays the same hops the issue bundle covers")
     af.set_defaults(func=cmd_autofix)
 
     pa = sub.add_parser("parse")
