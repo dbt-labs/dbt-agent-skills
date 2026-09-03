@@ -201,13 +201,21 @@ outcome.
 Put the question to the user in chat and wait. Always `status-set` the current
 phase to `waiting_input` **before** asking, with a note saying what you asked.
 
-## No `verify-jobs` here
+## No `verify-commands` here
 
-SKILL.md describes an optional exit gate after Step 9 — running the customer's
-real jobs on the target version. **This profile does not define it.** There is no
-job trigger locally; jobs live in dbt platform, and this environment has no
-credentials or admin tools to reach them.
+SKILL.md's Step 7 is a ladder: `dbt parse`, then the customer's own `dbt build` /
+`dbt test` job commands. **This profile defines only the first rung.**
+
+The reason is the profile it parses against. The `parse` operation builds a
+throwaway 1.12 venv with a **synthesized profile holding fake credentials** —
+which is exactly what makes it safe to run against an unfamiliar project, and
+exactly what makes it useless for anything that connects. `dbt build` against it
+does not fail informatively; it fails at connection, before reaching a single
+model. The project's *own* dbt and profile could connect, but that is the version
+being migrated away from, so a green build there proves nothing about 1.12.
 
 So `dbt parse` is the end of verification here. Say that plainly in the report
 rather than implying more was proven than actually was: parse means the project
-parses on 1.12, not that its jobs still run.
+parses on 1.12, not that its jobs still run. The commands in
+`migration_jobs.json` are still reviewed and given verdicts — they are just
+reviewed, not executed.

@@ -73,11 +73,17 @@ memory: read it, change the one record you mean to change, write it back.
 | `edit_file` | Every file change, including creating the artifacts |
 | `delete_file` | Remove a file a fix retires |
 | `git` (`status`, `branches`, `diff`, `checkout`, `commit`, `push`, `pull`, `revert`, `merge`) | Preflight, diffs for approval, undo. **No `stash`** |
-| `dbt_command`, `dbt_command_status`, `dbt_command_cancel` | The `dbt parse` gate and the `dbt-autofix` run |
+| `dbt_command`, `dbt_command_status`, `dbt_command_cancel` | The whole verification gate — `dbt parse`, then `dbt build` / `dbt test` — and the `dbt-autofix` run |
 | `request_user_input` | Every question you put to the user |
-| `get_job_details` | Read one job by id — its `execute_steps` and pinned `dbt_version`. Also how you build `migration_jobs.json` (`jobs-file`) |
+| `get_job_details` | Read one job by id — its `execute_steps` and pinned `dbt_version`. This is how you build `migration_jobs.json` (`jobs-file`) |
 | `list_jobs` | Use with care: it returns every job in the **account**, not this project. Work from the legacy job ids you were given |
-| `trigger_job_run`, `get_job_run_details`, `get_job_run_error`, `list_job_run_artifacts` | The optional `verify-jobs` exit gate |
+
+**You do not trigger jobs.** `trigger_job_run` is not part of this skill. A job
+run executes on the deployment environment's own credentials and its own target
+schema, which is very often production — the migration has no business writing
+there, and a `schema_override` is a flag you can forget. Verification stays in
+this session, on this session's development credentials. See
+[`verify-commands`](#verify-commands--the-command-rungs).
 
 `$PROJECT` = the project's root. `$ADAPTER` = the adapter type. `$FROM` = the
 starting version. `<id>` = an `issue_id` from the bundle.
@@ -165,8 +171,17 @@ only flags for behaviors detection actually found.
 ### `parse`
 `dbt_command` with `dbt parse`. Poll with `dbt_command_status`.
 
-The gate is only meaningful against **dbt-core 1.12** — the target version. Treat
-the session as running 1.12 for the purposes of this skill.
+**This session already runs on the target release track.** The platform moves your
+develop session onto it before handing off to you, and verifies that it took effect
+rather than assuming it — so this is a real gate against the target, not against the
+version you are migrating away from. You do not need to check the running version,
+and you must not try to change it.
+
+What the gate is: the *cheap* rung. Run it before `verify-commands`, because it
+catches the small mistakes — a bad `ref`, malformed YAML, a config that moved — in
+seconds instead of in a `dbt build` that spends warehouse compute to tell you the
+same thing. It proves the project **parses**. It cannot prove behaviour; that is
+`verify-commands`.
 
 ### `jobs-file`
 
@@ -191,8 +206,13 @@ same file deterministically on the local path: see
 Nothing validates it for you here, so that section is the contract — do not add
 fields, rename them, or invent status values.
 
-Writing this file is not permission to change the jobs. `verify-jobs` may *run*
-them; nothing in this skill edits them.
+Write it in **Step 2**, before detection, not when the first job-command issue
+turns up. `verify-commands` reads its commands from this file, so it has to exist
+whether or not any out-of-repo issue was found.
+
+Writing this file is not permission to change the jobs. `verify-commands` re-runs
+their *commands* in this session; nothing in this skill edits a job, and nothing
+in this skill runs one.
 
 ### `revert`
 `git` `revert` with a `files` list. That undoes those uncommitted changes, which
@@ -219,57 +239,82 @@ work — say both.
 **before** asking, with a note saying what you asked, and set it back to
 `in_progress` the moment they answer.
 
-### `verify-jobs` — the optional exit gate
+### `verify-commands` — the command rungs
 
-Platform only. This is the `verify-jobs` operation SKILL.md describes after
-Step 9: run the customer's **own existing jobs** on the target version and see
-whether they actually work. `dbt parse` cannot catch behavior-only changes —
-connector swaps, quoting, timeout defaults — and those are exactly what breaks
-after a version bump.
+Platform only. These are the rungs above `parse` in SKILL.md's Step 7: re-run the
+customer's **own job commands** here in the session, on the target version, and
+see whether they actually work. `dbt parse` cannot catch behavior-only changes —
+connector swaps, quoting, timeout defaults, a changed materialization default —
+and those are exactly what breaks after a version bump.
 
-Admin tools, all bound to the signed-in user:
+Same tool as the parse rung: `dbt_command`, polled with `dbt_command_status`.
+There is nothing new to learn here; what changes is *which* commands and *whose*
+they are.
 
-| Tool | Use |
-|---|---|
-| `get_job_details` | Read each legacy job by id — its `execute_steps` and pinned `dbt_version`. Pick targets from the legacy job ids you were given, not from `list_jobs`, which is account-wide |
-| `trigger_job_run` | Start one run, with `dbt_version_override` plus `git_branch` and `schema_override` |
-| `get_job_run_details` | Poll that run to completion |
-| `get_job_run_error` | Read the failure when it fails |
-| `list_job_run_artifacts` | Pull artifacts from the run if you need more than the error |
+**Where it runs — this is the whole safety argument, so do not skip it.** A
+develop session is connected to the warehouse through **the signed-in user's own
+development credential**, which is per user, per project. The platform never
+gives a develop session the deployment environment's credential. That is why this
+skill runs the commands here instead of triggering the jobs: a job run executes on
+the *deployment* environment's credential and target schema, which is frequently
+production.
 
-**The loop.** For each job whose effective version is legacy — every one of them,
-not a sample:
+**But "development credential" does not guarantee "harmless schema."** Nothing
+validates what the user put in it — a credential whose schema is `analytics` will
+write to `analytics`. A `schema:` in the development environment's extended
+attributes overrides it for everyone on the project, and a project whose
+`generate_schema_name` macro hardcodes a schema ignores the target entirely.
 
-1. `trigger_job_run` with `dbt_version_override` set to the target version,
-   `git_branch` set to the migration branch, and `schema_override` set to a
-   **scratch schema**. Never the job's real target schema.
-2. Poll with `get_job_run_details`.
-3. Green → record it and move to the next job.
-4. Red → `get_job_run_error`, attribute the failure to an issue, go back to
-   Step 5 or 6, re-run Step 7's parse gate, and only then retry. Record what you
-   changed in the issue's notes.
+So **establish the target schema before the first build, and put it in the
+question you ask.** `dbt debug` reports it and writes nothing. If it is not
+obviously a development schema, or if `generate_schema_name` overrides it, say
+exactly what it is and **stop** — do not build, let the parse gate stand alone.
+"Your development credential points at `analytics`; I am not going to build into
+that" is the correct outcome, not a failure.
 
-When every legacy job is green, re-issue the report.
+Never pass `--target`, `--profile`, or `--profiles-dir` (the tool refuses the
+last one anyway), and never a `--vars` override that feeds `generate_schema_name`.
+Those are the ways to leave the session's own schema on purpose.
 
-**Guardrails — these are the operation, not decoration:**
+**The loop.** Once, up front: `dbt debug` to establish the target schema, then
+`ask` for approval naming that schema and the number of commands. `dbt deps` too,
+if the project needs its packages — that is setup, not verification, and it is the
+one non-build command you may run.
 
-- **Ask before *every* triggered run**, not just the first, with
-  `request_user_input`, and set the phase to `waiting_input` while you wait. Each
-  run spends real warehouse compute on the customer's account. Studio's in-session
-  approval for `dbt_command` does **not** cover `trigger_job_run` — it is a
-  server-side action with no equivalent gate — so this instruction is the only
-  thing standing between the user and an unrequested bill.
+Then read `migration_jobs.json`. For each job, in file order, for each step:
 
-  Per-run approval is also what bounds the loop: there is no attempt cap here
-  precisely because you cannot start another run without being told to. Never
-  batch several runs behind one approval.
-- **Always a scratch schema**, via `schema_override`. Never write to the schema a
-  real job targets.
-- **One job at a time.** Do not fan out.
-- **Never trigger anything on `main`/`master`** — always the migration branch.
+1. **Skip and note** — do not run — any step that is not a build or a test:
+   `dbt deps`, `dbt source freshness`, `dbt docs generate`, `dbt run-operation`,
+   `dbt clean`. Also skip any step already marked `needs_change` or `manual`:
+   that command is being replaced, so a red result tells you nothing you did not
+   already record.
+2. `dbt_command` with the step's `original` args, verbatim.
+3. Poll with `dbt_command_status`. Green → record it, next step.
+4. Red → read the node-level errors in the status output, attribute the failure
+   to an issue, go back to Step 5 or 6, then re-run Step 7 **from the parse
+   rung**. Record what you changed in the issue's notes.
 
-**If you cannot run it** — `dbt_version_override` unavailable on `trigger_job_run`,
-or the user lacks run permission, or they decline — that is a normal outcome.
-Say so plainly, let the parse gate stand as the verification, and make sure the
-report names **every job left unverified** so the user knows exactly what was
-and was not proven.
+When every runnable step is green, go on to Step 8.
+
+**Guardrails:**
+
+- **Ask before the first command run**, with `request_user_input`, and set the
+  phase to `waiting_input` while you wait. Say what it will cost: how many
+  commands, and that `dbt build` materializes the whole project into the named
+  schema — name it. Studio will also raise its own approval prompt for
+  `dbt_command`, but its "allow for this session" then covers every later
+  `dbt build`, so that prompt is not a substitute for describing the whole run
+  before the first one.
+- **One command at a time.** Do not fan out; `dbt_command` is per-command anyway
+  and concurrent builds into one schema will collide.
+- **Max 3 trips round the loop**, then stop. Unlike a job trigger there is no
+  per-run approval bounding this, so the cap is what bounds it. Say you hit the
+  cap rather than quietly stopping.
+- **Never on `main`/`master`** — always the migration branch, same as everything
+  else in this skill.
+
+**If you cannot run it** — the user declines, the session has no warehouse
+connection, the project's schema generation is not safe to build into — that is a
+normal outcome. Say so plainly, let the parse gate stand as the verification, and
+make sure the report names **every command left unverified** so the user knows
+exactly what was and was not proven.

@@ -97,7 +97,8 @@ invocations are written down.
 | `list-issues` | List issue ids from the results artifact, filtered |
 | `autofix` | Run `dbt-autofix` over the project and learn which files changed |
 | `set-flag` | Pin one behavior-change flag to `false` in `dbt_project.yml` |
-| `parse` | Run `dbt parse` on dbt-core 1.12 — the correctness gate |
+| `parse` | Run `dbt parse` on dbt-core 1.12 — the first rung of the verification gate |
+| `verify-commands` | Re-run the customer's own job commands in-session (`dbt build` / `dbt test`) — profile-dependent |
 | `revert` | Undo the uncommitted changes to a named set of files |
 | `report` | Render the results artifact to `migration_report.md` |
 | `jobs-file` | Read, and record verdicts in, `migration_jobs.json` — the customer's job commands |
@@ -125,16 +126,19 @@ currently on 1.5 and runs on Snowflake."
 
 ## Non-negotiable rules
 
-1. **`dbt parse` on dbt-core 1.12 is the only in-session correctness gate** — the
-   target version, not the next minor. Never run `dbt build/run/test/seed/
-   snapshot` yourself, and never touch a warehouse from the session.
+1. **Verification runs against dbt-core 1.12** — the target version, not the next
+   minor — and it is a ladder, cheapest rung first: `dbt parse`, then the
+   customer's own job commands (`dbt build`, `dbt test`). `dbt parse` is
+   mandatory and always first; the command rungs are **optional, user-approved,
+   and profile-dependent**. If your profile does not define `verify-commands`,
+   `dbt parse` is the end of verification and the report must say so.
 
-   The one exception is the **optional exit gate** described below: triggering
-   the customer's *own* existing jobs on the target version, which some profiles
-   expose and which necessarily runs real work against a warehouse. It is not
-   yours to start — it requires explicit user confirmation, runs against a
-   scratch schema, and never replaces the parse gate. If your profile does not
-   define it, `dbt parse` is the end of verification.
+   Never invent commands to run. The rungs above `parse` execute what the
+   customer's jobs already execute, taken verbatim from `migration_jobs.json` —
+   that is what makes a green result mean "your jobs still work" rather than
+   "some dbt I chose still works". Never `dbt run-operation`, never
+   `--target`/`--profile` to point somewhere else, and never a warehouse the
+   session was not already connected to.
 2. **Do not rebuild `dbt-autofix`.** `deterministic` issues are its job.
 3. **Never mutate the environment.** `environment_change` issues are advisory
    edits only — no `pip`, no installs.
@@ -228,7 +232,7 @@ The shape is **detect everything → fix everything → verify once → re-detec
 | 4 | `dbt-autofix` (batch) |
 | 5 | Agentic fixes + behavior-flag pinning |
 | 6 | Human-in-the-loop fixes |
-| 7 | `dbt parse` validation — **once**, whole project |
+| 7 | Verification gate — `dbt parse`, then the customer's job commands |
 | 8 | Re-run detection to confirm the fixes held |
 | 9 | Report |
 
@@ -286,6 +290,12 @@ Read `dbt_project.yml`, `models/**` (SQL + YAML), `macros/**`, `seeds/**`,
 `snapshots/**`, `packages.yml`/`dependencies.yml`, and (read-only) `profiles.yml`,
 **in the context of `collected_issues`** — so you know which issues plausibly
 apply before changing anything. Do not edit yet.
+
+Then **`jobs-file`** — get `migration_jobs.json` in place now, with every step
+`pending`. Do this here rather than when the first job-command issue turns up:
+the file is both the record of what the customer must change and the source of
+the commands Step 7 re-runs, so a project with no out-of-repo issues at all still
+needs it. If the project has no jobs, say so and move on; do not invent one.
 
 `status-set` → `read-project` = `complete`, note `"Read <n> models, <n> macros"`.
 
@@ -379,22 +389,52 @@ explicit confirmation.
 
 `status-set` → `human-fixes` = `complete`, note `"<n> approved, <n> declined"`.
 
-### Step 7 — Parse validation (once, whole project)
+### Step 7 — Verification gate (once, whole project)
 
-`status-set` → `parse` = `in_progress`.
+`status-set` → `parse` = `in_progress`. (The phase id stays `parse` — it is a
+fixed value other software reads. Its label is "Verification gate".)
 
-Run **`parse`**. This is the first parse of the run and the only correctness
-gate, and it runs on dbt-core 1.12.
+A ladder. Climb it in order, and stop at the first rung that fails.
+
+**Rung 1 — `parse`. Mandatory.** This is the first parse of the run, and it runs
+on dbt-core 1.12.
 
 Failure → read the error, which names the offending file. Attribute it to the
-issue whose fix touched that file, correct it, and re-run this step — **max 5
+issue whose fix touched that file, correct it, and re-run this rung — **max 5
 whole-project attempts**. Ignore only failures attributable to
 `environment_change` / `manual-required` items; those are excluded from the gate.
 If an issue still cannot be made to parse, **`revert`** that issue's files,
 `set-status` `failed` with a note saying what was tried and the final parse
-error, and re-run this step so the rest of the migration still lands.
+error, and re-run this rung so the rest of the migration still lands.
 
-`status-set` → `parse` = `complete`, note `"dbt parse clean on 1.12"`.
+Do not climb past a red parse. Every rung above costs warehouse compute to
+rediscover what parse just told you for free.
+
+**Rungs 2+ — `verify-commands`. Optional, and only if your profile defines it.**
+
+Parse proves the project *parses* on 1.12. It cannot prove the jobs still *work*:
+behavior-only changes — connector swaps, quoting, timeout defaults, a changed
+materialization default — pass parse and fail at runtime. Re-running the
+customer's own job commands in the session is what actually answers "did this
+migrate".
+
+The commands come from `migration_jobs.json`, verbatim — see
+[Job commands](#job-commands--migration_jobsjson). That file is created in Step 2
+and carries verdicts from Step 5, so by now it holds both the commands and what
+you already know about them. Run the `dbt build` and
+`dbt test` steps it contains. Skip steps that cannot mean anything in a develop
+session — `dbt deps` (run it once first if the project needs it, but it proves
+nothing about the migration), `dbt source freshness`, and any step whose verdict
+is already `needs_change`, since you would be testing a command the customer is
+about to replace. Note each skip; an unrun command is an unverified one.
+
+Failure → attribute the error to an issue, return to Step 5 or 6, then re-run
+this whole step from rung 1. **Max 3 command-loop attempts**, then stop and let
+the report carry what is still unverified.
+
+`status-set` → `parse` = `complete`, with a note that says which rungs actually
+ran — `"dbt parse clean on 1.12; 4 of 6 job commands green"`, not just "passed".
+A reader must be able to tell parse-only from fully verified.
 
 ### Step 8 — Re-run detection
 
@@ -437,31 +477,13 @@ how many commands need changing and point at the file by name; do **not** restat
 the commands in prose. The file is the actionable artifact, and a summary that
 duplicates it will drift from it.
 
+**Say exactly how far up the gate you got.** Parse-only and parse-plus-commands
+are different claims, and the customer is deciding whether to flip production on
+the strength of one of them. Name every command that did not run and why — not
+approved, skipped as `needs_change`, attempt cap reached. An unverified command is
+a normal outcome; an unverified command the report does not mention is not.
+
 `status-set` → `report` = `complete`, note `"migration_report.md written"`.
-
-### After Step 9 — optional exit gate (profile-dependent)
-
-`dbt parse` proves the project *parses* on 1.12. It cannot prove the jobs still
-*work*: behavior-only changes — connector swaps, quoting, timeout defaults — pass
-parse and fail at runtime. Where the environment can run the customer's real
-jobs on the target version, that is the only check that actually answers "did
-this migrate," and your profile will define it as the `verify-jobs` operation.
-
-It is **optional and user-gated**, never automatic:
-
-- **Ask before every triggered run**, Each one spends real
-  warehouse compute on the customer's account. Nothing outside this instruction
-  enforces that gate — no server-side approval covers it — so it rests on you.
-  It is also what bounds the loop: there is no attempt cap, because you cannot
-  start another run without being told to.
-- **Never as a substitute for Step 7.** Parse first, always; this runs after.
-- **Scope is every job whose effective version is legacy**, not a sample. One job
-  at a time.
-- **Failures feed back**: attribute the error to an issue, return to Step 5 or 6,
-  re-run Step 7, then re-issue the report. That loop is the point of the gate.
-- **If it is unavailable** — no permission, no such operation in your profile —
-  say so plainly, let the parse gate stand, and have the report name every job
-  left unverified. An unverified job is a normal outcome, not a failure.
 
 ## Migration state
 
@@ -542,6 +564,11 @@ is a concrete edit in a named job, so it needs the job's name, the exact command
 today, and the exact command to replace it with. Prose loses at least one of those
 every time.
 
+It has a second job. Where the profile defines `verify-commands`, this file is
+where Step 7's command rungs get their commands — so the thing being verified is
+the customer's real workload, not a plausible-looking substitute. That is also
+why `original` is verbatim and never reworded: it is executed, not just displayed.
+
 Where it comes from depends on the profile, and your profile says which applies:
 
 - **Local (VS Code)** — the extension has already written it, with every command
@@ -596,5 +623,8 @@ Rules:
 
 ## Verify
 
-`dbt parse` only, on dbt-core 1.12. Never build/run/test/seed/snapshot/compile,
-never touch a warehouse.
+`dbt parse` on dbt-core 1.12, always and first. Then, only where the profile
+defines `verify-commands` and the user approves, the customer's own `dbt build` /
+`dbt test` job commands — verbatim from `migration_jobs.json`, in the develop
+session's own schema. Never `run-operation`, never a command you invented, never
+a target the session was not already pointed at.
