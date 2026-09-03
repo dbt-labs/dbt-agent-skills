@@ -9,7 +9,7 @@ only says *how*. If you are in dbt platform Studio, you want
 
 - The project directory is a **git-versioned repo**.
 - **`uvx` and `python`** are available — used to run `scripts/tools.py`,
-  `dbt-autofix`, and a throwaway dbt-core 1.12 for the parse gate.
+  `dbt-migrate-1x`, and a throwaway dbt-core 1.12 for the parse gate.
 - **`scripts/tools.py`** sits under this skill's directory and owns all
   deterministic work.
 
@@ -128,15 +128,20 @@ uv run --with pyyaml python "$SKILL_DIR/scripts/tools.py" list-issues --project-
 uv run --with pyyaml python "$SKILL_DIR/scripts/tools.py" autofix --project-dir "$PROJECT" \
   --from-version "$FROM"
 ```
-Runs **`dbt-autofix migrate-1x --from "$FROM" --to 1.8`** and returns the
+Runs **`dbt-migrate-1x --from "$FROM" --to 1.8`** and returns the
 `changed_files` it touched, as JSON.
 
-`migrate-1x` is the 1.x → 1.x subcommand — not `deprecations`, which is the
-Fusion/v1.10 deprecation pass and is not this migration. `--from` must be the
-project's real starting version rather than the tool's 1.3 default, so autofix
-replays exactly the hops the bundle covers; an out-of-range rule would change
-files that map onto no collected issue. `--to` stays at 1.8 because everything
-after it is behavior-flag gated and pinned by `set-flag`, never rewritten.
+`dbt-migrate-1x` ships as its own standalone package — it only replays 1.x → 1.x
+version boundaries, so there is nothing here to confuse with `dbt-autofix
+deprecations` (the Fusion/v1.10 pass, which is not this migration). `--from`
+must be the project's real starting version rather than the tool's 1.3
+default, so it replays exactly the hops the bundle covers; an out-of-range
+rule would change files that map onto no collected issue. `--to` stays at 1.8
+because everything after it is behavior-flag gated and pinned by `set-flag`,
+never rewritten.
+
+**Local only.** This shells out via `uvx`, which does not exist in Studio —
+see `exec-platform.md`'s `autofix` operation for what to do there instead.
 
 ### `set-flag`
 ```bash
@@ -201,13 +206,21 @@ outcome.
 Put the question to the user in chat and wait. Always `status-set` the current
 phase to `waiting_input` **before** asking, with a note saying what you asked.
 
-## No `verify-jobs` here
+## No `verify-commands` here
 
-SKILL.md describes an optional exit gate after Step 9 — running the customer's
-real jobs on the target version. **This profile does not define it.** There is no
-job trigger locally; jobs live in dbt platform, and this environment has no
-credentials or admin tools to reach them.
+SKILL.md's Step 7 is a ladder: `dbt parse`, then the customer's own `dbt build` /
+`dbt test` job commands. **This profile defines only the first rung.**
+
+The reason is the profile it parses against. The `parse` operation builds a
+throwaway 1.12 venv with a **synthesized profile holding fake credentials** —
+which is exactly what makes it safe to run against an unfamiliar project, and
+exactly what makes it useless for anything that connects. `dbt build` against it
+does not fail informatively; it fails at connection, before reaching a single
+model. The project's *own* dbt and profile could connect, but that is the version
+being migrated away from, so a green build there proves nothing about 1.12.
 
 So `dbt parse` is the end of verification here. Say that plainly in the report
 rather than implying more was proven than actually was: parse means the project
-parses on 1.12, not that its jobs still run.
+parses on 1.12, not that its jobs still run. The commands in
+`migration_jobs.json` are still reviewed and given verdicts — they are just
+reviewed, not executed.
