@@ -1,0 +1,6 @@
+kind: Features
+body: Create State Aware Orchestration configuration skill
+time: 2026-04-10T14:52:21.417927-05:00
+custom:
+    Author: trouze
+    Issue: "88"
