@@ -54,9 +54,12 @@ uv run skill-eval run --all --parallel --workers 8    # custom worker count (def
 # Verbose mode (shows tool calls and skill invocations)
 uv run skill-eval run <scenario-name> --verbose       # or -v
 
-# Review transcripts in browser (opens HTML files)
+# Review a run: generates review.html (one sortable table, links to each
+# transcript + output, cost/tokens/duration/subagent use per skill set) and
+# opens that single page
 uv run skill-eval review              # latest run
 uv run skill-eval review <run-id>     # specific run
+uv run skill-eval review --tabs       # old behavior: open every transcript in its own tab
 
 # Grade outputs from a run (creates grades.yaml for manual review)
 uv run skill-eval grade <run-id>
@@ -102,10 +105,12 @@ Define skill combinations, MCP servers, tool permissions, and prompt variations:
 sets:
   # Baseline with no skills
   - name: no-skills
+    model: sonnet
     skills: []
 
   # With specific allowed tools (safer than allowing all)
   - name: restricted-tools
+    model: sonnet
     skills:
       - skills/debugging-dbt-errors
     allowed_tools:
@@ -118,6 +123,7 @@ sets:
 
   # With MCP server
   - name: with-mcp
+    model: sonnet
     skills:
       - skills/troubleshooting-dbt-job-errors
     mcp_servers:
@@ -135,12 +141,14 @@ sets:
 
   # Allow all tools (uses --dangerously-skip-permissions)
   - name: all-tools
+    model: sonnet
     skills:
       - skills/fetching-dbt-docs
     # No allowed_tools = allows everything
 
   # With extra instructions appended to the prompt
   - name: with-skill-hint
+    model: sonnet
     skills:
       - skills/debugging-dbt-errors
     extra_prompt: Check if any skill can help with this task.
@@ -148,6 +156,57 @@ sets:
       - Read
       - Glob
       - Skill
+
+  # Comparing a stronger model on the same setup
+  - name: with-mcp-opus
+    model: opus
+    skills:
+      - skills/troubleshooting-dbt-job-errors
+    mcp_servers:
+      dbt:
+        command: uvx
+        args:
+          - --env-file
+          - .env
+          - dbt-mcp@latest
+    allowed_tools:
+      - Read
+      - Glob
+      - mcp__dbt__*
+      - Skill
+```
+
+### Model
+
+`model` is **required** on every set — `skill-eval` raises an error if it's missing, rather than silently
+falling back to whatever the `claude` CLI's built-in default happens to be. This keeps runs reproducible
+and cost/latency comparable across skill sets and across time.
+
+Pass an alias (`sonnet`, `opus`, `fable`) or a full model ID, exactly as accepted by `claude --model`:
+
+```yaml
+sets:
+  - name: baseline
+    model: sonnet
+    skills: []
+```
+
+### MCP Isolation (`strict_mcp_config`)
+
+By default, every run adds `--strict-mcp-config` to the `claude` invocation, so only the MCP servers
+declared in that set's `mcp_servers` are available — MCP servers configured in Claude Desktop, your
+user-level `~/.claude.json`, or a project's `.mcp.json` are ignored. Without this, runs can silently pick
+up unrelated MCP servers from your local machine (extra tools, auth prompts, noisy `mcp_servers` metadata)
+that have nothing to do with the scenario and won't be present on another machine or in CI.
+
+Set `strict_mcp_config: false` on a set to opt out and allow those external MCP servers to load:
+
+```yaml
+sets:
+  - name: with-desktop-mcp-servers
+    model: sonnet
+    strict_mcp_config: false
+    skills: []
 ```
 
 ### Skills
@@ -238,12 +297,14 @@ Append additional instructions to the base prompt for specific skill sets:
 sets:
   # Baseline - just the prompt.txt content
   - name: no-hint
+    model: sonnet
     skills:
       - skills/debugging-dbt-errors
     allowed_tools: [Read, Glob, Skill]
 
   # With hint - prompt.txt + extra_prompt
   - name: with-hint
+    model: sonnet
     skills:
       - skills/debugging-dbt-errors
     extra_prompt: Check if any skill can help with this task.
@@ -271,6 +332,7 @@ Run commands before Claude starts (e.g., installing skills via CLI):
 ```yaml
 sets:
   - name: with-remote-skill
+    model: sonnet
     setup:
       - npx skills add https://github.com/dbt-labs/dbt-agent-skills -a claude-code -y
     skills: []
@@ -300,11 +362,18 @@ skills_invoked:
   - debugging-dbt-errors
 skills_available:
   - debugging-dbt-errors
+skills_available_other:
+  - some-globally-installed-plugin-skill
 tools_used:
   - Read
   - Edit
   - Glob
   - Skill
+tool_call_count: 12
+subagents_used: false
+subagent_count: 0
+subagent_tools_used: []
+subagent_tool_call_count: 0
 mcp_servers: []
 model: claude-opus-4-5-20251101
 duration_ms: 31476
@@ -313,6 +382,33 @@ total_cost_usd: 0.1425935
 input_tokens: 125241
 output_tokens: 1177
 ```
+
+`skills_available` is scoped to only the skills this set's `skills:` list actually added — it's what
+grading and reporting use for skill-usage percentages. `claude` may also report other skills that happen
+to be installed globally (plugins, marketplace skills) that have nothing to do with the scenario; those
+are recorded separately as `skills_available_other` for visibility but excluded from grading.
+
+#### Subagents
+
+When Claude uses the `Task` tool, the spawned subagent's own turns stream inline as a "sidechain"
+alongside the main conversation. These fields keep that separate from the main thread:
+
+- `output.md` / `output_text` only ever contains the main thread's own text — a subagent's narration
+  never leaks into what gets graded as "the answer".
+- `tools_used` / `tool_call_count` count only main-thread tool calls. `subagent_tools_used` /
+  `subagent_tool_call_count` cover everything called from inside subagents.
+- `skills_invoked` is **not** split — a Skill invoked from inside a subagent still counts as the skill
+  having been used for this task.
+- `subagents_used` / `subagent_count` flag whether (and how many times) a set delegated to a subagent
+  at all, since that changes how to read the other numbers below.
+
+`duration_ms` and `total_cost_usd`/token counts come straight from `claude`'s own `result` message and
+are **not** split — `duration_ms` is wall-clock time for the whole process, so it inherently includes
+however long any subagents took. Whether `total_cost_usd`/token counts include subagent API calls wasn't
+verified here (the raw per-message `usage` fields don't reconcile cleanly enough to derive it
+independently — see `subagent_tool_call_count` as the closest available proxy for "how much subagent
+work happened"). `num_turns` empirically only counts main-thread turns, not subagent turns, but this is
+observed behavior, not documented by `claude` itself.
 
 ### changes/
 
@@ -340,7 +436,7 @@ Stall detection helps catch runs that get stuck waiting for tool approval when u
 1. **Create a scenario** - `skill-eval new <name>` scaffolds the directory structure
 2. **Configure skill sets** - Edit `skill-sets.yaml` to specify skills, MCP servers, and tool permissions
 3. **Run evaluation** - `skill-eval run <scenario>` executes Claude with each configuration
-4. **Review transcripts** - `skill-eval review` opens HTML transcripts in browser
+4. **Review transcripts** - `skill-eval review` opens a single index page with links, cost/token/subagent metrics, and a sortable table (use `--tabs` for the old one-tab-per-transcript behavior)
 5. **Grade outputs** - `skill-eval grade <run-id>` (manual) or `--auto` (Claude-graded)
 6. **Generate report** - `skill-eval report <run-id>` shows comparison summary
 
@@ -379,10 +475,12 @@ Output grades include:
 # Does the skill help Claude solve the problem better?
 sets:
   - name: without-skill
+    model: sonnet
     skills: []
     allowed_tools: [Read, Glob, Grep, Edit, Bash(dbt:*)]
 
   - name: with-skill
+    model: sonnet
     skills:
       - skills/debugging-dbt-errors
     allowed_tools: [Read, Glob, Grep, Edit, Bash(dbt:*), Skill]
@@ -394,11 +492,13 @@ sets:
 # Does the MCP server provide better results?
 sets:
   - name: skill-only
+    model: sonnet
     skills:
       - skills/troubleshooting-dbt-job-errors
     allowed_tools: [Read, Glob, Grep, Skill]
 
   - name: skill-plus-mcp
+    model: sonnet
     skills:
       - skills/troubleshooting-dbt-job-errors
     mcp_servers:
@@ -414,11 +514,13 @@ sets:
 # Compare a local skill against a remote version
 sets:
   - name: local-skill
+    model: sonnet
     skills:
       - skills/debugging-dbt-errors
     allowed_tools: [Read, Glob, Grep, Edit, Skill]
 
   - name: remote-skill
+    model: sonnet
     skills:
       # GitHub blob URL - automatically converted to raw
       - https://github.com/org/repo/blob/main/skills/debugging-dbt-errors/SKILL.md

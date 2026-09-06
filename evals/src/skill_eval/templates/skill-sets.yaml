@@ -1,6 +1,11 @@
 sets:
+  # `model` is required on every set (e.g. sonnet, opus, or a full model ID) so
+  # runs are reproducible instead of silently depending on the `claude` CLI's
+  # built-in default.
+
   # Baseline: no skills, read-only tools
   - name: no-skills
+    model: sonnet
     skills: []
     allowed_tools:
       - Read
@@ -9,6 +14,7 @@ sets:
 
   # # With skills and additional tools
   # - name: with-skills
+  #   model: sonnet
   #   skills:
   #     - skills/my-skill
   #   allowed_tools:
@@ -21,6 +27,7 @@ sets:
 
   # # With MCP server
   # - name: with-mcp
+  #   model: sonnet
   #   skills: []
   #   mcp_servers:
   #     dbt:
@@ -37,6 +44,7 @@ sets:
 
   # # With setup commands (run before Claude)
   # - name: with-setup
+  #   model: sonnet
   #   setup:
   #     - npx skills add https://github.com/dbt-labs/dbt-agent-skills -a claude-code -y
   #   skills: []
@@ -48,6 +56,7 @@ sets:
 
   # # Full setup: skill + MCP server
   # - name: with-skill-and-mcp
+  #   model: sonnet
   #   skills:
   #     - skills/my-skill
   #   mcp_servers:
@@ -66,3 +75,20 @@ sets:
   #     - Skill
   #     - mcp__dbt__*
   #   extra_prompt: Check if any skill can help with this task.
+
+  # # Compare a stronger model on the same setup
+  # - name: with-mcp-opus
+  #   model: opus
+  #   skills: []
+  #   mcp_servers:
+  #     dbt:
+  #       command: uvx
+  #       args:
+  #         - --env-file
+  #         - .env
+  #         - dbt-mcp@latest
+  #   allowed_tools:
+  #     - Read
+  #     - Glob
+  #     - Grep
+  #     - mcp__dbt__*

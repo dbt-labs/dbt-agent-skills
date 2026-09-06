@@ -1,11 +1,13 @@
 sets:
   - name: pre-fix-6cd21ea
+    model: sonnet
     skills:
       - https://github.com/dbt-labs/dbt-agent-skills/blob/6cd21ea97bd81decf5eb5b48b54bccea8d8fcbc2/skills/dbt/skills/building-dbt-semantic-layer/SKILL.md
     allowed_tools:
       - Skill
 
   - name: working-tree
+    model: sonnet
     skills:
       - skills/dbt/skills/building-dbt-semantic-layer/SKILL.md
     allowed_tools:
