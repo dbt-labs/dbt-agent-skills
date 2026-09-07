@@ -97,11 +97,11 @@ invocations are written down.
 | `list-issues` | List issue ids from the results artifact, filtered |
 | `autofix` | Run the deterministic 1.x → 1.x fix tool over the project and learn which files changed — **local only**; in Studio there is no such tool, so `deterministic` issues are fixed by hand in Step 5 instead |
 | `set-flag` | Pin one behavior-change flag to `false` in `dbt_project.yml` |
-| `parse` | Run `dbt parse` on dbt-core 1.12 — the first rung of the verification gate |
-| `verify-commands` | Re-run the customer's own job commands in-session (`dbt build` / `dbt test`) — profile-dependent |
+| `parse` | Run `dbt parse` on dbt-core 1.12 — the first check of the verification gate |
+| `verify-commands` | Run the extra command checks your profile names, in-session — profile-dependent |
 | `revert` | Undo the uncommitted changes to a named set of files |
 | `report` | Render the results artifact to `migration_report.md` |
-| `jobs-file` | Read, and record verdicts in, `migration_jobs.json` — the customer's job commands |
+| `jobs-file` | Read, and record verdicts in, `migration_jobs.json` — the customer's job commands, for reporting |
 | `ask` | Put a question to the user and wait for the answer |
 
 `$PROJECT` below = the project's root directory. `$ADAPTER` = the adapter type
@@ -127,16 +127,14 @@ currently on 1.5 and runs on Snowflake."
 ## Non-negotiable rules
 
 1. **Verification runs against dbt-core 1.12** — the target version, not the next
-   minor — and it is a ladder, cheapest rung first: `dbt parse`, then the
-   customer's own job commands (`dbt build`, `dbt test`). `dbt parse` is
-   mandatory and always first; the command rungs are **optional, user-approved,
-   and profile-dependent**. If your profile does not define `verify-commands`,
-   `dbt parse` is the end of verification and the report must say so.
+   minor — and it runs in order, cheapest check first. `dbt parse` is mandatory and
+   always first. Checks above it are **optional, user-approved, and
+   profile-dependent**: your profile names them. If your profile does not define
+   `verify-commands`, `dbt parse` is the end of verification and the report must
+   say so.
 
-   Never invent commands to run. The rungs above `parse` execute what the
-   customer's jobs already execute, taken verbatim from `migration_jobs.json` —
-   that is what makes a green result mean "your jobs still work" rather than
-   "some dbt I chose still works". Never `dbt run-operation`, never
+   Never invent commands to run. Run exactly the commands your profile names, in
+   the order it gives, and nothing else.
    `--target`/`--profile` to point somewhere else, and never a warehouse the
    session was not already connected to.
 2. **Do not rebuild a tool by hand where your profile has one.** Locally,
@@ -236,7 +234,7 @@ The shape is **detect everything → fix everything → verify once → re-detec
 | 4 | Deterministic fixes (batch) |
 | 5 | Agentic fixes + behavior-flag pinning |
 | 6 | Human-in-the-loop fixes |
-| 7 | Verification gate — `dbt parse`, then the customer's job commands |
+| 7 | Verification gate — `dbt parse`, then any further checks the profile names |
 | 8 | Re-run detection to confirm the fixes held |
 | 9 | Report |
 
@@ -407,47 +405,42 @@ explicit confirmation.
 `status-set` → `parse` = `in_progress`. (The phase id stays `parse` — it is a
 fixed value other software reads. Its label is "Verification gate".)
 
-A ladder. Climb it in order, and stop at the first rung that fails.
+Run the checks in order. Stop at the first one that fails.
 
-**Rung 1 — `parse`. Mandatory.** This is the first parse of the run, and it runs
+**Check 1 — `parse`. Mandatory.** This is the first parse of the run, and it runs
 on dbt-core 1.12.
 
 Failure → read the error, which names the offending file. Attribute it to the
-issue whose fix touched that file, correct it, and re-run this rung — **max 5
+issue whose fix touched that file, correct it, and re-run this check — **max 5
 whole-project attempts**. Ignore only failures attributable to
 `environment_change` / `manual-required` items; those are excluded from the gate.
 If an issue still cannot be made to parse, **`revert`** that issue's files,
 `set-status` `failed` with a note saying what was tried and the final parse
-error, and re-run this rung so the rest of the migration still lands.
+error, and re-run this check so the rest of the migration still lands.
 
-Do not climb past a red parse. Every rung above costs warehouse compute to
-rediscover what parse just told you for free.
+Do not go on to the next check while parse is failing. Every check after it
+costs warehouse compute to rediscover what parse just told you for free.
 
-**Rungs 2+ — `verify-commands`. Optional, and only if your profile defines it.**
+**Checks 2+ — `verify-commands`. Optional, and only if your profile defines it.**
 
-Parse proves the project *parses* on 1.12. It cannot prove the jobs still *work*:
-behavior-only changes — connector swaps, quoting, timeout defaults, a changed
-materialization default — pass parse and fail at runtime. Re-running the
-customer's own job commands in the session is what actually answers "did this
-migrate".
+Parse proves the project *parses* on 1.12. It cannot prove the project still
+*works*: behavior-only changes — connector swaps, quoting, timeout defaults, a
+changed materialization default — pass parse and fail at runtime. Commands that
+compile and build are what answer "did this migrate".
 
-The commands come from `migration_jobs.json`, verbatim — see
-[Job commands](#job-commands--migration_jobsjson). That file is created in Step 2
-and carries verdicts from Step 5, so by now it holds both the commands and what
-you already know about them. Run the `dbt build` and
-`dbt test` steps it contains. Skip steps that cannot mean anything in a develop
-session — `dbt deps` (run it once first if the project needs it, but it proves
-nothing about the migration), `dbt source freshness`, and any step whose verdict
-is already `needs_change`, since you would be testing a command the customer is
-about to replace. Note each skip; an unrun command is an unverified one.
+Your profile names the commands and their order. Run exactly those, in that
+order, and stop at the first red. Do not substitute, add, or reorder them, and do
+not take commands from `migration_jobs.json` — that file records what the
+customer has to change in their own jobs, and is not the source of this gate.
 
 Failure → attribute the error to an issue, return to Step 5 or 6, then re-run
-this whole step from rung 1. **Max 3 command-loop attempts**, then stop and let
+this whole step from check 1. **Max 3 command-loop attempts**, then stop and let
 the report carry what is still unverified.
 
-`status-set` → `parse` = `complete`, with a note that says which rungs actually
-ran — `"dbt parse clean on 1.12; 4 of 6 job commands green"`, not just "passed".
-A reader must be able to tell parse-only from fully verified.
+`status-set` → `parse` = `complete`, with a note that says which checks actually
+ran — `"dbt parse, compile, build, test all clean on 1.12"`, or
+`"dbt parse clean on 1.12; build not run"`, not just "passed". A reader must be
+able to tell parse-only from fully verified.
 
 ### Step 8 — Re-run detection
 
@@ -577,17 +570,20 @@ is a concrete edit in a named job, so it needs the job's name, the exact command
 today, and the exact command to replace it with. Prose loses at least one of those
 every time.
 
-It has a second job. Where the profile defines `verify-commands`, this file is
-where Step 7's command rungs get their commands — so the thing being verified is
-the customer's real workload, not a plausible-looking substitute. That is also
-why `original` is verbatim and never reworded: it is executed, not just displayed.
+`original` is recorded verbatim and never reworded, because the customer has to
+match it against what their job is configured with today.
+
+This file is **not** the source of Step 7's commands. The verification gate runs
+the fixed commands its profile names; this file exists to tell the customer what
+to change in the dbt platform afterwards.
 
 Where it comes from depends on the profile, and your profile says which applies:
 
 - **Local (VS Code)** — the extension has already written it, with every command
   `status: "pending"`. Read it and record verdicts. Do **not** regenerate it.
-- **Studio** — no extension wrote it, so you create it from the legacy job ids
-  you were given, in exactly the shape below, then record verdicts in it.
+- **Studio** — no extension wrote it, so you build it yourself: list the project's
+  jobs, keep the ones on a legacy version, and write them in exactly the shape
+  below, then record verdicts in it.
 
 ```json
 {

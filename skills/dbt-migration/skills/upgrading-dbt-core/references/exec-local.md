@@ -208,8 +208,8 @@ phase to `waiting_input` **before** asking, with a note saying what you asked.
 
 ## No `verify-commands` here
 
-SKILL.md's Step 7 is a ladder: `dbt parse`, then the customer's own `dbt build` /
-`dbt test` job commands. **This profile defines only the first rung.**
+SKILL.md's Step 7 runs checks in order: `dbt parse` first, then any further
+commands the profile names. **This profile defines only the first check.**
 
 The reason is the profile it parses against. The `parse` operation builds a
 throwaway 1.12 venv with a **synthesized profile holding fake credentials** —
