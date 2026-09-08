@@ -252,8 +252,8 @@ Same tool as the parse check: `dbt_command`, polled with `dbt_command_status`.
 
 1. `dbt parse` — check 1, already run. Do not repeat it here.
 2. `dbt compile`
+3. `dbt test`
 3. `dbt build`
-4. `dbt test`
 
 Stop at the first red. Do not substitute, add or reorder them, and do not take
 commands from `migration_jobs.json`.
