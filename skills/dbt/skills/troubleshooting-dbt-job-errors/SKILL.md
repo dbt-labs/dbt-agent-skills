@@ -65,7 +65,7 @@ flowchart TD
 
 Use these tools first - they provide the most comprehensive data:
 
-> **Note:** `list_jobs` and `list_jobs_runs` results may span multiple projects/environments depending on how the Admin API is configured. Each `list_jobs` entry carries `project_id` and `environment_id`; runs also carry `project_id`. When you have a target job, always pass `job_id` to `list_jobs_runs`. When selecting among jobs, filter to the project/environment you're investigating.
+> **Note:** `list_jobs` and `list_jobs_runs` results may span multiple projects/environments depending on how the Admin API and request are configured. Each `list_jobs` entry carries `project_id` and `environment_id`; runs also carry `project_id`. When you have a target job, always pass `job_id` to `list_jobs_runs`. When selecting among jobs, filter to the project/environment you're investigating.
 
 | Tool | Purpose |
 |------|---------|
