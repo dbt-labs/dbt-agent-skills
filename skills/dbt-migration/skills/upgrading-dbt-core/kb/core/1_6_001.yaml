@@ -1,0 +1,40 @@
+issue_id: "1_6_001"
+sort_order: 4010
+change: New warning when --state and --target point to the same directory
+action: Fix --state/--target configuration so they reference distinct directories
+category: Behavior
+component: core
+adapter_type: null
+impact: >-
+  WarnStateTargetEqual raised (informational) for previously silent misconfiguration; fatal under
+  --warn-error
+from_version: '1.6'
+to_version: '1.7'
+automation_type: deterministic
+out_of_repo_risk: true
+environment_change: false
+context:
+  detection: |-
+    - This is a runtime CLI/job configuration issue, not a repo-source issue, so `dbt parse` cannot
+      surface it. Detect by scanning invocation sites, not models.
+    - Grep the repo for `--state` and `--target` / `--target-path` in shell scripts, Makefiles, and
+      `scripts/**/*.sh`.
+    - Also grep CI configs: `.github/workflows/*.yml`, `.gitlab-ci.yml`, `azure-pipelines.yml`, `tox.ini`.
+    - Check `dbt_project.yml` for a `target-path:` key (deprecated since 1.5 but may still be present).
+    - Check for `DBT_STATE` / `DBT_TARGET_PATH` env vars in CI.
+    - Flag any invocation where `--state` and `--target`/`--target-path` resolve to the same directory
+      (commonly both set to `target/`).
+    - Note the value is frequently supplied outside the repo (dbt platform job definitions,
+      orchestration tools), which parse cannot see.
+  fixing: |-
+    - Point `--state` at a directory separate from the run's `--target` — e.g. keep run output in
+      `target/` and the comparison manifest in a distinct dir such as `state/` or `prod-artifacts/`.
+    - Concretely, in the offending script/CI step change the duplicated paths so a command like
+      `dbt build --state ./state --target-path ./target` uses different dirs, and populate the state
+      artifacts there.
+    - If the same-directory usage lives outside the repo (a dbt platform job command, an orchestration
+      tool), it cannot be edited from the repo.
+    - For that out-of-repo case: record it in the results artifact (target/dbt_migration_results.json)
+      as manual-required with the issue_id, the invocation location if known, and the suggested command
+      change, then prompt the user.
+    - This change never requires a repo edit to pass `dbt parse`; it is advisory / out-of-repo only.

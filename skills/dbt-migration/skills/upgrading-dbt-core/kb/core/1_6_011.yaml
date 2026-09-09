@@ -1,0 +1,25 @@
+issue_id: "1_6_011"
+sort_order: 4005
+change: dbt clean errors when clean-targets include source paths or paths outside the project
+action: Remove source paths (e.g. models/, macros/) and any path outside the project directory from clean-targets in dbt_project.yml
+category: Breaking
+component: core
+adapter_type: null
+impact: >-
+  dbt clean now raises an error instead of silently deleting the wrong directories when
+  clean-targets references source paths or paths outside the project root
+from_version: '1.6'
+to_version: '1.7'
+automation_type: deterministic
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Read dbt_project.yml's clean-targets list.
+    - Flag any entry that resolves (relative to the project root) to a configured source path
+      (model-paths, seed-paths, macro-paths, etc.) or that resolves outside the project directory
+      (e.g. ../shared, /absolute/path).
+  fixing: |-
+    - Remove the offending entries from clean-targets, keeping only build/output directories
+      (e.g. target, dbt_packages, logs).
+    - Re-run dbt clean to confirm it no longer errors.

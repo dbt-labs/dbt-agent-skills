@@ -1,0 +1,31 @@
+issue_id: "1_4_005"
+sort_order: 2050
+change: >-
+  DBT_NO_PRINT environment variable deprecated in favor of DBT_PRINT
+action: >-
+  Replace DBT_NO_PRINT=true with DBT_PRINT=false
+category: Deprecated
+component: core
+adapter_type: null
+impact: >-
+  Deprecation warning; the old variable still works for now
+from_version: '1.4'
+to_version: '1.5'
+automation_type: human
+out_of_repo_risk: true
+environment_change: false
+context:
+  detection: |-
+    - Grep the repo for the literal `DBT_NO_PRINT` in CI YAML (.github/**, .gitlab-ci.yml, etc.),
+      Dockerfiles, .env / *.env files, shell scripts, Makefiles, and tox.ini. Present if the token appears
+      anywhere.
+    - The variable is frequently set in orchestration outside the repo, so an in-repo miss does not mean
+      the project is clear.
+  fixing: |-
+    - Translate the value: DBT_NO_PRINT=true (suppress prints) becomes DBT_PRINT=false; DBT_NO_PRINT=false
+      becomes DBT_PRINT=true.
+    - Update every in-repo occurrence found.
+    - This is an env-var rename, not a Python-environment change, so it is a normal advisory edit (not
+      environment_change) and is not verified by dbt parse.
+    - Add a results entry telling the user to replace DBT_NO_PRINT in external CI / dbt platform
+      environment settings with DBT_PRINT (inverted value).

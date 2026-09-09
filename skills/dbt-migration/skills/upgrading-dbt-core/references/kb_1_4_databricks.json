@@ -1,0 +1,852 @@
+{
+  "from_version": "1.4",
+  "warehouse": "databricks",
+  "target_version": "1.12",
+  "count": 39,
+  "issues": [
+    {
+      "issue_id": "1_4_001",
+      "sort_order": 2010,
+      "change": "--select/--exclude now accumulate when passed multiple times (argparse -> Click)",
+      "action": "Review scripts/jobs passing --select or --exclude more than once; collapse to a single flag with the intended union",
+      "category": "Breaking",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Scripts relying on last-wins override now see both selections combined, selecting more nodes than intended",
+      "from_version": "1.4",
+      "to_version": "1.5",
+      "automation_type": "deterministic",
+      "out_of_repo_risk": true,
+      "environment_change": false,
+      "context": {
+        "detection": "- Grep in-repo invocation sites for repeated selection flags on a single command: shell scripts\n  (*.sh), Makefiles, CI YAML (.github/**, .gitlab-ci.yml, azure-pipelines.yml), tox.ini, and dbt\n  wrapper scripts.\n- Pattern: one dbt command containing two or more `--select`/`-s` or `--exclude` tokens (regex\n  `(--select|--exclude|-s)\\b.*\\b(--select|--exclude|-s)\\b`).\n- The real risk lives OUTSIDE the repo in dbt platform job definitions, so in-repo presence may be\n  zero even when the project is affected.",
+        "fixing": "- For each in-repo command with duplicated selection flags, decide intent: pre-1.5 was last-wins (only\n  the final flag applied); 1.5+ is union (all applied).\n- If the old intent was 'use only the last selection', delete the earlier occurrences. If a union was\n  intended, it already works \u2014 leave it.\n- Example: `dbt run --select tag:nightly --select my_model` (1.4 ran only my_model) -> `dbt run\n  --select my_model`.\n- Not visible to dbt parse.\n- ALWAYS add a results entry (manual-required): dbt platform job commands and orchestration outside\n  this repo may pass the flags multiple times; list the affected in-repo sites and tell the user to\n  audit job definitions."
+      },
+      "_path": "kb/core/1_4_001.yaml"
+    },
+    {
+      "issue_id": "1_4_002",
+      "sort_order": 2020,
+      "change": "Duplicate CLI flags before and after the subcommand now raise an error",
+      "action": "Ensure each CLI flag appears only once per dbt invocation",
+      "category": "Breaking",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Commands like `dbt --flag run --flag` now fail instead of silently taking one value",
+      "from_version": "1.4",
+      "to_version": "1.5",
+      "automation_type": "deterministic",
+      "out_of_repo_risk": true,
+      "environment_change": false,
+      "context": {
+        "detection": "- Scan in-repo dbt invocation sites (shell scripts, Makefiles, CI YAML, tox.ini, wrapper scripts) for\n  a single dbt command repeating the same flag, especially placed both before and after the\n  subcommand.\n- Examples: `dbt --debug run --debug`, or a repeated `--profiles-dir` / `--target` / `--vars`.\n- Likeliest offenders: global flags (--debug, --profiles-dir, --project-dir, --target, --log-format)\n  appearing twice.\n- As with selection flags, the primary risk is in dbt platform job commands outside the repo.",
+        "fixing": "- Remove the duplicate occurrence, keeping the one with the intended value (pre-1.5 resolved to a\n  single value, so pick that).\n- Example: `dbt --target prod run --target prod` -> `dbt run --target prod`.\n- If two occurrences carry DIFFERENT values it was already ambiguous \u2014 keep the value the user\n  confirms and record the resolution in the migration log.\n- Not visible to dbt parse.\n- Add a results entry (manual-required) directing the user to audit external job/orchestration\n  commands for duplicated flags, since those now hard-error."
+      },
+      "_path": "kb/core/1_4_002.yaml"
+    },
+    {
+      "issue_id": "1_4_003",
+      "sort_order": 2030,
+      "change": "log-path in dbt_project.yml deprecated",
+      "action": "Move log-path out of dbt_project.yml to the --log-path CLI flag or DBT_LOG_PATH env var",
+      "category": "Deprecated",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Deprecation warning at parse time; becomes fatal under --warn-error",
+      "from_version": "1.4",
+      "to_version": "1.5",
+      "automation_type": "human",
+      "out_of_repo_risk": true,
+      "environment_change": false,
+      "context": {
+        "detection": "- Read dbt_project.yml for a top-level `log-path:` key (regex `^\\s*log-path\\s*:`). Present if the key\n  exists with any value.\n- Only one location to check.",
+        "fixing": "- Remove the `log-path:` key from dbt_project.yml.\n- Re-provision out-of-repo: either the `--log-path <dir>` CLI flag on dbt invocations or the\n  `DBT_LOG_PATH` env var.\n- Because the effective destination now lives in job commands / env config outside this repo, add a\n  results entry recording the old value and telling the user to set --log-path/DBT_LOG_PATH wherever\n  dbt is invoked (CI, dbt platform jobs).\n- After removing the key, run dbt parse; the deprecation warning should be gone.\n- If parse still warns, confirm no other config file (a profiles-level or imported yml) re-declares\n  log-path."
+      },
+      "_path": "kb/core/1_4_003.yaml"
+    },
+    {
+      "issue_id": "1_4_004",
+      "sort_order": 2040,
+      "change": "target-path in dbt_project.yml deprecated",
+      "action": "Move target-path out of dbt_project.yml to the --target-path CLI flag or DBT_TARGET_PATH env var",
+      "category": "Deprecated",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Deprecation warning at parse time; becomes fatal under --warn-error",
+      "from_version": "1.4",
+      "to_version": "1.5",
+      "automation_type": "human",
+      "out_of_repo_risk": true,
+      "environment_change": false,
+      "context": {
+        "detection": "- Read dbt_project.yml for a top-level `target-path:` key (regex `^\\s*target-path\\s*:`). Present if\n  the key exists.",
+        "fixing": "- Remove the `target-path:` key from dbt_project.yml.\n- Re-provision via the `--target-path <dir>` CLI flag or `DBT_TARGET_PATH` env var wherever dbt runs.\n- Add a results entry recording the old value and directing the user to set\n  --target-path/DBT_TARGET_PATH in job commands / CI / dbt platform, since anything reading generated\n  artifacts (manifest.json, run_results.json) from the custom path must be pointed at the new\n  location.\n- After removal, run dbt parse to confirm the warning is cleared."
+      },
+      "_path": "kb/core/1_4_004.yaml"
+    },
+    {
+      "issue_id": "1_4_005",
+      "sort_order": 2050,
+      "change": "DBT_NO_PRINT environment variable deprecated in favor of DBT_PRINT",
+      "action": "Replace DBT_NO_PRINT=true with DBT_PRINT=false",
+      "category": "Deprecated",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Deprecation warning; the old variable still works for now",
+      "from_version": "1.4",
+      "to_version": "1.5",
+      "automation_type": "human",
+      "out_of_repo_risk": true,
+      "environment_change": false,
+      "context": {
+        "detection": "- Grep the repo for the literal `DBT_NO_PRINT` in CI YAML (.github/**, .gitlab-ci.yml, etc.),\n  Dockerfiles, .env / *.env files, shell scripts, Makefiles, and tox.ini. Present if the token appears\n  anywhere.\n- The variable is frequently set in orchestration outside the repo, so an in-repo miss does not mean\n  the project is clear.",
+        "fixing": "- Translate the value: DBT_NO_PRINT=true (suppress prints) becomes DBT_PRINT=false; DBT_NO_PRINT=false\n  becomes DBT_PRINT=true.\n- Update every in-repo occurrence found.\n- This is an env-var rename, not a Python-environment change, so it is a normal advisory edit (not\n  environment_change) and is not verified by dbt parse.\n- Add a results entry telling the user to replace DBT_NO_PRINT in external CI / dbt platform\n  environment settings with DBT_PRINT (inverted value)."
+      },
+      "_path": "kb/core/1_4_005.yaml"
+    },
+    {
+      "issue_id": "1_4_006",
+      "sort_order": 2060,
+      "change": "DBT_ARTIFACT_STATE_PATH environment variable deprecated in favor of DBT_STATE",
+      "action": "Replace DBT_ARTIFACT_STATE_PATH with DBT_STATE",
+      "category": "Deprecated",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Deprecation warning; the old variable still works for now",
+      "from_version": "1.4",
+      "to_version": "1.5",
+      "automation_type": "human",
+      "out_of_repo_risk": true,
+      "environment_change": false,
+      "context": {
+        "detection": "- Grep the repo for `DBT_ARTIFACT_STATE_PATH` in CI YAML, Dockerfiles, .env files, shell scripts,\n  Makefiles, tox.ini.\n- Commonly used in Slim CI / state-deferral setups that live in orchestration outside the repo.",
+        "fixing": "- Rename the variable to `DBT_STATE`, keeping the same value (path to the state/manifest directory).\n- Update all in-repo occurrences. Advisory env-var rename, not verified by dbt parse.\n- Add a results entry telling the user to rename DBT_ARTIFACT_STATE_PATH to DBT_STATE in external CI\n  and dbt platform job environments used for state:modified / --defer selection."
+      },
+      "_path": "kb/core/1_4_006.yaml"
+    },
+    {
+      "issue_id": "1_4_007",
+      "sort_order": 2070,
+      "change": "DBT_FAVOR_STATE_MODE environment variable deprecated in favor of DBT_FAVOR_STATE",
+      "action": "Replace DBT_FAVOR_STATE_MODE with DBT_FAVOR_STATE",
+      "category": "Deprecated",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Deprecation warning; the old variable still works for now",
+      "from_version": "1.4",
+      "to_version": "1.5",
+      "automation_type": "human",
+      "out_of_repo_risk": true,
+      "environment_change": false,
+      "context": {
+        "detection": "- Grep the repo for `DBT_FAVOR_STATE_MODE` in CI YAML, Dockerfiles, .env files, shell scripts,\n  Makefiles, tox.ini.\n- Typically set in state-based CI selection outside the repo.",
+        "fixing": "- Rename to `DBT_FAVOR_STATE`, preserving the value.\n- Update all in-repo occurrences. Advisory env-var rename, not verified by dbt parse.\n- Add a results entry directing the user to rename this variable in external CI / dbt platform\n  environments."
+      },
+      "_path": "kb/core/1_4_007.yaml"
+    },
+    {
+      "issue_id": "1_4_008",
+      "sort_order": 2080,
+      "change": "DBT_DEFER_TO_STATE environment variable deprecated in favor of DBT_DEFER",
+      "action": "Replace DBT_DEFER_TO_STATE with DBT_DEFER",
+      "category": "Deprecated",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Deprecation warning; the old variable still works for now",
+      "from_version": "1.4",
+      "to_version": "1.5",
+      "automation_type": "human",
+      "out_of_repo_risk": true,
+      "environment_change": false,
+      "context": {
+        "detection": "- Grep the repo for `DBT_DEFER_TO_STATE` in CI YAML, Dockerfiles, .env files, shell scripts,\n  Makefiles, tox.ini.\n- Used in --defer based CI workflows that usually live outside the repo.",
+        "fixing": "- Rename to `DBT_DEFER`, preserving the boolean value.\n- Update all in-repo occurrences. Advisory env-var rename, not verified by dbt parse.\n- Add a results entry directing the user to rename DBT_DEFER_TO_STATE to DBT_DEFER in external CI /\n  dbt platform environments."
+      },
+      "_path": "kb/core/1_4_008.yaml"
+    },
+    {
+      "issue_id": "1_5_001",
+      "sort_order": 3010,
+      "change": "Metric YAML schema completely rewritten for MetricFlow",
+      "action": "Rewrite all metric definitions using the new type/type_params/filter format",
+      "category": "Breaking",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "All existing metric YAML definitions fail to parse in 1.6; the pre-1.6 UnparsedMetric fields (calculation_method, expression, sql, model, type: expression) and the rename_metric_attr compatibility shim were removed.",
+      "from_version": "1.5",
+      "to_version": "1.6",
+      "automation_type": "agentic",
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Search every YAML file under models/ and any schema-file globs declared in dbt_project.yml\n  (models/**/*.yml, models/**/*.yaml, plus any top-level metrics/ dir) for a `metrics:` block.\n- Flag a metric as legacy (pre-1.6) if its entry uses ANY of these keys: `calculation_method`,\n  `expression`, `sql`, `type: expression`, a top-level `type:` with the old enum\n  (`count`/`sum`/...), `model:`, `timestamp:`, `time_grains:`, `dimensions:` directly on the\n  metric, or `filters:` (the list-of-dict old form).\n- The new MetricFlow schema instead uses `type:` with values simple|ratio|cumulative|derived\n  plus a `type_params:` block. If a metric already has `type_params:`, it is migrated \u2014 skip it.\n- Also grep packages.yml for `dbt_metrics` usage and models for `metrics.calculate(` /\n  `metrics.develop(` macro calls \u2014 those depend on the old package and must be flagged too.",
+        "fixing": "- Rewrite each legacy metric into the new schema. Attribute mapping:\n  - `calculation_method` -> `type`: sum/average/min/max/count/count_distinct/median become\n    `type: simple` with `type_params.measure`; derived/expression become `type: derived` with\n    `type_params.expr` and `type_params.metrics`.\n  - `expression`/`sql` -> `type_params.measure` (the semantic measure name), or\n    `type_params.expr` for a derived metric.\n  - `model:` -> moves into a `semantic_models:` definition (see example below).\n  - `filters:` -> `filter:` (a single `{{ Dimension(...) }}` string, or keep the WHERE fragment).\n- Concrete before/after:\n  BEFORE (1.5):\n    metrics:\n      - name: total_revenue\n        calculation_method: sum\n        expression: amount\n        model: ref('orders')\n        timestamp: order_date\n        time_grains: [day, month]\n        dimensions: [status]\n  AFTER (1.6, MetricFlow):\n    semantic_models:\n      - name: orders\n        model: ref('orders')\n        defaults:\n          agg_time_dimension: order_date\n        entities:\n          - name: order\n            type: primary\n        dimensions:\n          - name: order_date\n            type: time\n            type_params: {time_granularity: day}\n          - name: status\n            type: categorical\n        measures:\n          - name: amount\n            agg: sum\n            agg_time_dimension: order_date\n    metrics:\n      - name: total_revenue\n        type: simple\n        type_params:\n          measure: amount\n- Derived example: `calculation_method: derived` + `expression: revenue - cost` becomes\n  `type: derived` with `type_params: {expr: 'revenue - cost', metrics: [{name: revenue},\n  {name: cost}]}`.\n- Judgment-heavy: 1.6 requires a `semantic_models:` layer that did not exist in 1.5, so the\n  measure/entity/dimension split cannot always be inferred mechanically.\n- If you cannot confidently reconstruct the semantic model (e.g. the source model's grain or\n  entities are ambiguous), do NOT guess \u2014 record the metric in the results report with\n  the original YAML and the suggested new shape, and move on.\n- After editing, run `dbt parse`. On a metric/semantic-model validation error, re-read it;\n  reverting to legacy form is NOT an option (it won't parse in 1.6) \u2014 instead leave the\n  semantic_model skeleton and flag it manual.\n- Remove `dbt_metrics` / `metrics.calculate` usages and flag them as requiring the\n  MetricFlow / Semantic Layer migration (out of scope for parse)."
+      },
+      "_path": "kb/core/1_5_001.yaml"
+    },
+    {
+      "issue_id": "1_5_002",
+      "sort_order": 3020,
+      "change": "Duplicate node names allowed across packages",
+      "action": "Disambiguate cross-package references with two-argument ref('package_name', 'model_name')",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "In 1.5 a flat manifest dict raised DuplicateResourceNameError; in 1.6 names are stored per-package, so a project and an installed package can legitimately share a model name. Single-argument ref() to a name that exists in more than one package becomes ambiguous (AmbiguousAliasError / wrong node).",
+      "from_version": "1.5",
+      "to_version": "1.6",
+      "automation_type": "human",
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Only relevant if packages.yml / dependencies.yml declares packages.\n- Build the set of model/seed/snapshot names defined in the local project (models/**/*.sql,\n  seeds/**/*.csv, snapshots/**/*.sql).\n- Where available, add the names exposed by installed packages under dbt_packages/*/models.\n- Grep all .sql/.yml for single-argument `ref('name')` / `ref(\"name\")` whose `name` collides\n  with a name present in BOTH the local project and a package (or in two packages) \u2014 those are\n  the ambiguous refs.\n- If no packages are installed, mark skipped-not-present.",
+        "fixing": "- For each ambiguous single-arg ref, rewrite to the two-argument form\n  `ref('<package_name>', '<model_name>')`.\n- Choose the package the author intended; default to the local project's own model unless the\n  surrounding SQL clearly consumes the package's version.\n- Example: `ref('customers')` -> `ref('my_project', 'customers')` or\n  `ref('dbt_utils', 'customers')`. Leave unambiguous refs untouched.\n- After edits run `dbt parse`; a remaining AmbiguousAliasError names the offending ref and node.\n- If you cannot determine which package is intended, record it in the results report\n  rather than guessing \u2014 picking the wrong package silently changes lineage."
+      },
+      "_path": "kb/core/1_5_002.yaml"
+    },
+    {
+      "issue_id": "1_5_003",
+      "sort_order": 3030,
+      "change": "collect_freshness macro return type changed",
+      "action": "Update any custom collect_freshness macro override to return the full result object (table + response) instead of just the table",
+      "category": "Deprecated",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "In 1.6 core's default collect_freshness returns a dict-like {table, response} object; a custom override that returns only the agate table triggers a deprecation warning and will break source freshness in later versions.",
+      "from_version": "1.5",
+      "to_version": "1.6",
+      "automation_type": "human",
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Grep macros/**/*.sql for a macro named `collect_freshness` (i.e. `{% macro collect_freshness(`\n  or `{% macro <adapter>__collect_freshness(`).\n- If none exists, the project uses core's implementation \u2014 mark skipped-not-present.\n- If one exists, inspect its final `{{ return(...) }}` and flag it if it returns the query\n  result table directly (e.g. `return(load_result('collect_freshness').table)` or\n  `return(table)`) rather than the full result object.",
+        "fixing": "- Change the macro to capture the full result and return an object exposing both the table and\n  the adapter response.\n- Pattern: `{% set result = run_query(...) %}` then\n  `{{ return({'table': result.table, 'response': result.response}) }}`.\n- Mirror core's 1.6 signature: it returns `load_result('collect_freshness')`, which already has\n  `.table` and `.response`.\n- Simplest safe fix, if the override only existed to tweak the SQL: align the return statement\n  with core 1.6's macro body.\n- After editing run `dbt parse`.\n- If the override is complex or the intended response object is unclear, record it in the\n  results report with a pointer to core's 1.6 collect_freshness for reference."
+      },
+      "_path": "kb/core/1_5_003.yaml"
+    },
+    {
+      "issue_id": "1_5_010",
+      "sort_order": 3100,
+      "change": "Default socket timeout set to 180 seconds",
+      "action": "Adjust _socket_timeout in connection_parameters if long-idle connections time out",
+      "category": "Behavior",
+      "component": "adapter",
+      "adapter_type": "databricks",
+      "impact": "1.6 introduces a default socket timeout of 180s. Long-idle connections (e.g. warehouses that were paused/cold) may now time out where they previously waited indefinitely.",
+      "from_version": "1.5",
+      "to_version": "1.6",
+      "automation_type": "human",
+      "out_of_repo_risk": false,
+      "environment_change": true,
+      "context": {
+        "detection": "- Behavioral connection change invisible to `dbt parse`.\n- Check the databricks output in profiles.yml (usually out of repo) for a\n  `connect_timeout` / `_socket_timeout` / `connection_parameters` setting.\n- Risk signals: projects querying serverless / auto-stopping SQL warehouses with long cold-start\n  times, or long-running single statements exceeding 180s of socket idleness.",
+        "fixing": "- ADVISORY ONLY.\n- If timeouts are a risk, recommend setting `_socket_timeout` under `connection_parameters` in\n  the databricks profile to a higher value; otherwise no change.\n- profiles.yml is usually out of repo and this is warehouse behavior \u2014 add a manual-actions entry\n  noting the new 180s default and the tuning knob.\n- Excluded from the parse verify loop."
+      },
+      "_path": "kb/databricks/1_5_010.yaml"
+    },
+    {
+      "issue_id": "1_6_011",
+      "sort_order": 4005,
+      "change": "dbt clean errors when clean-targets include source paths or paths outside the project",
+      "action": "Remove source paths (e.g. models/, macros/) and any path outside the project directory from clean-targets in dbt_project.yml",
+      "category": "Breaking",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "dbt clean now raises an error instead of silently deleting the wrong directories when clean-targets references source paths or paths outside the project root",
+      "from_version": "1.6",
+      "to_version": "1.7",
+      "automation_type": "deterministic",
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Read dbt_project.yml's clean-targets list.\n- Flag any entry that resolves (relative to the project root) to a configured source path\n  (model-paths, seed-paths, macro-paths, etc.) or that resolves outside the project directory\n  (e.g. ../shared, /absolute/path).",
+        "fixing": "- Remove the offending entries from clean-targets, keeping only build/output directories\n  (e.g. target, dbt_packages, logs).\n- Re-run dbt clean to confirm it no longer errors."
+      },
+      "_path": "kb/core/1_6_011.yaml"
+    },
+    {
+      "issue_id": "1_6_001",
+      "sort_order": 4010,
+      "change": "New warning when --state and --target point to the same directory",
+      "action": "Fix --state/--target configuration so they reference distinct directories",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "WarnStateTargetEqual raised (informational) for previously silent misconfiguration; fatal under --warn-error",
+      "from_version": "1.6",
+      "to_version": "1.7",
+      "automation_type": "deterministic",
+      "out_of_repo_risk": true,
+      "environment_change": false,
+      "context": {
+        "detection": "- This is a runtime CLI/job configuration issue, not a repo-source issue, so `dbt parse` cannot\n  surface it. Detect by scanning invocation sites, not models.\n- Grep the repo for `--state` and `--target` / `--target-path` in shell scripts, Makefiles, and\n  `scripts/**/*.sh`.\n- Also grep CI configs: `.github/workflows/*.yml`, `.gitlab-ci.yml`, `azure-pipelines.yml`, `tox.ini`.\n- Check `dbt_project.yml` for a `target-path:` key (deprecated since 1.5 but may still be present).\n- Check for `DBT_STATE` / `DBT_TARGET_PATH` env vars in CI.\n- Flag any invocation where `--state` and `--target`/`--target-path` resolve to the same directory\n  (commonly both set to `target/`).\n- Note the value is frequently supplied outside the repo (dbt platform job definitions,\n  orchestration tools), which parse cannot see.",
+        "fixing": "- Point `--state` at a directory separate from the run's `--target` \u2014 e.g. keep run output in\n  `target/` and the comparison manifest in a distinct dir such as `state/` or `prod-artifacts/`.\n- Concretely, in the offending script/CI step change the duplicated paths so a command like\n  `dbt build --state ./state --target-path ./target` uses different dirs, and populate the state\n  artifacts there.\n- If the same-directory usage lives outside the repo (a dbt platform job command, an orchestration\n  tool), it cannot be edited from the repo.\n- For that out-of-repo case: record it in the results artifact (target/dbt_migration_results.json)\n  as manual-required with the issue_id, the invocation location if known, and the suggested command\n  change, then prompt the user.\n- This change never requires a repo edit to pass `dbt parse`; it is advisory / out-of-repo only."
+      },
+      "_path": "kb/core/1_6_001.yaml"
+    },
+    {
+      "issue_id": "1_6_002",
+      "sort_order": 4020,
+      "change": "Breaking contract changes on unversioned models now warn instead of error",
+      "action": "Add --warn-error (or version the models) to retain the previous hard-error behavior on breaking contract changes",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Unversioned models with a breaking schema/contract change warn via warn_or_error() instead of erroring; CI that relied on the error to block may now pass silently",
+      "from_version": "1.6",
+      "to_version": "1.7",
+      "automation_type": "human",
+      "out_of_repo_risk": true,
+      "environment_change": false,
+      "context": {
+        "detection": "- Scan schema YAML (`models/**/*.yml`, `models/**/*.yaml`) for models declaring `contract:` with\n  `enforced: true` that do NOT declare a `version:` / `versions:` block (i.e. unversioned).\n- Those unversioned enforced-contract models are the ones whose breaking contract changes now only\n  warn.\n- Also detect reliance on the old error behavior: grep CI/scripts for `dbt build` / `dbt run`\n  invocations that lack `--warn-error` or `--warn-error-options`.\n- Those flags are what previously turned the contract breakage into a hard failure.\n- This is a behavior/policy change; `dbt parse` stays clean either way, so detection is about intent,\n  not parse errors.",
+        "fixing": "- Preferred: preserve strict behavior by adding `--warn-error` (or a scoped `--warn-error-options`\n  targeting contract deprecations) to the relevant dbt invocation.\n- If that invocation is defined outside the repo (dbt platform job command, orchestration tool), it\n  cannot be edited here: record it in the results artifact (target/dbt_migration_results.json) as\n  manual-required with the suggested flag, and prompt the user.\n- Alternative in-repo fix: add a `version:` to the affected models \u2014 versioning makes breaking\n  contract changes error again.\n- But versioning reshapes ref() resolution and downstream references, so only do it when the user\n  explicitly wants versioned models; note that trade-off in the results report rather than silently\n  versioning.\n- No edit is required for `dbt parse` to succeed."
+      },
+      "_path": "kb/core/1_6_002.yaml"
+    },
+    {
+      "issue_id": "1_6_003",
+      "sort_order": 4030,
+      "change": "New warning for contracted models with bare numeric columns (no precision/scale)",
+      "action": "Add explicit precision and scale to numeric column data_types in enforced contracts (e.g. numeric(38,3))",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Models with 'data_type: numeric' (or 'decimal') and no precision/scale in an enforced contract now emit a warning at parse time in 1.7",
+      "from_version": "1.6",
+      "to_version": "1.7",
+      "automation_type": "human",
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- In schema YAML (`models/**/*.yml`, `models/**/*.yaml`), find models with `contract:`\n  `enforced: true` and columns whose `data_type` is a bare numeric type with no precision/scale.\n- Match the data_type value (case-insensitive) against `^(numeric|decimal|number)$` (no parentheses).\n- Types that already include `(p,s)` like `numeric(38,3)` are fine and must be left alone.\n- Only columns inside enforced-contract models trigger the warning; bare numeric on non-contracted\n  models is not affected.",
+        "fixing": "- For each flagged column, replace the bare type with an explicit precision/scale, e.g.\n  `data_type: numeric` -> `data_type: numeric(38,3)`.\n- Choose precision/scale from evidence in this order:\n- (1) an existing cast in the model SQL (e.g. `cast(x as numeric(18,2))`) \u2014 match it;\n- (2) the warehouse's documented default for unqualified numeric if the model is already built\n  (Snowflake NUMBER default is (38,0); Redshift/Postgres NUMERIC default is (38,0));\n- (3) if unknown, use a safe wide default `numeric(38,6)` and note the assumption in the results\n  report.\n- Preserve YAML quoting/style.\n- After editing, run `dbt parse`; if it fails, the likely cause is a mismatched type name for the\n  adapter (e.g. Snowflake prefers `number(38,3)`) \u2014 retry with the adapter-native spelling.\n- If the correct precision genuinely cannot be determined, leave the column and record it in the\n  results artifact (target/dbt_migration_results.json) as manual-required for the user to confirm."
+      },
+      "_path": "kb/core/1_6_003.yaml"
+    },
+    {
+      "issue_id": "1_6_005",
+      "sort_order": 4050,
+      "change": "Default catalog set to hive_metastore when not specified",
+      "action": "Verify the default matches expectations; set catalog explicitly in profiles.yml if a different catalog is intended",
+      "category": "Behavior",
+      "component": "adapter",
+      "adapter_type": "databricks",
+      "impact": "Projects that did not set a catalog now explicitly resolve to hive_metastore; relations may be created/read in hive_metastore instead of a previously-implicit Unity Catalog default",
+      "from_version": "1.6",
+      "to_version": "1.7",
+      "automation_type": "human",
+      "out_of_repo_risk": false,
+      "environment_change": true,
+      "context": {
+        "detection": "- This is a connection/environment default, not a repo-source change, so `dbt parse` cannot see it.\n- Inspect the Databricks connection config: `profiles.yml` (`outputs.<target>.catalog`) and any\n  `catalog:` / `database:` set in `dbt_project.yml` or model configs.\n- Flag the project if NO catalog/database is set anywhere for the Databricks target \u2014 those projects\n  now implicitly get `hive_metastore`.\n- If a catalog is already set explicitly, no action.\n- Note `profiles.yml` often lives outside the repo (`~/.dbt/` or dbt platform connection settings).",
+        "fixing": "- Advisory / environment change only \u2014 never mutate credentials or run anything.\n- If the workspace uses Unity Catalog and the user expects a UC catalog rather than the legacy\n  hive_metastore, add an explicit `catalog: <name>` to the Databricks output in `profiles.yml` (or\n  the platform connection).\n- If `profiles.yml` is inside the repo, apply the advisory edit and record it in the results report.\n- If it is outside the repo, record the recommended `catalog:` setting in the results artifact\n  (target/dbt_migration_results.json) as advisory and prompt the user to confirm the intended\n  catalog.\n- Exclude from the parse-verify loop (parse does not reflect connection settings)."
+      },
+      "_path": "kb/databricks/1_6_005.yaml"
+    },
+    {
+      "issue_id": "1_7_001",
+      "sort_order": 5010,
+      "change": "--dry-run flag removed from dbt deps --add-package; use dbt deps --lock instead",
+      "action": "Replace `dbt deps --add-package ... --dry-run` invocations with `dbt deps --lock`",
+      "category": "Breaking",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Commands using `dbt deps --add-package <pkg> --dry-run` will error in 1.8 (unknown option --dry-run)",
+      "from_version": "1.7",
+      "to_version": "1.8",
+      "automation_type": "agentic",
+      "out_of_repo_risk": true,
+      "environment_change": false,
+      "context": {
+        "detection": "- Grep the repo for `--dry-run` alongside `dbt deps`. Pattern: `dbt\\s+deps[^\\n]*--dry-run`\n  and `--add-package[^\\n]*--dry-run`.\n- Most common locations: shell scripts, Makefiles, CI YAML (.github/workflows/*.yml,\n  .gitlab-ci.yml, azure-pipelines.yml), Dockerfiles, tox.ini, pre-commit configs, docs/READMEs.\n- PRIMARY RISK IS OUT OF REPO: the same command may live in dbt platform job definitions,\n  orchestration tools (Airflow/Dagster/cron), or a developer's shell history \u2014 not scannable\n  from the repo.",
+        "fixing": "- For every in-repo occurrence, rewrite `dbt deps --add-package <pkg>@<ver> --dry-run` to\n  `dbt deps --lock` (resolves and writes package-lock.yml without installing).\n- If the intent was only to preview resolution, `dbt deps --lock` is the direct replacement.\n- `dbt deps` does not affect `dbt parse`, so no parse retry loop applies here.\n- ALWAYS add a manual-actions entry: issue_id, the fact that `--dry-run` on\n  `dbt deps --add-package` now errors, and the instruction to audit all scheduled/CI job\n  commands for `dbt deps ... --dry-run` and switch them to `dbt deps --lock`."
+      },
+      "_path": "kb/core/1_7_001.yaml"
+    },
+    {
+      "issue_id": "1_7_002",
+      "sort_order": 5020,
+      "change": "Primary key constraint on multiple columns or at both column and model level now throws ParsingError",
+      "action": "Fix constraint definitions to specify the primary key in exactly one place",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Models with duplicate/ambiguous primary_key constraint definitions fail to parse in 1.8 (ParsingError)",
+      "from_version": "1.7",
+      "to_version": "1.8",
+      "automation_type": "agentic",
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Only relevant to models with `contract: {enforced: true}` (or constraints blocks).\n- Scan model YAML (models/**/*.yml, *.yaml) and in-file `{{ config(...) }}` blocks for a\n  primary key declared more than once.\n- Failure shape 1: a model-level `constraints:` entry of `type: primary_key` listing multiple\n  columns AND a column also carrying `constraints: [{type: primary_key}]`.\n- Failure shape 2: more than one column each carrying a `type: primary_key` column-level\n  constraint.\n- Cues: search YAML for `type: primary_key` and count occurrences per model; also check for a\n  model-level `constraints:` list with `- type: primary_key` combined with any column-level one.\n- Composite PKs must be expressed once, at the model level, with `columns: [a, b]`.",
+        "fixing": "- Consolidate to a single primary key declaration per model.\n- If a composite key is intended, remove the per-column `type: primary_key` constraints and\n  declare one model-level constraint:\n    constraints:\n      - type: primary_key\n        columns: [col_a, col_b]\n- If a single-column PK is intended, keep exactly one declaration (column-level OR a model-level\n  single-column entry) and delete the duplicate.\n- Preserve any accompanying constraints (not_null, foreign_key) unchanged.\n- After editing, run `dbt parse`; if it still raises a primary-key ParsingError, re-read the\n  error's node name and ensure only one primary_key exists across column- and model-level.\n- If the intended key is ambiguous (e.g. two different single-column PKs on one model), do not\n  guess \u2014 record a manual-actions entry with the model name and the competing declarations."
+      },
+      "_path": "kb/core/1_7_002.yaml"
+    },
+    {
+      "issue_id": "1_7_003",
+      "sort_order": 5030,
+      "change": "Spaces in resource names produce deprecation warning (SpacesInResourceNameDeprecation)",
+      "action": "Rename resources to remove spaces and rewrite all ref()/source() calls that reference them",
+      "category": "Deprecated",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "SpacesInResourceNameDeprecation is raised at parse time in 1.8 for any model/seed/snapshot/source/test/exposure/metric whose name contains a space; treated as an error under --warn-error and slated for removal",
+      "from_version": "1.7",
+      "to_version": "1.8",
+      "automation_type": "agentic",
+      "out_of_repo_risk": true,
+      "environment_change": false,
+      "context": {
+        "detection": "- Two sources of resource names to scan.\n- FILE NAMES: any `models/**/*.sql`, `models/**/*.py`, `seeds/**/*.csv`, `snapshots/**/*.sql`,\n  `analyses/**/*.sql`, or `macros/**/*.sql` whose filename stem contains a space \u2014 the\n  model/seed/snapshot name defaults to the filename. Glob for basenames matching `* *`.\n- EXPLICIT NAMES in YAML: in models/**/*.yml and *.yaml, any `name:` value under models:,\n  seeds:, snapshots:, sources: (both the source `name:` and each table `name:`), exposures:,\n  metrics:, and named singular/data tests. Regex: `^\\s*name:\\s+.*\\S \\S`.\n- `alias:` need NOT change (aliases may contain spaces if quoted) \u2014 the deprecation targets the\n  resource NAME.\n- Build a map of {old_name -> new_name} for every offending resource before editing anything.",
+        "fixing": "- For each offending resource, choose a new name by replacing spaces with underscores\n  (e.g. `customer orders` -> `customer_orders`), keeping it unique. Then apply ALL of:\n- (a) Rename the file if the name came from the filename:\n    git mv 'models/customer orders.sql' models/customer_orders.sql\n- (b) Update the `name:` (and matching properties block) in YAML.\n- (c) Rewrite EVERY reference across the repo \u2014 `ref('customer orders')` ->\n  `ref('customer_orders')`, and for source tables `source('src', 'my table')` ->\n  `source('src', 'my_table')` \u2014 covering single- and double-quote forms in .sql/.py models and\n  in `--select`/YAML selectors inside the repo.\n- Example before: `select * from {{ ref('customer orders') }}`\n- Example after:  `select * from {{ ref('customer_orders') }}`\n- You MUST rewrite refs in the same pass as the rename, or `dbt parse` fails with an unresolved\n  ref.\n- After edits run `dbt parse`; if it fails with 'depends on a node named X which was not found',\n  a ref still points at the old name \u2014 grep the repo for the old name and fix the stragglers.\n- OUT-OF-REPO RISK: names are also referenced by dbt platform job `--select` clauses,\n  `selectors.yml` consumed by CI, BI tools, and dbt Mesh cross-project refs\n  (`ref('project', 'name')`). These cannot be rewritten from this repo.\n- For every renamed resource, add a manual-actions entry listing old_name -> new_name and\n  telling the user to update job selectors, downstream mesh refs, and BI tool references.\n- If a name cannot be safely changed because too many external consumers depend on it, leave it\n  and record a manual-required entry instead."
+      },
+      "_path": "kb/core/1_7_003.yaml"
+    },
+    {
+      "issue_id": "1_7_008",
+      "sort_order": 5080,
+      "change": "require_explicit_package_overrides_for_builtin_materializations defaults to True",
+      "action": "Set the flag to false in dbt_project.yml flags: to keep old behavior, or update packages that override built-in materializations",
+      "category": "Breaking",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Installed packages can no longer silently override built-in materializations (table/view/incremental); built-in takes precedence",
+      "from_version": "1.7",
+      "to_version": "1.8",
+      "automation_type": "deterministic",
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Check dbt_project.yml `flags:` for\n  require_explicit_package_overrides_for_builtin_materializations.\n- Check installed packages (dbt_packages/, packages.yml) for materialization overrides of\n  table/view/incremental.",
+        "fixing": "- Handled by `dbt-autofix deprecations` (sets the flag explicitly). Review the diff.\n- Manual fallback: add `require_explicit_package_overrides_for_builtin_materializations: false`\n  under `flags:` to preserve old behavior, or update the offending package.\n- Parse-detectable via the deprecation/warning; confirm clean on 1.8."
+      },
+      "_path": "kb/core/1_7_008.yaml"
+    },
+    {
+      "issue_id": "1_7_009",
+      "sort_order": 5090,
+      "change": "tests config deprecated in favor of data_tests",
+      "action": "Rename `tests:` to `data_tests:` in dbt_project.yml and schema YAML files",
+      "category": "Deprecated",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "`tests:` key emits a deprecation warning in 1.8; still works but slated for removal",
+      "from_version": "1.7",
+      "to_version": "1.8",
+      "automation_type": "deterministic",
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Grep dbt_project.yml for a top-level `tests:` block.\n- Grep models/**/*.yml for `tests:` keys (both model-level and column-level).",
+        "fixing": "- Handled by `dbt-autofix deprecations` (renames `tests:` -> `data_tests:`).\n- Review the diff and confirm every occurrence was renamed (leave the test list contents\n  unchanged).\n- Manual fallback: rename any occurrence autofix missed.\n- Verify with `dbt parse --warn-error` (no deprecation)."
+      },
+      "_path": "kb/core/1_7_009.yaml"
+    },
+    {
+      "issue_id": "1_7_010",
+      "sort_order": 5100,
+      "change": "dbt source freshness now runs on-run-start / on-run-end hooks",
+      "action": "Set source_freshness_run_project_hooks to False if project hooks should not run during freshness checks",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "on-run-start/on-run-end hooks now execute during `dbt source freshness` (previously skipped)",
+      "from_version": "1.7",
+      "to_version": "1.8",
+      "automation_type": "deterministic",
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Check dbt_project.yml for on-run-start/on-run-end hooks.\n- Check whether source_freshness_run_project_hooks is set under `flags:`.",
+        "fixing": "- Handled by `dbt-autofix deprecations` (sets source_freshness_run_project_hooks explicitly).\n  Review the diff.\n- Manual fallback: add `source_freshness_run_project_hooks: false` under `flags:` if hooks should\n  NOT run during freshness (e.g. they mutate the warehouse).\n- Behavior change; validate hook side-effects in the build-green layer."
+      },
+      "_path": "kb/core/1_7_010.yaml"
+    },
+    {
+      "issue_id": "1_8_001",
+      "sort_order": 6001,
+      "change": "on-run-start hook failure now skips all downstream nodes instead of continuing",
+      "action": "Set flags.skip_nodes_if_on_run_start_fails: false to keep the old behavior, or make on-run-start hooks reliable.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "A failing on-run-start hook aborts the whole run's nodes rather than letting them execute. This flag defaults to True in 1.12, so leaving it unset silently adopts the new behavior.",
+      "from_version": "1.8",
+      "to_version": "1.9",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "skip_nodes_if_on_run_start_fails",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Applies only if the project defines `on-run-start` hooks.\n- Check dbt_project.yml for a non-empty `on-run-start:` list.\n- No on-run-start hooks -> the gated behavior cannot occur -> skipped-not-present.",
+        "fixing": "Pin the flag via `tools.py set-flag --issue-id 1_8_001`. No project code changes.\nOnly pin it when on-run-start hooks exist."
+      },
+      "_path": "kb/core/1_8_001.yaml"
+    },
+    {
+      "issue_id": "1_8_002",
+      "sort_order": 6002,
+      "change": "state:modified compares more unrendered config values, changing which nodes are selected",
+      "action": "Set flags.state_modified_compare_more_unrendered_values: false to keep the old comparison.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Slim CI / state:modified selection can pick a different node set, changing what gets built. This flag defaults to True in 1.12, so leaving it unset silently adopts the new behavior.",
+      "from_version": "1.8",
+      "to_version": "1.9",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "state_modified_compare_more_unrendered_values",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Applies only if the project relies on `state:modified` selection.\n- Look for state comparison in-repo: a `selectors.yml` using `state:modified`,\n  or CI config / job commands in the repo passing `--select state:modified`.\n- If nothing in the repo uses state:modified, this cannot be confirmed from the\n  repo alone -> skipped-not-present, and mention it in the report so the user can\n  decide (their CI may use it out of repo).",
+        "fixing": "Pin the flag via `tools.py set-flag --issue-id 1_8_002`. No project code changes.\nOnly pin it when the repo shows state:modified usage."
+      },
+      "_path": "kb/core/1_8_002.yaml"
+    },
+    {
+      "issue_id": "1_8_003",
+      "sort_order": 6003,
+      "change": "custom microbatch strategies must use batched execution",
+      "action": "Set flags.require_batched_execution_for_custom_microbatch_strategy: false to keep the old behavior, or adopt batched execution.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "A custom microbatch incremental strategy that is not batch-aware behaves differently or errors. This flag defaults to True in 1.12, so leaving it unset silently adopts the new behavior.",
+      "from_version": "1.8",
+      "to_version": "1.9",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "require_batched_execution_for_custom_microbatch_strategy",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Applies only if the project defines a CUSTOM microbatch incremental strategy.\n- Check macros/ for a macro named `get_incremental_microbatch_sql` or a\n  materialization/strategy override handling `microbatch`, and models configured\n  with `incremental_strategy: microbatch`.\n- Built-in microbatch usage alone is NOT affected -> skipped-not-present.",
+        "fixing": "Pin the flag via `tools.py set-flag --issue-id 1_8_003`. No project code changes.\nOnly pin it when a custom microbatch strategy macro exists."
+      },
+      "_path": "kb/core/1_8_003.yaml"
+    },
+    {
+      "issue_id": "1_8_004",
+      "sort_order": 6004,
+      "change": "cumulative metric type params must be nested under type_params",
+      "action": "Set flags.require_nested_cumulative_type_params: false to keep accepting the flat shape, or nest the params.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Semantic-layer cumulative metrics using the flat param shape fail validation. This flag defaults to True in 1.12, so leaving it unset silently adopts the new behavior.",
+      "from_version": "1.8",
+      "to_version": "1.9",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "require_nested_cumulative_type_params",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Applies only if the project defines cumulative metrics using the FLAT param\n  shape (window/grain_to_date directly under the metric rather than nested under\n  `type_params`).\n- Grep metric YAML for `type: cumulative`, then check whether its params are\n  nested under `type_params:`.\n- Already nested, or no cumulative metrics -> skipped-not-present.",
+        "fixing": "Pin the flag via `tools.py set-flag --issue-id 1_8_004`. No project code changes.\nOnly pin it when a flat-shaped cumulative metric exists."
+      },
+      "_path": "kb/core/1_8_004.yaml"
+    },
+    {
+      "issue_id": "1_9_001",
+      "sort_order": 7001,
+      "change": "macro arguments are validated against their declared signatures",
+      "action": "Set flags.validate_macro_args: false to keep validation off, or correct the macro argument declarations.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Macros whose calls do not match their documented arguments now warn or error at parse time. This flag defaults to True in 1.12, so leaving it unset silently adopts the new behavior.",
+      "from_version": "1.9",
+      "to_version": "1.10",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "validate_macro_args",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Applies only if the project has macros whose call sites disagree with their\n  declared arguments (the thing validation would now reject).\n- Check macros/ for documented `arguments:` in YAML that do not match the macro\n  signature, or calls passing unexpected/missing args.\n- The reliable check: run the parse gate; if it reports a macro-argument\n  validation error/warning, the behavior is exhibited.\n- Parse clean with the flag unset -> skipped-not-present.",
+        "fixing": "Pin the flag via `tools.py set-flag --issue-id 1_9_001`. No project code changes.\nPrefer pinning only when the parse gate actually flags a macro-argument problem."
+      },
+      "_path": "kb/core/1_9_001.yaml"
+    },
+    {
+      "issue_id": "1_9_002",
+      "sort_order": 7002,
+      "change": "every warning must be handled when warn_error / warn_error_options is set",
+      "action": "Set flags.require_all_warnings_handled_by_warn_error: false to keep the old partial handling.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Projects using warn_error_options can start failing on warnings that were previously not escalated. This flag defaults to True in 1.12, so leaving it unset silently adopts the new behavior.",
+      "from_version": "1.9",
+      "to_version": "1.10",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "require_all_warnings_handled_by_warn_error",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Applies only if the project sets `warn_error` or `warn_error_options`\n  (dbt_project.yml `flags:`, profiles.yml, or CI job commands in the repo).\n- Neither set -> the stricter handling changes nothing -> skipped-not-present.",
+        "fixing": "Pin the flag via `tools.py set-flag --issue-id 1_9_002`. No project code changes.\nOnly pin it when warn_error / warn_error_options is actually configured."
+      },
+      "_path": "kb/core/1_9_002.yaml"
+    },
+    {
+      "issue_id": "1_9_003",
+      "sort_order": 7003,
+      "change": "generic test arguments must be declared under an `arguments:` property",
+      "action": "Set flags.require_generic_test_arguments_property: false to keep accepting the old inline shape, or move test args under `arguments:`.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Generic tests passing args inline (not under `arguments:`) fail validation. This flag defaults to True in 1.12, so leaving it unset silently adopts the new behavior.",
+      "from_version": "1.9",
+      "to_version": "1.10",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "require_generic_test_arguments_property",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Applies only if generic tests pass arguments inline instead of under an\n  `arguments:` property.\n- Grep models/**/*.yml (and any tests/ YAML) for generic tests with sibling keys\n  next to the test name that are not `arguments:` (e.g. `accepted_values:` with\n  `values:` inline).\n- All generic test args already under `arguments:`, or no parameterized generic\n  tests -> skipped-not-present.",
+        "fixing": "Pin the flag via `tools.py set-flag --issue-id 1_9_003`. No project code changes.\nOnly pin it when inline generic-test arguments are present."
+      },
+      "_path": "kb/core/1_9_003.yaml"
+    },
+    {
+      "issue_id": "1_10_001",
+      "sort_order": 8001,
+      "change": "resource names must be unique within a project",
+      "action": "Set flags.require_unique_project_resource_names: false to keep allowing duplicates, or rename the colliding resources.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Projects with two resources sharing a name across paths start erroring at parse time. This flag still defaults to False in 1.12; pinning it makes that explicit and survives a future flip.",
+      "from_version": "1.10",
+      "to_version": "1.11",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "require_unique_project_resource_names",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Applies only if the project has DUPLICATE resource names within itself.\n- List model/seed/snapshot/test file stems and look for the same name declared\n  more than once across different paths.\n- All names unique -> skipped-not-present.",
+        "fixing": "Pin the flag via `tools.py set-flag --issue-id 1_10_001`. No project code changes.\nOnly pin it when an actual duplicate resource name exists."
+      },
+      "_path": "kb/core/1_10_001.yaml"
+    },
+    {
+      "issue_id": "1_10_002",
+      "sort_order": 8002,
+      "change": "ref() resolves against the node's own package before the root project",
+      "action": "Set flags.require_ref_searches_node_package_before_root: false to keep root-first resolution.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "In projects with packages that shadow root model names, ref() can resolve to a different node. This flag still defaults to False in 1.12; pinning it makes that explicit and survives a future flip.",
+      "from_version": "1.10",
+      "to_version": "1.11",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "require_ref_searches_node_package_before_root",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Applies only if an installed package defines a model name that ALSO exists in\n  the root project (the shadowing case where resolution order changes).\n- Check packages.yml/dependencies.yml for packages, then compare package model\n  names against root model names (dbt_packages/ if installed).\n- No packages, or no name collision -> skipped-not-present.",
+        "fixing": "Pin the flag via `tools.py set-flag --issue-id 1_10_002`. No project code changes.\nOnly pin it when a package/root model name collision exists."
+      },
+      "_path": "kb/core/1_10_002.yaml"
+    },
+    {
+      "issue_id": "1_11_001",
+      "sort_order": 9001,
+      "change": "generate_schema_name must return a valid, non-empty schema name",
+      "action": "Set flags.require_valid_schema_from_generate_schema_name: false to keep the lax behavior, or fix the macro.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "A generate_schema_name override returning None/empty now errors instead of silently falling back. This flag still defaults to False in 1.12; pinning it makes that explicit and survives a future flip.",
+      "from_version": "1.11",
+      "to_version": "1.12",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "require_valid_schema_from_generate_schema_name",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Applies only if the project overrides `generate_schema_name` (or\n  `generate_schema_name_for_env`) in macros/.\n- Inspect the override for a path that can return None/empty (e.g. a missing\n  `{% else %}` branch, or returning `custom_schema_name` unguarded).\n- No override, or the override always returns a non-empty schema ->\n  skipped-not-present.",
+        "fixing": "Pin the flag via `tools.py set-flag --issue-id 1_11_001`. No project code changes.\nOnly pin it when a generate_schema_name override can return empty."
+      },
+      "_path": "kb/core/1_11_001.yaml"
+    },
+    {
+      "issue_id": "1_11_002",
+      "sort_order": 9002,
+      "change": "sql_header must be declared in test configs to take effect",
+      "action": "Set flags.require_sql_header_in_test_configs: false to keep the old handling.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Tests relying on an implicitly inherited sql_header may lose it. This flag still defaults to False in 1.12; pinning it makes that explicit and survives a future flip.",
+      "from_version": "1.11",
+      "to_version": "1.12",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "require_sql_header_in_test_configs",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Applies only if tests rely on a `sql_header` they do not declare themselves\n  (i.e. inherited from a model/project-level config).\n- Grep for `sql_header` in dbt_project.yml, model configs, and test configs; the\n  issue is present when a test needs it but only a non-test config sets it.\n- No sql_header anywhere, or tests declare their own -> skipped-not-present.",
+        "fixing": "Pin the flag via `tools.py set-flag --issue-id 1_11_002`. No project code changes.\nOnly pin it when a test depends on an inherited sql_header."
+      },
+      "_path": "kb/core/1_11_002.yaml"
+    },
+    {
+      "issue_id": "1_11_003",
+      "sort_order": 9003,
+      "change": "analyses use corrected fully-qualified names",
+      "action": "Set flags.require_corrected_analysis_fqns: false to keep the previous FQNs.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Selection and documentation paths for analyses change, affecting --select on analyses. This flag still defaults to False in 1.12; pinning it makes that explicit and survives a future flip.",
+      "from_version": "1.11",
+      "to_version": "1.12",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "require_corrected_analysis_fqns",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Applies only if the project has an analyses/ directory with content AND\n  something selects analyses by FQN (selectors.yml or in-repo job commands).\n- Empty/absent analyses/ -> skipped-not-present.",
+        "fixing": "Pin the flag via `tools.py set-flag --issue-id 1_11_003`. No project code changes.\nOnly pin it when analyses exist and are selected by FQN."
+      },
+      "_path": "kb/core/1_11_003.yaml"
+    },
+    {
+      "issue_id": "1_11_004",
+      "sort_order": 9004,
+      "change": "source and semantic model names may not contain spaces",
+      "action": "Set flags.require_source_and_semantic_model_names_without_spaces: false to keep allowing spaces, or rename them.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Sources/semantic models with spaces in their names start erroring rather than warning. This flag still defaults to False in 1.12; pinning it makes that explicit and survives a future flip.",
+      "from_version": "1.11",
+      "to_version": "1.12",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "require_source_and_semantic_model_names_without_spaces",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Applies only if a SOURCE or SEMANTIC MODEL name contains a space.\n- Grep source/semantic model YAML for `- name:` values containing a space.\n  (Model names with spaces are a different, pre-1.8 issue \u2014 not this one.)\n- No spaces in source/semantic model names -> skipped-not-present.",
+        "fixing": "Pin the flag via `tools.py set-flag --issue-id 1_11_004`. No project code changes.\nOnly pin it when a source/semantic model name actually contains a space."
+      },
+      "_path": "kb/core/1_11_004.yaml"
+    },
+    {
+      "issue_id": "1_11_005",
+      "sort_order": 9005,
+      "change": "Jinja-suffixed file extensions (e.g. .sql.jinja) are recognized",
+      "action": "Leave flags.allow_jinja_file_extensions: false to keep the previous file discovery.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Enabling it changes which files dbt picks up as models; leaving it false preserves current discovery. This flag still defaults to False in 1.12; pinning it makes that explicit and survives a future flip.",
+      "from_version": "1.11",
+      "to_version": "1.12",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "allow_jinja_file_extensions",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- This flag ENABLES new file-extension discovery; it defaults to false, so the\n  project's current behavior is already the legacy one.\n- Only relevant if the project has files with a `.jinja`-style suffix it expects\n  dbt to pick up.\n- No such files -> skipped-not-present (pinning would be pure noise).",
+        "fixing": "Normally skipped-not-present: false is already the default and the legacy\nbehavior. Pin via `tools.py set-flag --issue-id 1_11_005` only if the project has\nJinja-suffixed files and you need to lock the current discovery behavior."
+      },
+      "_path": "kb/core/1_11_005.yaml"
+    },
+    {
+      "issue_id": "1_11_006",
+      "sort_order": 9006,
+      "change": "versioned models get a `latest` version pointer by default",
+      "action": "Leave flags.latest_version_pointer_enabled_by_default: false to keep explicit-only version pointers.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "For versioned models, ref() without a version can resolve differently. This flag still defaults to False in 1.12; pinning it makes that explicit and survives a future flip.",
+      "from_version": "1.11",
+      "to_version": "1.12",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "latest_version_pointer_enabled_by_default",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Applies only if the project uses MODEL VERSIONS (`versions:` in model YAML)\n  and has `ref()` calls to a versioned model without an explicit version.\n- No versioned models -> the pointer default cannot matter -> skipped-not-present.",
+        "fixing": "Pin the flag via `tools.py set-flag --issue-id 1_11_006`. No project code changes.\nOnly pin it when versioned models exist and are ref'd without a version."
+      },
+      "_path": "kb/core/1_11_006.yaml"
+    },
+    {
+      "issue_id": "1_11_007",
+      "sort_order": 9007,
+      "change": "v2 catalog integration replaces the previous catalog behavior (all adapters)",
+      "action": "Leave flags.use_catalogs_v2: false to keep the previous catalog behavior.",
+      "category": "Behavior",
+      "component": "core",
+      "adapter_type": null,
+      "impact": "Catalog/metadata resolution changes across adapters; leaving it false preserves current behavior. This flag still defaults to False in 1.12; pinning it makes that explicit and survives a future flip.",
+      "from_version": "1.11",
+      "to_version": "1.12",
+      "automation_type": "behavior_flag",
+      "behavior_flag": {
+        "name": "use_catalogs_v2",
+        "set_to": false
+      },
+      "out_of_repo_risk": false,
+      "environment_change": false,
+      "context": {
+        "detection": "- Applies only if the project defines catalog configuration (e.g. a `catalogs:`\n  block or catalog-related model configs) whose resolution v2 would change.\n- Defaults to false, so a project with no catalog config already has the legacy\n  behavior -> skipped-not-present (pinning would be pure noise).",
+        "fixing": "Normally skipped-not-present: false is already the default and the legacy\nbehavior. Pin via `tools.py set-flag --issue-id 1_11_007` only if the project has\ncatalog configuration whose behavior you need to lock."
+      },
+      "_path": "kb/core/1_11_007.yaml"
+    }
+  ]
+}

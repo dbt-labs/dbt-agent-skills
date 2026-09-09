@@ -132,7 +132,7 @@ models:
       - name: average_order_value
         type: simple
         label: Average Order Value
-        agg: avg
+        agg: average
         expr: amount
 ```
 

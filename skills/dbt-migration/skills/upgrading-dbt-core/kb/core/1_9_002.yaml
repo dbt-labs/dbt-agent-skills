@@ -1,0 +1,27 @@
+issue_id: "1_9_002"
+sort_order: 7002
+change: >-
+  every warning must be handled when warn_error / warn_error_options is set
+action: >-
+  Set flags.require_all_warnings_handled_by_warn_error: false to keep the old partial handling.
+category: Behavior
+component: core
+adapter_type: null
+impact: >-
+  Projects using warn_error_options can start failing on warnings that were previously not escalated. This flag defaults to True in 1.12, so leaving it unset silently adopts the new behavior.
+from_version: '1.9'
+to_version: '1.10'
+automation_type: behavior_flag
+behavior_flag:
+  name: require_all_warnings_handled_by_warn_error
+  set_to: false
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Applies only if the project sets `warn_error` or `warn_error_options`
+      (dbt_project.yml `flags:`, profiles.yml, or CI job commands in the repo).
+    - Neither set -> the stricter handling changes nothing -> skipped-not-present.
+  fixing: |-
+    Pin the flag via `tools.py set-flag --issue-id 1_9_002`. No project code changes.
+    Only pin it when warn_error / warn_error_options is actually configured.

@@ -7,13 +7,6 @@ updates:
       interval: "daily"
     rebase-strategy: "disabled"
 
-  # docker dependencies
-  - package-ecosystem: "docker"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    rebase-strategy: "disabled"
-
   # github dependencies
   - package-ecosystem: "github-actions"
     directory: "/"

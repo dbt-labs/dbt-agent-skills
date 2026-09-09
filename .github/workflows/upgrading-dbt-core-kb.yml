@@ -1,0 +1,93 @@
+name: upgrading-dbt-core KB
+
+# The upgrading-dbt-core skill reads pre-compiled reference bundles
+# (references/kb_<version>_<warehouse>.json) rather than running `collect` at
+# migration time. The bundles are a pure function of kb/ + tools.py and are
+# committed, so this job regenerates them on every PR that could invalidate them
+# and pushes the result back to the PR branch.
+#
+# Why this cannot loop:
+#   1. Pushes made with the default GITHUB_TOKEN do not trigger workflow runs.
+#      GitHub suppresses that specifically to prevent recursion, so the commit
+#      below starts no second run. (This changes if the token is ever swapped
+#      for a PAT or GitHub App token.)
+#   2. Even if it did re-trigger, collect-all is deterministic and writes no
+#      timestamps, so the next run regenerates identical bytes, finds nothing to
+#      commit, and pushes nothing. The loop has a fixed point at one iteration.
+# No actor/message guard is needed, and adding one would obscure the above.
+
+permissions:
+  contents: write
+
+on:
+  pull_request:
+    paths:
+      - "skills/dbt-migration/skills/upgrading-dbt-core/kb/**"
+      - "skills/dbt-migration/skills/upgrading-dbt-core/references/**"
+      - "skills/dbt-migration/skills/upgrading-dbt-core/scripts/**"
+      - ".github/workflows/upgrading-dbt-core-kb.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bundles:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: skills/dbt-migration/skills/upgrading-dbt-core
+    env:
+      HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      # A fork PR gets a read-only GITHUB_TOKEN and no push access to the fork,
+      # so it takes the verify-only path below. Using pull_request_target to get
+      # a writable token instead would execute the PR's own tools.py with write
+      # scope on a public repo — don't.
+      CAN_PUSH: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
+        with:
+          # The PR branch itself, not the ephemeral merge commit, so there is
+          # something to push back to.
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install pyyaml jsonschema
+
+      - name: Validate the kb corpus
+        run: python scripts/validate.py
+
+      - name: Regenerate reference bundles
+        run: python scripts/tools.py collect-all --prune
+
+      - name: Commit regenerated bundles
+        if: env.CAN_PUSH == 'true'
+        run: |
+          # --porcelain, not `git diff`: a brand-new bundle (new adapter dir or
+          # new from_version in kb/) is untracked, and git diff would miss it.
+          if [ -z "$(git status --porcelain -- references)" ]; then
+            echo "references/ already in sync with kb/ — nothing to commit"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add references
+          git commit -m "chore: regenerate upgrading-dbt-core reference bundles"
+          # Retry on a race with a contributor pushing to the same branch
+          # mid-run; the rebase replays our commit on top of theirs.
+          for attempt in 1 2 3; do
+            if git push origin "HEAD:$HEAD_REF"; then
+              echo "pushed regenerated bundles to $HEAD_REF"
+              exit 0
+            fi
+            echo "push rejected (attempt $attempt), rebasing on $HEAD_REF"
+            git pull --rebase origin "$HEAD_REF" || exit 1
+          done
+          echo "::error::could not push regenerated bundles to $HEAD_REF after 3 attempts"
+          exit 1

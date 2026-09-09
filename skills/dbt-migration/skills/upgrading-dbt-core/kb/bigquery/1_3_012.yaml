@@ -1,0 +1,27 @@
+issue_id: "1_3_012"
+sort_order: 1120
+change: >-
+  current_timestamp macro dispatch migrated from dbt-utils to dbt-core
+action: >-
+  Replace dbt_utils.current_timestamp() calls with dbt.current_timestamp()
+category: Behavior
+component: adapter
+adapter_type: bigquery
+impact: >-
+  Projects calling dbt_utils.current_timestamp() should migrate to the built-in
+  dbt.current_timestamp()
+from_version: '1.3'
+to_version: '1.4'
+automation_type: deterministic
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Grep models/ and macros/ for `dbt_utils.current_timestamp(` (and dispatched variants).
+    - The macro moved into dbt-core, so the dbt_utils-namespaced call is deprecated.
+  fixing: |-
+    - Handled by `dbt-autofix deprecations`.
+    - After autofix runs, review the diff for `dbt_utils.current_timestamp()` ->
+      `dbt.current_timestamp()` rewrites and confirm they were applied.
+    - Manual fallback: rewrite any call autofix missed yourself.
+    - Not parse-detectable; verify the diff rather than relying on parse.

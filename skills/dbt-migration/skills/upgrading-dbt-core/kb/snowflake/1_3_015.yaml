@@ -1,0 +1,24 @@
+issue_id: "1_3_015"
+sort_order: 1150
+change: >-
+  Incremental predicates dict key renamed from predicates to incremental_predicates (Snowflake)
+action: >-
+  Update custom macros overriding snowflake__get_merge_sql to use incremental_predicates
+category: Behavior
+component: adapter
+adapter_type: snowflake
+impact: >-
+  Custom macros overriding snowflake__get_merge_sql using the old 'predicates' key break
+from_version: '1.3'
+to_version: '1.4'
+automation_type: deterministic
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Grep macros/ for overrides of `snowflake__get_merge_sql` or references to the `predicates`
+      merge key in Snowflake-specific macros.
+  fixing: |-
+    - Handled by `dbt-autofix deprecations` where applicable.
+    - Review the diff for `predicates` -> `incremental_predicates`.
+    - Manual fallback: rename in any custom Snowflake merge macro autofix missed.

@@ -1,0 +1,39 @@
+issue_id: "1_6_003"
+sort_order: 4030
+change: New warning for contracted models with bare numeric columns (no precision/scale)
+action: >-
+  Add explicit precision and scale to numeric column data_types in enforced contracts (e.g.
+  numeric(38,3))
+category: Behavior
+component: core
+adapter_type: null
+impact: >-
+  Models with 'data_type: numeric' (or 'decimal') and no precision/scale in an enforced contract now
+  emit a warning at parse time in 1.7
+from_version: '1.6'
+to_version: '1.7'
+automation_type: human
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - In schema YAML (`models/**/*.yml`, `models/**/*.yaml`), find models with `contract:`
+      `enforced: true` and columns whose `data_type` is a bare numeric type with no precision/scale.
+    - Match the data_type value (case-insensitive) against `^(numeric|decimal|number)$` (no parentheses).
+    - Types that already include `(p,s)` like `numeric(38,3)` are fine and must be left alone.
+    - Only columns inside enforced-contract models trigger the warning; bare numeric on non-contracted
+      models is not affected.
+  fixing: |-
+    - For each flagged column, replace the bare type with an explicit precision/scale, e.g.
+      `data_type: numeric` -> `data_type: numeric(38,3)`.
+    - Choose precision/scale from evidence in this order:
+    - (1) an existing cast in the model SQL (e.g. `cast(x as numeric(18,2))`) — match it;
+    - (2) the warehouse's documented default for unqualified numeric if the model is already built
+      (Snowflake NUMBER default is (38,0); Redshift/Postgres NUMERIC default is (38,0));
+    - (3) if unknown, use a safe wide default `numeric(38,6)` and note the assumption in the results
+      report.
+    - Preserve YAML quoting/style.
+    - After editing, run `dbt parse`; if it fails, the likely cause is a mismatched type name for the
+      adapter (e.g. Snowflake prefers `number(38,3)`) — retry with the adapter-native spelling.
+    - If the correct precision genuinely cannot be determined, leave the column and record it in the
+      results artifact (target/dbt_migration_results.json) as manual-required for the user to confirm.

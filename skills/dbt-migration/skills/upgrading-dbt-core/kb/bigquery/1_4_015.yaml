@@ -1,0 +1,34 @@
+issue_id: "1_4_015"
+sort_order: 2150
+change: >-
+  insert_overwrite partition collection now adds IGNORE NULLS
+action: >-
+  Review incremental models with insert_overwrite that may have NULL partition values
+category: Behavior
+component: adapter
+adapter_type: bigquery
+impact: >-
+  Rows whose partition column is NULL no longer trigger partition overwrites under insert_overwrite
+from_version: '1.4'
+to_version: '1.5'
+automation_type: human
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Find BigQuery incremental models using insert_overwrite with dynamic partitions: models/**/*.sql
+      with `materialized='incremental'` (or YAML config) AND `incremental_strategy='insert_overwrite'` AND
+      a `partition_by=` config, where `partitions` is not statically supplied.
+    - The behavior change matters only if the partitioning column can be NULL for some rows.
+    - Grep model SQL for the partition column and assess whether NULLs are possible (no NOT NULL
+      guarantee, nullable source).
+  fixing: |-
+    - Usually NO code change is required — this is a correctness improvement (NULL-partition rows
+      previously overwrote partitions unexpectedly).
+    - Action is to REVIEW: if a model legitimately relies on a NULL/`__NULL__` partition being
+      overwritten, coalesce the partition column to a sentinel non-NULL value before partitioning, or
+      handle those rows explicitly.
+    - Invisible to dbt parse and not warehouse-verifiable here.
+    - For any model where NULL partition rows are plausible and behavior could change, record a results
+      entry naming the model and column so the user can confirm against real data; otherwise mark
+      skipped-not-present.

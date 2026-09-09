@@ -1,0 +1,34 @@
+issue_id: "1_4_002"
+sort_order: 2020
+change: >-
+  Duplicate CLI flags before and after the subcommand now raise an error
+action: >-
+  Ensure each CLI flag appears only once per dbt invocation
+category: Breaking
+component: core
+adapter_type: null
+impact: >-
+  Commands like `dbt --flag run --flag` now fail instead of silently taking one value
+from_version: '1.4'
+to_version: '1.5'
+automation_type: deterministic
+out_of_repo_risk: true
+environment_change: false
+context:
+  detection: |-
+    - Scan in-repo dbt invocation sites (shell scripts, Makefiles, CI YAML, tox.ini, wrapper scripts) for
+      a single dbt command repeating the same flag, especially placed both before and after the
+      subcommand.
+    - Examples: `dbt --debug run --debug`, or a repeated `--profiles-dir` / `--target` / `--vars`.
+    - Likeliest offenders: global flags (--debug, --profiles-dir, --project-dir, --target, --log-format)
+      appearing twice.
+    - As with selection flags, the primary risk is in dbt platform job commands outside the repo.
+  fixing: |-
+    - Remove the duplicate occurrence, keeping the one with the intended value (pre-1.5 resolved to a
+      single value, so pick that).
+    - Example: `dbt --target prod run --target prod` -> `dbt run --target prod`.
+    - If two occurrences carry DIFFERENT values it was already ambiguous — keep the value the user
+      confirms and record the resolution in the migration log.
+    - Not visible to dbt parse.
+    - Add a results entry (manual-required) directing the user to audit external job/orchestration
+      commands for duplicated flags, since those now hard-error.

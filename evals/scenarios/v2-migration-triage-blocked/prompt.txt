@@ -1,0 +1,1 @@
+I keep getting this v2 error when I compile. Is this a known issue? Can you check if there's a GitHub issue for it? The error output is in dbt_compile_output.txt.

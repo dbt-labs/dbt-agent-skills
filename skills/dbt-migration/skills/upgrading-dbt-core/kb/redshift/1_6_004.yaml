@@ -1,0 +1,37 @@
+issue_id: "1_6_004"
+sort_order: 4040
+change: >-
+  merge_exclude_columns bug fix: excluded columns now correctly inserted in WHEN NOT MATCHED
+action: >-
+  Review incremental models using merge_exclude_columns; excluded columns are now populated on
+  new-row inserts
+category: Behavior
+component: adapter
+adapter_type: redshift
+impact: >-
+  Incremental merge with merge_exclude_columns now inserts ALL columns for new rows (previously
+  excluded columns were omitted on INSERT); resulting table data changes
+from_version: '1.6'
+to_version: '1.7'
+automation_type: human
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Grep model config for `merge_exclude_columns` in `models/**/*.sql` config() blocks (e.g.
+      `config(materialized='incremental', ... merge_exclude_columns=[...])`) and in schema YAML
+      `config:` blocks.
+    - Only relevant when `materialized='incremental'` with the default `merge` strategy on the Redshift
+      adapter.
+    - This is a behavior/warehouse change invisible to `dbt parse`; nothing makes parse fail.
+  fixing: |-
+    - No source edit is required to reach 1.8 or pass parse — the fix was in the adapter. The migration
+      action is to flag semantics.
+    - For each model using merge_exclude_columns, new rows (WHEN NOT MATCHED) will now have the
+      previously-excluded columns inserted with their source values instead of being left null/default.
+    - If the user intentionally relied on those columns being unset on insert, that assumption breaks.
+    - Record each occurrence in the results artifact (target/dbt_migration_results.json) as
+      manual-required with the issue_id, the model path, the merge_exclude_columns list, and a note to
+      verify the new insert behavior is acceptable.
+    - Real validation happens in the warehouse build-green test layer, not here.
+    - Do not modify the model unless the user confirms a semantic change is needed.

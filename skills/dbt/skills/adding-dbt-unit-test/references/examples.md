@@ -167,7 +167,7 @@ unit_tests:
         format: sql
         rows: |
           select 1 as id, 'gerda' as name, null as loaded_at union all
-          select 2 as id, 'michelle', null as loaded_at as name
+          select 2 as id, 'michelle' as name, null as loaded_at
 
 ```
 

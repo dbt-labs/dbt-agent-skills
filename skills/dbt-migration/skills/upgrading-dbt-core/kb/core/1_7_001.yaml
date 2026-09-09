@@ -1,0 +1,34 @@
+issue_id: "1_7_001"
+sort_order: 5010
+change: >-
+  --dry-run flag removed from dbt deps --add-package; use dbt deps --lock instead
+action: >-
+  Replace `dbt deps --add-package ... --dry-run` invocations with `dbt deps --lock`
+category: Breaking
+component: core
+adapter_type: null
+impact: >-
+  Commands using `dbt deps --add-package <pkg> --dry-run` will error in 1.8 (unknown option
+  --dry-run)
+from_version: '1.7'
+to_version: '1.8'
+automation_type: agentic
+out_of_repo_risk: true
+environment_change: false
+context:
+  detection: |-
+    - Grep the repo for `--dry-run` alongside `dbt deps`. Pattern: `dbt\s+deps[^\n]*--dry-run`
+      and `--add-package[^\n]*--dry-run`.
+    - Most common locations: shell scripts, Makefiles, CI YAML (.github/workflows/*.yml,
+      .gitlab-ci.yml, azure-pipelines.yml), Dockerfiles, tox.ini, pre-commit configs, docs/READMEs.
+    - PRIMARY RISK IS OUT OF REPO: the same command may live in dbt platform job definitions,
+      orchestration tools (Airflow/Dagster/cron), or a developer's shell history — not scannable
+      from the repo.
+  fixing: |-
+    - For every in-repo occurrence, rewrite `dbt deps --add-package <pkg>@<ver> --dry-run` to
+      `dbt deps --lock` (resolves and writes package-lock.yml without installing).
+    - If the intent was only to preview resolution, `dbt deps --lock` is the direct replacement.
+    - `dbt deps` does not affect `dbt parse`, so no parse retry loop applies here.
+    - ALWAYS add a manual-actions entry: issue_id, the fact that `--dry-run` on
+      `dbt deps --add-package` now errors, and the instruction to audit all scheduled/CI job
+      commands for `dbt deps ... --dry-run` and switch them to `dbt deps --lock`.

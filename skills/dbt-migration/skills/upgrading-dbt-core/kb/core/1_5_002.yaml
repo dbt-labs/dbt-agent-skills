@@ -1,0 +1,37 @@
+issue_id: "1_5_002"
+sort_order: 3020
+change: Duplicate node names allowed across packages
+action: >-
+  Disambiguate cross-package references with two-argument ref('package_name', 'model_name')
+category: Behavior
+component: core
+adapter_type: null
+impact: >-
+  In 1.5 a flat manifest dict raised DuplicateResourceNameError; in 1.6 names are stored per-package,
+  so a project and an installed package can legitimately share a model name. Single-argument ref() to
+  a name that exists in more than one package becomes ambiguous (AmbiguousAliasError / wrong node).
+from_version: '1.5'
+to_version: '1.6'
+automation_type: human
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Only relevant if packages.yml / dependencies.yml declares packages.
+    - Build the set of model/seed/snapshot names defined in the local project (models/**/*.sql,
+      seeds/**/*.csv, snapshots/**/*.sql).
+    - Where available, add the names exposed by installed packages under dbt_packages/*/models.
+    - Grep all .sql/.yml for single-argument `ref('name')` / `ref("name")` whose `name` collides
+      with a name present in BOTH the local project and a package (or in two packages) — those are
+      the ambiguous refs.
+    - If no packages are installed, mark skipped-not-present.
+  fixing: |-
+    - For each ambiguous single-arg ref, rewrite to the two-argument form
+      `ref('<package_name>', '<model_name>')`.
+    - Choose the package the author intended; default to the local project's own model unless the
+      surrounding SQL clearly consumes the package's version.
+    - Example: `ref('customers')` -> `ref('my_project', 'customers')` or
+      `ref('dbt_utils', 'customers')`. Leave unambiguous refs untouched.
+    - After edits run `dbt parse`; a remaining AmbiguousAliasError names the offending ref and node.
+    - If you cannot determine which package is intended, record it in the results report
+      rather than guessing — picking the wrong package silently changes lineage.

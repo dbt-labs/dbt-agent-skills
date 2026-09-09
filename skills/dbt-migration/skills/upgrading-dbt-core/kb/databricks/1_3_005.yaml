@@ -1,0 +1,35 @@
+issue_id: "1_3_005"
+sort_order: 1050
+change: >-
+  Identifiers now quoted by default with backticks
+action: >-
+  Review custom macros that assume unquoted identifiers; override via quoting: config only if needed
+category: Behavior
+component: adapter
+adapter_type: databricks
+impact: >-
+  All generated SQL now uses backtick-quoted identifiers (DatabricksQuotePolicy all True), which
+  makes identifiers case/character sensitive and can break string-matching custom macros
+from_version: '1.3'
+to_version: '1.4'
+automation_type: human
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Scan macros/**/*.sql for logic that builds or matches relation/identifier names as raw
+      strings and would break when names arrive backtick-quoted:
+      - string comparisons against relation.identifier/schema/database;
+      - manual construction of `` `db`.`schema`.`table` `` names;
+      - regex/replace on relation names, or information_schema lookups matching unquoted names.
+    - Check for a quoting: config in dbt_project.yml (database/schema/identifier) that may now
+      double-handle quoting.
+    - Most standard projects using ref()/source() and Relation objects need NO change.
+  fixing: |-
+    - Prefer NOT changing anything: the new backtick default is correct for Databricks.
+    - Only act when a custom macro compares or constructs identifier strings — update it to use
+      Relation methods (relation.render(), .include(), adapter.quote()) instead of raw strings.
+    - Escape hatch: a `quoting: {identifier: false}` block in dbt_project.yml can restore unquoted
+      behavior, but recommend only if a fix is impractical, and flag it in the results report.
+    - Behavior is invisible to dbt parse; run parse only to confirm macro edits compile — real
+      validation is the warehouse build layer.

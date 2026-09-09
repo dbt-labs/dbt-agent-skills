@@ -1,0 +1,27 @@
+issue_id: "1_3_014"
+sort_order: 1140
+change: >-
+  Merge SQL predicates wrapped in parens; predicates kwarg renamed to incremental_predicates
+action: >-
+  Update custom incremental strategy macros using arg_dict['predicates'] to incremental_predicates
+category: Behavior
+component: core
+adapter_type: null
+impact: >-
+  Custom strategy macros reading arg_dict['predicates'] break; generated merge SQL wraps
+  predicates in parens
+from_version: '1.3'
+to_version: '1.4'
+automation_type: deterministic
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Grep macros/ for custom incremental/merge macros referencing `predicates`
+      (e.g. `arg_dict['predicates']`, `config.get('predicates')`).
+  fixing: |-
+    - Handled by `dbt-autofix deprecations` where applicable (rename `predicates` ->
+      `incremental_predicates`).
+    - Review the diff.
+    - Manual fallback: rename the kwarg in any custom macro autofix did not touch.
+    - Behavior/warehouse effect (paren-wrapping) is validated in the build-green layer, not parse.

@@ -1,0 +1,30 @@
+issue_id: "1_8_002"
+sort_order: 6002
+change: >-
+  state:modified compares more unrendered config values, changing which nodes are selected
+action: >-
+  Set flags.state_modified_compare_more_unrendered_values: false to keep the old comparison.
+category: Behavior
+component: core
+adapter_type: null
+impact: >-
+  Slim CI / state:modified selection can pick a different node set, changing what gets built. This flag defaults to True in 1.12, so leaving it unset silently adopts the new behavior.
+from_version: '1.8'
+to_version: '1.9'
+automation_type: behavior_flag
+behavior_flag:
+  name: state_modified_compare_more_unrendered_values
+  set_to: false
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Applies only if the project relies on `state:modified` selection.
+    - Look for state comparison in-repo: a `selectors.yml` using `state:modified`,
+      or CI config / job commands in the repo passing `--select state:modified`.
+    - If nothing in the repo uses state:modified, this cannot be confirmed from the
+      repo alone -> skipped-not-present, and mention it in the report so the user can
+      decide (their CI may use it out of repo).
+  fixing: |-
+    Pin the flag via `tools.py set-flag --issue-id 1_8_002`. No project code changes.
+    Only pin it when the repo shows state:modified usage.

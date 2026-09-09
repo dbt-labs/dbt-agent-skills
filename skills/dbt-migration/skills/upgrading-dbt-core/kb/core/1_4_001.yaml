@@ -1,0 +1,37 @@
+issue_id: "1_4_001"
+sort_order: 2010
+change: >-
+  --select/--exclude now accumulate when passed multiple times (argparse -> Click)
+action: >-
+  Review scripts/jobs passing --select or --exclude more than once; collapse to a single flag with the
+  intended union
+category: Breaking
+component: core
+adapter_type: null
+impact: >-
+  Scripts relying on last-wins override now see both selections combined, selecting more nodes than intended
+from_version: '1.4'
+to_version: '1.5'
+automation_type: deterministic
+out_of_repo_risk: true
+environment_change: false
+context:
+  detection: |-
+    - Grep in-repo invocation sites for repeated selection flags on a single command: shell scripts
+      (*.sh), Makefiles, CI YAML (.github/**, .gitlab-ci.yml, azure-pipelines.yml), tox.ini, and dbt
+      wrapper scripts.
+    - Pattern: one dbt command containing two or more `--select`/`-s` or `--exclude` tokens (regex
+      `(--select|--exclude|-s)\b.*\b(--select|--exclude|-s)\b`).
+    - The real risk lives OUTSIDE the repo in dbt platform job definitions, so in-repo presence may be
+      zero even when the project is affected.
+  fixing: |-
+    - For each in-repo command with duplicated selection flags, decide intent: pre-1.5 was last-wins (only
+      the final flag applied); 1.5+ is union (all applied).
+    - If the old intent was 'use only the last selection', delete the earlier occurrences. If a union was
+      intended, it already works — leave it.
+    - Example: `dbt run --select tag:nightly --select my_model` (1.4 ran only my_model) -> `dbt run
+      --select my_model`.
+    - Not visible to dbt parse.
+    - ALWAYS add a results entry (manual-required): dbt platform job commands and orchestration outside
+      this repo may pass the flags multiple times; list the affected in-repo sites and tell the user to
+      audit job definitions.

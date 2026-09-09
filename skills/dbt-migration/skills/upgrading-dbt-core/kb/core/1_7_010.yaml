@@ -1,0 +1,27 @@
+issue_id: "1_7_010"
+sort_order: 5100
+change: >-
+  dbt source freshness now runs on-run-start / on-run-end hooks
+action: >-
+  Set source_freshness_run_project_hooks to False if project hooks should not run during freshness
+  checks
+category: Behavior
+component: core
+adapter_type: null
+impact: >-
+  on-run-start/on-run-end hooks now execute during `dbt source freshness` (previously skipped)
+from_version: '1.7'
+to_version: '1.8'
+automation_type: deterministic
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Check dbt_project.yml for on-run-start/on-run-end hooks.
+    - Check whether source_freshness_run_project_hooks is set under `flags:`.
+  fixing: |-
+    - Handled by `dbt-autofix deprecations` (sets source_freshness_run_project_hooks explicitly).
+      Review the diff.
+    - Manual fallback: add `source_freshness_run_project_hooks: false` under `flags:` if hooks should
+      NOT run during freshness (e.g. they mutate the warehouse).
+    - Behavior change; validate hook side-effects in the build-green layer.

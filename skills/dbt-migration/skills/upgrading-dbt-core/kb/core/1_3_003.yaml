@@ -1,0 +1,36 @@
+issue_id: "1_3_003"
+sort_order: 1030
+change: >-
+  pre_hook / post_hook (underscore form) now properly late-rendered
+action: >-
+  Verify hook behavior if using underscore-form hooks that contain Jinja evaluated at parse time
+category: Behavior
+component: core
+adapter_type: null
+impact: >-
+  Hooks written with the underscore form (pre_hook/post_hook) that contain Jinja now render at
+  runtime instead of parse time, matching the hyphen form; values resolved at parse time may differ
+from_version: '1.3'
+to_version: '1.4'
+automation_type: human
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Search the underscore spellings pre_hook and post_hook (NOT pre-hook/post-hook) across
+      models/**/*.sql config() blocks, models/**/*.yml, and dbt_project.yml.
+    - Regex: `(pre_hook|post_hook)\s*[:=]`.
+    - Of those, flag hooks whose value contains Jinja ({{ ... }} or {% ... %}) whose result depends
+      on parse-vs-runtime timing: {{ this }}, {{ run_started_at }}, runtime var()/env_var(), or the
+      result of a statement/run_query.
+    - Static string hooks are unaffected.
+  fixing: |-
+    - Advisory/verification change — late rendering generally makes underscore hooks behave
+      correctly, so most projects need no edit.
+    - Only intervene if a hook relied on the old parse-time rendering (rare).
+    - Where behavior matters, note it in the results report and suggest confirming the hook still
+      produces the intended SQL at runtime.
+    - Optionally normalize underscore hooks to the canonical hyphen form (pre-hook/post-hook) for
+      clarity, but this is cosmetic.
+    - Run dbt parse after any edit; if a config() edit breaks parse, revert to the original key
+      spelling.

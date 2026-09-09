@@ -1,0 +1,27 @@
+issue_id: "1_8_001"
+sort_order: 6001
+change: >-
+  on-run-start hook failure now skips all downstream nodes instead of continuing
+action: >-
+  Set flags.skip_nodes_if_on_run_start_fails: false to keep the old behavior, or make on-run-start hooks reliable.
+category: Behavior
+component: core
+adapter_type: null
+impact: >-
+  A failing on-run-start hook aborts the whole run's nodes rather than letting them execute. This flag defaults to True in 1.12, so leaving it unset silently adopts the new behavior.
+from_version: '1.8'
+to_version: '1.9'
+automation_type: behavior_flag
+behavior_flag:
+  name: skip_nodes_if_on_run_start_fails
+  set_to: false
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Applies only if the project defines `on-run-start` hooks.
+    - Check dbt_project.yml for a non-empty `on-run-start:` list.
+    - No on-run-start hooks -> the gated behavior cannot occur -> skipped-not-present.
+  fixing: |-
+    Pin the flag via `tools.py set-flag --issue-id 1_8_001`. No project code changes.
+    Only pin it when on-run-start hooks exist.

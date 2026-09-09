@@ -1,7 +1,9 @@
 sets:
   - name: no-skills
+    model: sonnet
     skills: []
 
   - name: dbt-docs-baseline
+    model: sonnet
     skills:
       - skills/dbt/skills/fetching-dbt-docs

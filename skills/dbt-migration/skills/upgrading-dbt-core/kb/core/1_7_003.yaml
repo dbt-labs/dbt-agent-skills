@@ -1,0 +1,53 @@
+issue_id: "1_7_003"
+sort_order: 5030
+change: >-
+  Spaces in resource names produce deprecation warning (SpacesInResourceNameDeprecation)
+action: >-
+  Rename resources to remove spaces and rewrite all ref()/source() calls that reference them
+category: Deprecated
+component: core
+adapter_type: null
+impact: >-
+  SpacesInResourceNameDeprecation is raised at parse time in 1.8 for any
+  model/seed/snapshot/source/test/exposure/metric whose name contains a space; treated as an error
+  under --warn-error and slated for removal
+from_version: '1.7'
+to_version: '1.8'
+automation_type: agentic
+out_of_repo_risk: true
+environment_change: false
+context:
+  detection: |-
+    - Two sources of resource names to scan.
+    - FILE NAMES: any `models/**/*.sql`, `models/**/*.py`, `seeds/**/*.csv`, `snapshots/**/*.sql`,
+      `analyses/**/*.sql`, or `macros/**/*.sql` whose filename stem contains a space — the
+      model/seed/snapshot name defaults to the filename. Glob for basenames matching `* *`.
+    - EXPLICIT NAMES in YAML: in models/**/*.yml and *.yaml, any `name:` value under models:,
+      seeds:, snapshots:, sources: (both the source `name:` and each table `name:`), exposures:,
+      metrics:, and named singular/data tests. Regex: `^\s*name:\s+.*\S \S`.
+    - `alias:` need NOT change (aliases may contain spaces if quoted) — the deprecation targets the
+      resource NAME.
+    - Build a map of {old_name -> new_name} for every offending resource before editing anything.
+  fixing: |-
+    - For each offending resource, choose a new name by replacing spaces with underscores
+      (e.g. `customer orders` -> `customer_orders`), keeping it unique. Then apply ALL of:
+    - (a) Rename the file if the name came from the filename:
+        git mv 'models/customer orders.sql' models/customer_orders.sql
+    - (b) Update the `name:` (and matching properties block) in YAML.
+    - (c) Rewrite EVERY reference across the repo — `ref('customer orders')` ->
+      `ref('customer_orders')`, and for source tables `source('src', 'my table')` ->
+      `source('src', 'my_table')` — covering single- and double-quote forms in .sql/.py models and
+      in `--select`/YAML selectors inside the repo.
+    - Example before: `select * from {{ ref('customer orders') }}`
+    - Example after:  `select * from {{ ref('customer_orders') }}`
+    - You MUST rewrite refs in the same pass as the rename, or `dbt parse` fails with an unresolved
+      ref.
+    - After edits run `dbt parse`; if it fails with 'depends on a node named X which was not found',
+      a ref still points at the old name — grep the repo for the old name and fix the stragglers.
+    - OUT-OF-REPO RISK: names are also referenced by dbt platform job `--select` clauses,
+      `selectors.yml` consumed by CI, BI tools, and dbt Mesh cross-project refs
+      (`ref('project', 'name')`). These cannot be rewritten from this repo.
+    - For every renamed resource, add a manual-actions entry listing old_name -> new_name and
+      telling the user to update job selectors, downstream mesh refs, and BI tool references.
+    - If a name cannot be safely changed because too many external consumers depend on it, leave it
+      and record a manual-required entry instead.

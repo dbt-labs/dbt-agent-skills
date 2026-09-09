@@ -1,0 +1,31 @@
+issue_id: "1_4_003"
+sort_order: 2030
+change: >-
+  log-path in dbt_project.yml deprecated
+action: >-
+  Move log-path out of dbt_project.yml to the --log-path CLI flag or DBT_LOG_PATH env var
+category: Deprecated
+component: core
+adapter_type: null
+impact: >-
+  Deprecation warning at parse time; becomes fatal under --warn-error
+from_version: '1.4'
+to_version: '1.5'
+automation_type: human
+out_of_repo_risk: true
+environment_change: false
+context:
+  detection: |-
+    - Read dbt_project.yml for a top-level `log-path:` key (regex `^\s*log-path\s*:`). Present if the key
+      exists with any value.
+    - Only one location to check.
+  fixing: |-
+    - Remove the `log-path:` key from dbt_project.yml.
+    - Re-provision out-of-repo: either the `--log-path <dir>` CLI flag on dbt invocations or the
+      `DBT_LOG_PATH` env var.
+    - Because the effective destination now lives in job commands / env config outside this repo, add a
+      results entry recording the old value and telling the user to set --log-path/DBT_LOG_PATH wherever
+      dbt is invoked (CI, dbt platform jobs).
+    - After removing the key, run dbt parse; the deprecation warning should be gone.
+    - If parse still warns, confirm no other config file (a profiles-level or imported yml) re-declares
+      log-path.

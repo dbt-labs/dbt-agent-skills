@@ -4,7 +4,7 @@ headerPath: header.tpl.md
 changelogPath: CHANGELOG.md
 versionExt: md
 envPrefix: CHANGIE_
-versionFormat: '## dbt-oss-template {{.Version}} - {{.Time.Format "January 02, 2006"}}'
+versionFormat: '## dbt-agent-skills {{.Version}} - {{.Time.Format "January 02, 2006"}}'
 kindFormat: '### {{.Kind}}'
 changeFormat: '* {{.Body}}'
 kinds:

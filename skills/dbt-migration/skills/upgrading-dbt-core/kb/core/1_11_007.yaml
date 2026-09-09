@@ -1,0 +1,29 @@
+issue_id: "1_11_007"
+sort_order: 9007
+change: >-
+  v2 catalog integration replaces the previous catalog behavior (all adapters)
+action: >-
+  Leave flags.use_catalogs_v2: false to keep the previous catalog behavior.
+category: Behavior
+component: core
+adapter_type: null
+impact: >-
+  Catalog/metadata resolution changes across adapters; leaving it false preserves current behavior. This flag still defaults to False in 1.12; pinning it makes that explicit and survives a future flip.
+from_version: '1.11'
+to_version: '1.12'
+automation_type: behavior_flag
+behavior_flag:
+  name: use_catalogs_v2
+  set_to: false
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Applies only if the project defines catalog configuration (e.g. a `catalogs:`
+      block or catalog-related model configs) whose resolution v2 would change.
+    - Defaults to false, so a project with no catalog config already has the legacy
+      behavior -> skipped-not-present (pinning would be pure noise).
+  fixing: |-
+    Normally skipped-not-present: false is already the default and the legacy
+    behavior. Pin via `tools.py set-flag --issue-id 1_11_007` only if the project has
+    catalog configuration whose behavior you need to lock.

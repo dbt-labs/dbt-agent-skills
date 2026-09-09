@@ -1,0 +1,34 @@
+issue_id: "1_3_011"
+sort_order: 1110
+change: >-
+  LDAP/thrift password now correctly passed to the Spark server
+action: >-
+  Verify LDAP/thrift connections that previously failed silently
+category: Behavior
+component: adapter
+adapter_type: spark
+impact: >-
+  Users with LDAP auth whose password was previously dropped (silent auth failure) may now
+  authenticate successfully; behavior of the connection changes
+from_version: '1.3'
+to_version: '1.4'
+automation_type: human
+out_of_repo_risk: true
+environment_change: false
+context:
+  detection: |-
+    - Connection/profiles concern with no in-repo model footprint.
+    - Inspect profiles.yml spark output(s) for method: thrift (or LDAP-style auth) with a
+      user/password.
+    - Previously the password field was not forwarded; in 1.4 it is.
+    - If the project does not use thrift/LDAP auth (e.g. http/odbc/session), mark
+      skipped-not-present.
+  fixing: |-
+    - ADVISORY ONLY: do not modify credentials or attempt to connect.
+    - Correctness improvement: recommend the user verify thrift/LDAP connections still behave as
+      expected now that the password is actually sent (a connection that previously 'worked' by
+      ignoring a wrong password will now fail correctly).
+    - Record the verification step in the results report with the target name (status
+      manual-required).
+    - Not verifiable by dbt parse and touches connection config outside the repo; no repo files are
+      changed.

@@ -1,5 +1,6 @@
 sets:
   - name: no-skills-but-tools
+    model: sonnet
     skills: []
     allowed_tools:
         - Read
@@ -9,6 +10,7 @@ sets:
         - Bash(dbt:*)
 
   - name: no-skills-just-edit-tool
+    model: sonnet
     skills: []
     allowed_tools:
         - Read

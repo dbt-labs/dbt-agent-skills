@@ -1,0 +1,36 @@
+issue_id: "1_3_010"
+sort_order: 1100
+change: >-
+  escape_single_quotes macro uses backslash escaping instead of double-quoting
+action: >-
+  Review models/seeds with apostrophes and remove manual escaping workarounds
+category: Behavior
+component: adapter
+adapter_type: spark
+impact: >-
+  Seed data and string literals containing single quotes now produce backslash-escaped SQL; models
+  that manually doubled quotes to work around the old behavior may now double-escape
+from_version: '1.3'
+to_version: '1.4'
+automation_type: agentic
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Two footprints:
+      - macros/**/*.sql that override escape_single_quotes or reimplement quote-doubling for Spark
+        (grep escape_single_quotes and manual '' doubling);
+      - models/**/*.sql and seeds/**/*.csv containing string literals with apostrophes where the
+        author pre-escaped by doubling ('') to satisfy the old double-quoting behavior.
+    - Look for suspicious '' inside seed values or dbt.string_literal / literal-building macros.
+  fixing: |-
+    - If the project overrides escape_single_quotes to the old double-quoting approach, remove the
+      override so the core backslash-escaping macro is used (unless the target Spark/SQL dialect
+      truly needs doubling — verify against the warehouse layer).
+    - For seeds/models that manually doubled quotes as a workaround, revert them to single
+      apostrophes and let the macro escape.
+    - Warehouse-observable and invisible to parse: run dbt parse to confirm compilation, note
+      affected files in the results report, and rely on the build-green layer to confirm escaped
+      literals load correctly.
+    - If unsure whether a '' was genuine data or a workaround, flag it in the results report rather
+      than editing seed data.

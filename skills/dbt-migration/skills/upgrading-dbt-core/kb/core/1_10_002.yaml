@@ -1,0 +1,29 @@
+issue_id: "1_10_002"
+sort_order: 8002
+change: >-
+  ref() resolves against the node's own package before the root project
+action: >-
+  Set flags.require_ref_searches_node_package_before_root: false to keep root-first resolution.
+category: Behavior
+component: core
+adapter_type: null
+impact: >-
+  In projects with packages that shadow root model names, ref() can resolve to a different node. This flag still defaults to False in 1.12; pinning it makes that explicit and survives a future flip.
+from_version: '1.10'
+to_version: '1.11'
+automation_type: behavior_flag
+behavior_flag:
+  name: require_ref_searches_node_package_before_root
+  set_to: false
+out_of_repo_risk: false
+environment_change: false
+context:
+  detection: |-
+    - Applies only if an installed package defines a model name that ALSO exists in
+      the root project (the shadowing case where resolution order changes).
+    - Check packages.yml/dependencies.yml for packages, then compare package model
+      names against root model names (dbt_packages/ if installed).
+    - No packages, or no name collision -> skipped-not-present.
+  fixing: |-
+    Pin the flag via `tools.py set-flag --issue-id 1_10_002`. No project code changes.
+    Only pin it when a package/root model name collision exists.
