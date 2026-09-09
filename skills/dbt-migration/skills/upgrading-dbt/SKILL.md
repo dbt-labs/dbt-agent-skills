@@ -1,6 +1,6 @@
 ---
-name: upgrading-dbt-core
-description: Use when a user wants to upgrade, update, or migrate a dbt-core project to the latest version — e.g. "upgrade my dbt project," "migrate this off dbt-core 1.5," "get this project running on the latest dbt," "bump the dbt-core version." Upgrades a dbt-core v1 project (on 1.3, 1.4, 1.5, 1.6, or 1.7) all the way to 1.12, applying the required breaking, behavior, and deprecated changes from a data-driven issue corpus. Inputs — starting_version (the project's current dbt-core minor, one of 1.3/1.4/1.5/1.6/1.7) and adapter_type (snowflake/redshift/bigquery/databricks/spark); both are normally supplied by the caller (e.g. the dbt VS Code extension), with fallbacks described in the skill.
+name: upgrading-dbt
+description: Use when a user wants to upgrade, update, or migrate a dbt project to the latest version — e.g. "upgrade my dbt project," "migrate this off dbt 1.5," "get this project running on the latest dbt," "bump the dbt version." Upgrades a dbt v1 project (on 1.3, 1.4, 1.5, 1.6, or 1.7) all the way to 1.12, applying the required breaking, behavior, and deprecated changes from a data-driven issue corpus. Inputs — starting_version (the project's current dbt minor, one of 1.3/1.4/1.5/1.6/1.7) and adapter_type (snowflake/redshift/bigquery/databricks/spark); both are normally supplied by the caller (e.g. the dbt VS Code extension), with fallbacks described in the skill.
 allowed-tools: "Bash(git:*), Bash(dbt:*), Bash(uvx:*), Bash(uv:*), Read, Write, Edit, Glob, Grep"
 metadata:
   target_version: "1.12"
@@ -9,9 +9,9 @@ metadata:
   arguments: "starting_version={1.3|1.4|1.5|1.6|1.7}; adapter_type={snowflake|redshift|bigquery|databricks|spark}"
 ---
 
-# Migrate a dbt project to dbt-core 1.12
+# Migrate a dbt project to dbt 1.12
 
-You upgrade a dbt-core **v1** project all the way to **1.12** — not one minor
+You upgrade a dbt **v1** project all the way to **1.12** — not one minor
 bump. Two different mechanisms apply, and you must not confuse them:
 
 - **Up to 1.8** — genuinely breaking changes with no compatibility shim. You
@@ -97,7 +97,7 @@ invocations are written down.
 | `list-issues` | List issue ids from the results artifact, filtered |
 | `autofix` | Run the deterministic 1.x → 1.x fix tool over the project and learn which files changed — **local only**; in Studio there is no such tool, so `deterministic` issues are fixed by hand in Step 5 instead |
 | `set-flag` | Pin one behavior-change flag to `false` in `dbt_project.yml` |
-| `parse` | Run `dbt parse` on dbt-core 1.12 — the first check of the verification gate |
+| `parse` | Run `dbt parse` on dbt 1.12 — the first check of the verification gate |
 | `verify-commands` | Run the extra command checks your profile names, in-session — profile-dependent |
 | `revert` | Undo the uncommitted changes to a named set of files |
 | `report` | Render the results artifact to `migration_report.md` |
@@ -109,7 +109,7 @@ invocations are written down.
 
 ## Examples
 
-**User says:** "Can you upgrade this dbt project to the latest dbt-core? It's
+**User says:** "Can you upgrade this dbt project to the latest dbt? It's
 currently on 1.5 and runs on Snowflake."
 
 **Actions:**
@@ -119,14 +119,14 @@ currently on 1.5 and runs on Snowflake."
 4. Detection sweep marks the issues actually present as `detected`, the rest `skipped-not-present`.
 5. Locally, `autofix` runs `dbt-migrate-1x`, resolving the `deterministic` issues it can (in Studio, these are fixed by hand alongside the agentic ones instead).
 6. Remaining `agentic` issues are fixed directly; `behavior_flag` issues the project actually exhibits get pinned via `set-flag`; any `human` issue is shown as a diff and applied only after the user approves it.
-7. `parse` passes on dbt-core 1.12.
+7. `parse` passes on dbt 1.12.
 8. Re-detection confirms every resolved issue is now absent; `report` writes `migration_report.md`.
 
-**Result:** The project parses cleanly on dbt-core 1.12. The user gets a report of what changed, which behavior flags were pinned to preserve current semantics, and anything still needing manual follow-up (e.g. an `out_of_repo_risk` job selector to update outside the repo).
+**Result:** The project parses cleanly on dbt 1.12. The user gets a report of what changed, which behavior flags were pinned to preserve current semantics, and anything still needing manual follow-up (e.g. an `out_of_repo_risk` job selector to update outside the repo).
 
 ## Non-negotiable rules
 
-1. **Verification runs against dbt-core 1.12** — the target version, not the next
+1. **Verification runs against dbt 1.12** — the target version, not the next
    minor — and it runs in order, cheapest check first. `dbt parse` is mandatory and
    always first. Checks above it are **optional, user-approved, and
    profile-dependent**: your profile names them. If your profile does not define
@@ -408,7 +408,7 @@ fixed value other software reads. Its label is "Verification gate".)
 Run the checks in order. Stop at the first one that fails.
 
 **Check 1 — `parse`. Mandatory.** This is the first parse of the run, and it runs
-on dbt-core 1.12.
+on dbt 1.12.
 
 Failure → read the error, which names the offending file. Attribute it to the
 issue whose fix touched that file, correct it, and re-run this check — **max 5
@@ -632,7 +632,7 @@ Rules:
 
 ## Verify
 
-`dbt parse` on dbt-core 1.12, always and first. Then, only where the profile
+`dbt parse` on dbt 1.12, always and first. Then, only where the profile
 defines `verify-commands` and the user approves, the customer's own `dbt build` /
 `dbt test` job commands — verbatim from `migration_jobs.json`, in the develop
 session's own schema. Never `run-operation`, never a command you invented, never
