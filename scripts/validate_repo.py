@@ -506,11 +506,16 @@ def check_version_increments(
 # --------------------------------------------------------------------------- #
 
 
-def check_tile_version_increment(base_branch: str) -> list[str]:
-    """If any skill changed vs. base branch, tile.json must be bumped.
+def check_tile_version_increment(
+    plugin_dirs: dict[str, Path], base_branch: str
+) -> list[str]:
+    """If any skill's content changed vs. base branch, tile.json must be bumped.
 
     tile.json versions the Tessl tile as a whole (see RELEASING.md), so it moves
-    on any skill change regardless of which plugin the skill belongs to.
+    on any skill change regardless of which plugin the skill belongs to. Like
+    the per-plugin check, this counts only skill content — files under a
+    plugin's skills/ directory. A plugin manifest bump on its own changes
+    nothing Tessl publishes and must not force a tile bump.
     """
     current = git_current_branch()
     if current is None or current == base_branch:
@@ -519,9 +524,12 @@ def check_tile_version_increment(base_branch: str) -> list[str]:
         # Already reported by the plugin version check
         return []
 
-    skills_prefix = f"{SKILLS_DIR.relative_to(REPO_ROOT)}/"
+    skill_prefixes = tuple(
+        f"{plugin_dir.relative_to(REPO_ROOT)}/skills/"
+        for plugin_dir in plugin_dirs.values()
+    )
     skill_changes = sorted(
-        f for f in git_changed_files(base_branch) if f.startswith(skills_prefix)
+        f for f in git_changed_files(base_branch) if f.startswith(skill_prefixes)
     )
     if not skill_changes:
         return []
@@ -604,7 +612,7 @@ def main() -> int:
         ),
         (
             "tile.json version increment",
-            lambda: check_tile_version_increment(args.base_branch),
+            lambda: check_tile_version_increment(plugin_dirs, args.base_branch),
             lambda: "tile.json version is up to date",
         ),
     ]

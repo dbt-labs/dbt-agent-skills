@@ -265,6 +265,11 @@ def test_coherence_rejects_marketplace_entry_name_mismatch(vr, coherence_repo):
 
 
 @pytest.fixture
+def tile_plugin_dirs(tmp_path):
+    return {name: tmp_path / "skills" / name for name in ("dbt", "dbt-migration")}
+
+
+@pytest.fixture
 def tile_repo(vr, tmp_path, monkeypatch):
     """Synthetic repo plus stubbed git helpers, so no real history is needed."""
     tile_json = tmp_path / "tile.json"
@@ -284,34 +289,69 @@ def tile_repo(vr, tmp_path, monkeypatch):
     return configure
 
 
-def test_tile_rejects_skill_change_without_bump(vr, tile_repo):
+def test_tile_rejects_skill_change_without_bump(vr, tile_repo, tile_plugin_dirs):
     tile_repo("1.5.1", "1.5.1", ["skills/dbt/skills/a-skill/SKILL.md"])
-    errors = vr.check_tile_version_increment("main")
+    errors = vr.check_tile_version_increment(tile_plugin_dirs, "main")
     assert len(errors) == 1
     assert "was not incremented" in errors[0]
 
 
-def test_tile_accepts_skill_change_with_bump(vr, tile_repo):
+def test_tile_accepts_skill_change_with_bump(vr, tile_repo, tile_plugin_dirs):
     tile_repo("1.5.2", "1.5.1", ["skills/dbt/skills/a-skill/SKILL.md"])
-    assert vr.check_tile_version_increment("main") == []
+    assert vr.check_tile_version_increment(tile_plugin_dirs, "main") == []
 
 
-def test_tile_ignores_changes_outside_skills(vr, tile_repo):
+def test_tile_ignores_changes_outside_skills(vr, tile_repo, tile_plugin_dirs):
     tile_repo("1.5.1", "1.5.1", ["README.md", "scripts/validate_repo.py"])
-    assert vr.check_tile_version_increment("main") == []
+    assert vr.check_tile_version_increment(tile_plugin_dirs, "main") == []
 
 
-def test_tile_skips_on_the_base_branch(vr, tile_repo, monkeypatch):
+def test_tile_ignores_plugin_manifest_only_changes(vr, tile_repo, tile_plugin_dirs):
+    """A manifest bump changes nothing Tessl publishes, so it must not force a bump.
+
+    Only files under a plugin's skills/ directory count as skill content — the
+    same rule the per-plugin version check applies.
+    """
+    tile_repo(
+        "1.5.1",
+        "1.5.1",
+        [
+            "skills/dbt/.claude-plugin/plugin.json",
+            "skills/dbt/.cursor-plugin/plugin.json",
+            "skills/dbt-migration/.claude-plugin/plugin.json",
+        ],
+    )
+    assert vr.check_tile_version_increment(tile_plugin_dirs, "main") == []
+
+
+def test_tile_counts_only_skill_content_in_its_message(vr, tile_repo, tile_plugin_dirs):
+    """Mixed change set: the manifest bumps must not be counted or listed."""
+    tile_repo(
+        "1.5.1",
+        "1.5.1",
+        [
+            "skills/dbt/.claude-plugin/plugin.json",
+            "skills/dbt/skills/a-skill/SKILL.md",
+            "skills/dbt-migration/skills/b-skill/SKILL.md",
+        ],
+    )
+    errors = vr.check_tile_version_increment(tile_plugin_dirs, "main")
+    assert len(errors) == 1
+    assert "2 skill file(s) changed" in errors[0]
+    assert "plugin.json" not in errors[0]
+
+
+def test_tile_skips_on_the_base_branch(vr, tile_repo, tile_plugin_dirs, monkeypatch):
     tile_repo("1.5.1", "1.5.1", ["skills/dbt/skills/a-skill/SKILL.md"])
     monkeypatch.setattr(vr, "git_current_branch", lambda: "main")
-    assert vr.check_tile_version_increment("main") == []
+    assert vr.check_tile_version_increment(tile_plugin_dirs, "main") == []
 
 
-def test_tile_skips_when_base_branch_is_absent(vr, tile_repo, monkeypatch):
+def test_tile_skips_when_base_branch_is_absent(vr, tile_repo, tile_plugin_dirs, monkeypatch):
     """The plugin version check already reports this; don't double-report."""
     tile_repo("1.5.1", "1.5.1", ["skills/dbt/skills/a-skill/SKILL.md"])
     monkeypatch.setattr(vr, "git_branch_exists", lambda branch: False)
-    assert vr.check_tile_version_increment("main") == []
+    assert vr.check_tile_version_increment(tile_plugin_dirs, "main") == []
 
 
 # --------------------------------------------------------------------------- #
