@@ -73,8 +73,8 @@ profile you load first.
 
 | Environment | How you can tell | Profile |
 |---|---|---|
-| **Local / VS Code extension** | You have a shell (`Bash`) and can run `uv` / `python` | `references/exec-local.md` |
-| **dbt platform (Studio)** | No shell at all; you have `edit_file`, `dbt_command`, `git`, and the `load_skill_resource_file` tools | `references/exec-platform.md` |
+| **Local / VS Code extension** | You have a shell (`Bash`) and can run `uv` / `python` | [references/exec-local.md](references/exec-local.md) |
+| **dbt platform (Studio)** | No shell at all; you have `edit_file`, `dbt_command`, `git`, and the `load_skill_resource_file` tools | [references/exec-platform.md](references/exec-platform.md) |
 
 Load **exactly one**, as the first action of Step 0. Locally, read it from disk;
 in Studio, read it with `load_skill_resource_file`. If you cannot tell which

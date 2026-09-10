@@ -1,0 +1,46 @@
+name: Validate
+
+# Runs the repo integrity checks and unit tests on every PR.
+#
+# Without this, nothing enforced scripts/validate_repo.py, and drift landed on
+# main repeatedly: a skill missing from tile.json (so it never published to the
+# Tessl registry), supporting files referenced as plain text rather than
+# markdown links, and plugin versions falling out of sync between the Claude
+# and Cursor manifests. See #99 and #141.
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      # The version-increment checks diff the PR against its base branch, so
+      # they need real history — a shallow clone leaves origin/main absent and
+      # the checks cannot run.
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+
+      - name: Validate repo integrity
+        run: uv run python scripts/validate_repo.py --base-branch origin/${{ github.event.pull_request.base.ref || 'main' }}
+
+      - name: Test the validation checks
+        run: uv run --group dev pytest tests/ -q
+
+      # evals/ is its own uv project with its own lockfile.
+      - name: Test the eval harness
+        working-directory: evals
+        run: uv run pytest -q

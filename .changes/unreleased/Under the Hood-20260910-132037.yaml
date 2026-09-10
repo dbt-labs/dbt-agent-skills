@@ -1,0 +1,8 @@
+kind: Under the Hood
+body: Extend `scripts/validate_repo.py` with checks for the Cursor marketplace
+    manifests, plugin name/version agreement across marketplaces, SKILL.md
+    frontmatter, and `tile.json` version increments.
+time: 2026-09-10T13:20:37.000000Z
+custom:
+    Author: C00ldudeNoonan
+    Issue: "99"

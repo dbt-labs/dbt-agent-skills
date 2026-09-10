@@ -4,8 +4,12 @@
 Checks:
 1. All skills are listed in tile.json (and paths are correct)
 2. All plugin folders under skills/ are listed in marketplace.json
-3. All non-SKILL.md files within skill folders are referenced via markdown links
-4. Plugin versions are incremented when skill content changes (vs. main branch)
+3. Every plugin listed in the Cursor marketplace has a matching Cursor manifest
+4. Plugin manifest names and versions agree across marketplaces
+5. All non-SKILL.md files within skill folders are referenced via markdown links
+6. Every SKILL.md declares valid frontmatter
+7. Plugin versions are incremented when skill content changes (vs. main branch)
+8. tile.json is versioned alongside skill changes (vs. main branch)
 
 Usage:
     python scripts/validate_repo.py
@@ -22,7 +26,14 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TILE_JSON = REPO_ROOT / "tile.json"
 MARKETPLACE_JSON = REPO_ROOT / ".claude-plugin" / "marketplace.json"
+CURSOR_MARKETPLACE_JSON = REPO_ROOT / ".cursor-plugin" / "marketplace.json"
 SKILLS_DIR = REPO_ROOT / "skills"
+
+# Per-plugin manifest locations, keyed by the marketplace they serve
+PLUGIN_MANIFESTS = {
+    "claude": ".claude-plugin/plugin.json",
+    "cursor": ".cursor-plugin/plugin.json",
+}
 
 # Matches [text](path) and [text](path#heading)
 MARKDOWN_LINK_RE = re.compile(r"\[(?:[^\]]*)\]\(([^)]+)\)")
@@ -50,6 +61,17 @@ def find_all_plugin_dirs() -> dict[str, Path]:
         if d.is_dir() and not d.name.startswith("."):
             plugins[d.name] = d
     return plugins
+
+
+def read_marketplace_entries(path: Path) -> dict[str, str]:
+    """Return plugin folder name -> declared entry name from a marketplace file."""
+    marketplace = json.loads(path.read_text())
+    entries: dict[str, str] = {}
+    for plugin in marketplace.get("plugins", []):
+        # "./skills/dbt" -> "dbt"
+        folder = Path(plugin.get("source", "")).name
+        entries[folder] = plugin.get("name", "")
+    return entries
 
 
 # --------------------------------------------------------------------------- #
@@ -100,15 +122,7 @@ def check_marketplace(plugin_dirs: dict[str, Path]) -> list[str]:
     if not MARKETPLACE_JSON.exists():
         return [".claude-plugin/marketplace.json not found"]
 
-    marketplace = json.loads(MARKETPLACE_JSON.read_text())
-
-    # Build a set of plugin directory names from marketplace sources
-    listed_names: set[str] = set()
-    for plugin in marketplace.get("plugins", []):
-        source = plugin.get("source", "")
-        # "./skills/dbt" -> "dbt"
-        listed_names.add(Path(source).name)
-
+    listed_names = set(read_marketplace_entries(MARKETPLACE_JSON))
     on_disk = set(plugin_dirs.keys())
 
     for name in sorted(on_disk - listed_names):
@@ -125,7 +139,98 @@ def check_marketplace(plugin_dirs: dict[str, Path]) -> list[str]:
 
 
 # --------------------------------------------------------------------------- #
-# Check 3: file references via markdown links
+# Check 3: Cursor marketplace
+# --------------------------------------------------------------------------- #
+
+
+def check_cursor_marketplace(plugin_dirs: dict[str, Path]) -> list[str]:
+    """Verify the Cursor marketplace and its per-plugin manifests agree.
+
+    Unlike the Claude marketplace, Cursor deliberately lists a *subset* of the
+    plugins (see #93 — the Cursor team asked for the single `dbt` plugin), so a
+    plugin folder that is absent from this marketplace is not an error. What is
+    an error is a listing without a manifest, or a manifest without a listing.
+    """
+    errors: list[str] = []
+
+    if not CURSOR_MARKETPLACE_JSON.exists():
+        return [".cursor-plugin/marketplace.json not found"]
+
+    listed = read_marketplace_entries(CURSOR_MARKETPLACE_JSON)
+    manifest_rel = PLUGIN_MANIFESTS["cursor"]
+
+    for folder in sorted(listed):
+        if folder not in plugin_dirs:
+            errors.append(
+                f"Plugin '{folder}' is in .cursor-plugin/marketplace.json but "
+                f"has no folder under skills/"
+            )
+        elif not (plugin_dirs[folder] / manifest_rel).exists():
+            errors.append(
+                f"Plugin '{folder}' is in .cursor-plugin/marketplace.json but "
+                f"skills/{folder}/{manifest_rel} is missing"
+            )
+
+    for folder, plugin_dir in sorted(plugin_dirs.items()):
+        if (plugin_dir / manifest_rel).exists() and folder not in listed:
+            errors.append(
+                f"skills/{folder}/{manifest_rel} exists but '{folder}' is not "
+                f"listed in .cursor-plugin/marketplace.json"
+            )
+
+    return errors
+
+
+# --------------------------------------------------------------------------- #
+# Check 4: cross-marketplace manifest coherence
+# --------------------------------------------------------------------------- #
+
+
+def check_manifest_coherence(plugin_dirs: dict[str, Path]) -> list[str]:
+    """Verify plugin names match their folder, and versions match across manifests."""
+    errors: list[str] = []
+
+    marketplaces = {
+        "claude": MARKETPLACE_JSON,
+        "cursor": CURSOR_MARKETPLACE_JSON,
+    }
+    for marketplace, path in marketplaces.items():
+        if not path.exists():
+            continue
+        for folder, entry_name in sorted(read_marketplace_entries(path).items()):
+            if entry_name != folder:
+                errors.append(
+                    f"{marketplace} marketplace entry for 'skills/{folder}' is named "
+                    f"'{entry_name}' — expected '{folder}' to match the folder"
+                )
+
+    for folder, plugin_dir in sorted(plugin_dirs.items()):
+        versions: dict[str, str] = {}
+        for marketplace, manifest_rel in PLUGIN_MANIFESTS.items():
+            manifest_path = plugin_dir / manifest_rel
+            if not manifest_path.exists():
+                continue
+            manifest = json.loads(manifest_path.read_text())
+
+            if manifest.get("name") != folder:
+                errors.append(
+                    f"skills/{folder}/{manifest_rel} declares name "
+                    f"'{manifest.get('name')}' — expected '{folder}'"
+                )
+            versions[marketplace] = manifest.get("version")
+
+        if len(set(versions.values())) > 1:
+            detail = ", ".join(f"{m}={v}" for m, v in sorted(versions.items()))
+            errors.append(
+                f"Plugin '{folder}' has mismatched versions across manifests "
+                f"({detail}) — bump every manifest listed in RELEASING.md together"
+            )
+
+    return errors
+
+
+# --------------------------------------------------------------------------- #
+# Check 5: file references via markdown links
 # --------------------------------------------------------------------------- #
 
 
@@ -215,7 +320,90 @@ def check_file_references(skills: dict[str, Path]) -> list[str]:
 
 
 # --------------------------------------------------------------------------- #
-# Check 4: plugin version increments
+# Check 6: SKILL.md frontmatter
+# --------------------------------------------------------------------------- #
+
+# Fields a SKILL.md may declare at the top level. Anything else (version,
+# author, tags, ...) belongs under `metadata:` and is rejected by the
+# marketplaces that ingest these files.
+ALLOWED_FRONTMATTER_FIELDS = {
+    "name",
+    "description",
+    "allowed-tools",
+    "compatibility",
+    "license",
+    "metadata",
+    "user-invocable",
+}
+
+VALID_SKILL_NAME_RE = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
+FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\s*(\r?\n|\Z)", re.DOTALL)
+# Top-level keys only: nested keys and wrapped scalars are always indented
+TOP_LEVEL_KEY_RE = re.compile(r"^([A-Za-z0-9_-]+):", re.MULTILINE)
+NESTED_USER_INVOCABLE_RE = re.compile(r"^[ \t]+user-invocable:", re.MULTILINE)
+
+
+def check_frontmatter(skills: dict[str, Path]) -> list[str]:
+    """Verify each SKILL.md declares valid, complete frontmatter.
+
+    These rules are what skills.sh, Tessl and the plugin marketplaces validate
+    on ingest, so a violation breaks publishing on every surface at once.
+    """
+    errors: list[str] = []
+
+    for skill_name, skill_dir in sorted(skills.items()):
+        skill_md = skill_dir / "SKILL.md"
+        content = skill_md.read_text(encoding="utf-8")
+
+        match = FRONTMATTER_RE.match(content)
+        if not match:
+            errors.append(f"Skill '{skill_name}': SKILL.md has no YAML frontmatter")
+            continue
+        block = match.group(1)
+
+        fields = set(TOP_LEVEL_KEY_RE.findall(block))
+
+        unexpected = fields - ALLOWED_FRONTMATTER_FIELDS
+        if unexpected:
+            errors.append(
+                f"Skill '{skill_name}': unexpected frontmatter field(s) "
+                f"{sorted(unexpected)} — only {sorted(ALLOWED_FRONTMATTER_FIELDS)} "
+                f"are allowed at the top level"
+            )
+
+        for required in ("name", "description"):
+            if required not in fields:
+                errors.append(
+                    f"Skill '{skill_name}': frontmatter is missing '{required}'"
+                )
+
+        name_match = re.search(r"^name:[ \t]*(.+?)[ \t]*$", block, re.MULTILINE)
+        if name_match:
+            declared = name_match.group(1).strip("\"'")
+            if not VALID_SKILL_NAME_RE.fullmatch(declared):
+                errors.append(
+                    f"Skill '{skill_name}': name '{declared}' must be lowercase "
+                    f"letters, digits and single hyphens only"
+                )
+            elif declared != skill_dir.name:
+                errors.append(
+                    f"Skill '{skill_name}': name '{declared}' does not match its "
+                    f"directory '{skill_dir.name}'"
+                )
+
+        # `user-invocable` is only honoured at the top level, so a nested one
+        # silently does nothing rather than failing loudly.
+        if NESTED_USER_INVOCABLE_RE.search(block):
+            errors.append(
+                f"Skill '{skill_name}': 'user-invocable' is nested (likely under "
+                f"'metadata:') — it must be a top-level field"
+            )
+
+    return errors
+
+
+# --------------------------------------------------------------------------- #
+# Check 7: plugin version increments
 # --------------------------------------------------------------------------- #
 
 
@@ -314,6 +502,47 @@ def check_version_increments(
 
 
 # --------------------------------------------------------------------------- #
+# Check 8: tile.json version increment
+# --------------------------------------------------------------------------- #
+
+
+def check_tile_version_increment(base_branch: str) -> list[str]:
+    """If any skill changed vs. base branch, tile.json must be bumped.
+
+    tile.json versions the Tessl tile as a whole (see RELEASING.md), so it moves
+    on any skill change regardless of which plugin the skill belongs to.
+    """
+    current = git_current_branch()
+    if current is None or current == base_branch:
+        return []
+    if not git_branch_exists(base_branch):
+        # Already reported by the plugin version check
+        return []
+
+    skills_prefix = f"{SKILLS_DIR.relative_to(REPO_ROOT)}/"
+    skill_changes = sorted(
+        f for f in git_changed_files(base_branch) if f.startswith(skills_prefix)
+    )
+    if not skill_changes:
+        return []
+
+    tile_rel = str(TILE_JSON.relative_to(REPO_ROOT))
+    base_content = git_file_at_ref(base_branch, tile_rel)
+    if base_content is None:
+        return []
+
+    current_version = json.loads(TILE_JSON.read_text()).get("version")
+    if current_version != json.loads(base_content).get("version"):
+        return []
+
+    return [
+        f"{len(skill_changes)} skill file(s) changed but the {tile_rel} version "
+        f"({current_version}) was not incremented. "
+        f"Changed: {', '.join(skill_changes)}"
+    ]
+
+
+# --------------------------------------------------------------------------- #
 # Main
 # --------------------------------------------------------------------------- #
 
@@ -343,6 +572,19 @@ def main() -> int:
             lambda: f"All {len(plugin_dirs)} plugin folders listed correctly",
         ),
         (
+            "Cursor marketplace manifests",
+            lambda: check_cursor_marketplace(plugin_dirs),
+            lambda: (
+                f"All {len(read_marketplace_entries(CURSOR_MARKETPLACE_JSON))} "
+                f"listed Cursor plugin(s) have manifests"
+            ),
+        ),
+        (
+            "Manifest names and versions across marketplaces",
+            lambda: check_manifest_coherence(plugin_dirs),
+            lambda: "Plugin names and versions agree across manifests",
+        ),
+        (
             "File references within skills",
             lambda: check_file_references(skills),
             lambda: (
@@ -351,9 +593,19 @@ def main() -> int:
             ),
         ),
         (
+            "SKILL.md frontmatter",
+            lambda: check_frontmatter(skills),
+            lambda: f"All {len(skills)} skills have valid frontmatter",
+        ),
+        (
             "Plugin version increments",
             lambda: check_version_increments(plugin_dirs, args.base_branch),
             lambda: "Plugin versions are up to date",
+        ),
+        (
+            "tile.json version increment",
+            lambda: check_tile_version_increment(args.base_branch),
+            lambda: "tile.json version is up to date",
         ),
     ]
 
