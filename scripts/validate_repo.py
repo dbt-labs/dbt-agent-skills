@@ -4,12 +4,18 @@
 Checks:
 1. All skills are listed in tile.json (and paths are correct)
 2. All plugin folders under skills/ are listed in marketplace.json
-3. All non-SKILL.md files within skill folders are referenced via markdown links
-4. Plugin versions are incremented when skill content changes (vs. main branch)
+3. Every plugin listed in the Cursor marketplace has a matching Cursor manifest
+4. Plugin manifest names and versions agree across marketplaces
+5. All non-SKILL.md files within skill folders are referenced via markdown links
+6. Every SKILL.md declares valid frontmatter
+7. Plugin versions are incremented when skill content changes (vs. main branch)
+8. tile.json is versioned alongside skill changes (vs. main branch)
+
+Checks 7 and 8 share one resolved diff against the base branch (see DiffContext).
 
 Usage:
-    python scripts/validate_repo.py
-    python scripts/validate_repo.py --base-branch origin/main
+    uv run python scripts/validate_repo.py
+    uv run python scripts/validate_repo.py --base-branch origin/main
 """
 
 import argparse
@@ -18,11 +24,26 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import NamedTuple
+
+import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TILE_JSON = REPO_ROOT / "tile.json"
 MARKETPLACE_JSON = REPO_ROOT / ".claude-plugin" / "marketplace.json"
+CURSOR_MARKETPLACE_JSON = REPO_ROOT / ".cursor-plugin" / "marketplace.json"
 SKILLS_DIR = REPO_ROOT / "skills"
+
+# Per-plugin manifest locations, keyed by the marketplace they serve
+PLUGIN_MANIFESTS = {
+    "claude": ".claude-plugin/plugin.json",
+    "cursor": ".cursor-plugin/plugin.json",
+}
+# RELEASING.md lists a Claude manifest for every plugin, so a missing one is an
+# error. Cursor lists a deliberate subset of the plugins (#93), so its manifest
+# is optional per plugin and its absence is checked against that marketplace's
+# listing instead.
+REQUIRED_PLUGIN_MANIFESTS = {"claude"}
 
 # Matches [text](path) and [text](path#heading)
 MARKDOWN_LINK_RE = re.compile(r"\[(?:[^\]]*)\]\(([^)]+)\)")
@@ -50,6 +71,17 @@ def find_all_plugin_dirs() -> dict[str, Path]:
         if d.is_dir() and not d.name.startswith("."):
             plugins[d.name] = d
     return plugins
+
+
+def read_marketplace_entries(path: Path) -> dict[str, str]:
+    """Return plugin folder name -> declared entry name from a marketplace file."""
+    marketplace = json.loads(path.read_text())
+    entries: dict[str, str] = {}
+    for plugin in marketplace.get("plugins", []):
+        # "./skills/dbt" -> "dbt"
+        folder = Path(plugin.get("source", "")).name
+        entries[folder] = plugin.get("name", "")
+    return entries
 
 
 # --------------------------------------------------------------------------- #
@@ -100,15 +132,7 @@ def check_marketplace(plugin_dirs: dict[str, Path]) -> list[str]:
     if not MARKETPLACE_JSON.exists():
         return [".claude-plugin/marketplace.json not found"]
 
-    marketplace = json.loads(MARKETPLACE_JSON.read_text())
-
-    # Build a set of plugin directory names from marketplace sources
-    listed_names: set[str] = set()
-    for plugin in marketplace.get("plugins", []):
-        source = plugin.get("source", "")
-        # "./skills/dbt" -> "dbt"
-        listed_names.add(Path(source).name)
-
+    listed_names = set(read_marketplace_entries(MARKETPLACE_JSON))
     on_disk = set(plugin_dirs.keys())
 
     for name in sorted(on_disk - listed_names):
@@ -125,7 +149,110 @@ def check_marketplace(plugin_dirs: dict[str, Path]) -> list[str]:
 
 
 # --------------------------------------------------------------------------- #
-# Check 3: file references via markdown links
+# Check 3: Cursor marketplace
+# --------------------------------------------------------------------------- #
+
+
+def check_cursor_marketplace(plugin_dirs: dict[str, Path]) -> list[str]:
+    """Verify the Cursor marketplace and its per-plugin manifests agree.
+
+    Unlike the Claude marketplace, Cursor deliberately lists a *subset* of the
+    plugins (see #93 — the Cursor team asked for the single `dbt` plugin), so a
+    plugin folder that is absent from this marketplace is not an error. What is
+    an error is a listing without a manifest, or a manifest without a listing.
+    """
+    errors: list[str] = []
+
+    if not CURSOR_MARKETPLACE_JSON.exists():
+        return [".cursor-plugin/marketplace.json not found"]
+
+    listed = read_marketplace_entries(CURSOR_MARKETPLACE_JSON)
+    manifest_rel = PLUGIN_MANIFESTS["cursor"]
+
+    for folder in sorted(listed):
+        if folder not in plugin_dirs:
+            errors.append(
+                f"Plugin '{folder}' is in .cursor-plugin/marketplace.json but "
+                f"has no folder under skills/"
+            )
+        elif not (plugin_dirs[folder] / manifest_rel).exists():
+            errors.append(
+                f"Plugin '{folder}' is in .cursor-plugin/marketplace.json but "
+                f"skills/{folder}/{manifest_rel} is missing"
+            )
+
+    for folder, plugin_dir in sorted(plugin_dirs.items()):
+        if (plugin_dir / manifest_rel).exists() and folder not in listed:
+            errors.append(
+                f"skills/{folder}/{manifest_rel} exists but '{folder}' is not "
+                f"listed in .cursor-plugin/marketplace.json"
+            )
+
+    return errors
+
+
+# --------------------------------------------------------------------------- #
+# Check 4: cross-marketplace manifest coherence
+# --------------------------------------------------------------------------- #
+
+
+def check_manifest_coherence(plugin_dirs: dict[str, Path]) -> list[str]:
+    """Verify plugin names match their folder, and versions match across manifests."""
+    errors: list[str] = []
+
+    marketplaces = {
+        "claude": MARKETPLACE_JSON,
+        "cursor": CURSOR_MARKETPLACE_JSON,
+    }
+    for marketplace, path in marketplaces.items():
+        if not path.exists():
+            continue
+        for folder, entry_name in sorted(read_marketplace_entries(path).items()):
+            if entry_name != folder:
+                errors.append(
+                    f"{marketplace} marketplace entry for 'skills/{folder}' is named "
+                    f"'{entry_name}' — expected '{folder}' to match the folder"
+                )
+
+    for folder, plugin_dir in sorted(plugin_dirs.items()):
+        versions: dict[str, str] = {}
+        for marketplace, manifest_rel in PLUGIN_MANIFESTS.items():
+            manifest_path = plugin_dir / manifest_rel
+            if not manifest_path.exists():
+                if marketplace in REQUIRED_PLUGIN_MANIFESTS:
+                    errors.append(
+                        f"skills/{folder}/{manifest_rel} is missing — every plugin "
+                        f"needs a {marketplace} manifest (see RELEASING.md)"
+                    )
+                continue
+            manifest = json.loads(manifest_path.read_text())
+
+            if manifest.get("name") != folder:
+                errors.append(
+                    f"skills/{folder}/{manifest_rel} declares name "
+                    f"'{manifest.get('name')}' — expected '{folder}'"
+                )
+            version = manifest.get("version")
+            if not isinstance(version, str) or not version.strip():
+                errors.append(
+                    f"skills/{folder}/{manifest_rel} has no usable 'version' "
+                    f"(got {version!r})"
+                )
+                continue
+            versions[marketplace] = version
+
+        if len(set(versions.values())) > 1:
+            detail = ", ".join(f"{m}={v}" for m, v in sorted(versions.items()))
+            errors.append(
+                f"Plugin '{folder}' has mismatched versions across manifests "
+                f"({detail}) — bump every manifest listed in RELEASING.md together"
+            )
+
+    return errors
+
+
+# --------------------------------------------------------------------------- #
+# Check 5: file references via markdown links
 # --------------------------------------------------------------------------- #
 
 
@@ -215,7 +342,138 @@ def check_file_references(skills: dict[str, Path]) -> list[str]:
 
 
 # --------------------------------------------------------------------------- #
-# Check 4: plugin version increments
+# Check 6: SKILL.md frontmatter
+# --------------------------------------------------------------------------- #
+
+# Fields a SKILL.md may declare at the top level. Anything else (version,
+# author, tags, ...) belongs under `metadata:` and is rejected by the
+# marketplaces that ingest these files.
+ALLOWED_FRONTMATTER_FIELDS = {
+    "name",
+    "description",
+    "allowed-tools",
+    "compatibility",
+    "license",
+    "metadata",
+    "user-invocable",
+}
+
+VALID_SKILL_NAME_RE = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
+FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\s*(\r?\n|\Z)", re.DOTALL)
+def nested_keys(mapping: dict) -> set[str]:
+    """Every mapping key below the top level, at any depth.
+
+    Walks lists too, so `metadata: [{user-invocable: false}]` is seen. String
+    values are never walked, so a description that merely mentions a key name
+    is text, not structure — which a line scanner could not reliably tell.
+    """
+    found: set[str] = set()
+
+    def walk(node: object, depth: int) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if depth > 0:
+                    found.add(str(key))
+                walk(value, depth + 1)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item, depth)
+
+    walk(mapping, 0)
+    return found
+
+
+def check_frontmatter(skills: dict[str, Path]) -> list[str]:
+    """Verify each SKILL.md declares valid, complete frontmatter.
+
+    These rules are what skills.sh, Tessl and the plugin marketplaces validate
+    on ingest, so a violation breaks publishing on every surface at once.
+    """
+    errors: list[str] = []
+
+    for skill_name, skill_dir in sorted(skills.items()):
+        skill_md = skill_dir / "SKILL.md"
+        content = skill_md.read_text(encoding="utf-8")
+
+        match = FRONTMATTER_RE.match(content)
+        if not match:
+            errors.append(f"Skill '{skill_name}': SKILL.md has no YAML frontmatter")
+            continue
+
+        try:
+            parsed = yaml.safe_load(match.group(1))
+        except yaml.YAMLError as exc:
+            detail = str(exc).replace("\n", " ")
+            errors.append(f"Skill '{skill_name}': frontmatter is not valid YAML — {detail}")
+            continue
+
+        if not isinstance(parsed, dict):
+            errors.append(
+                f"Skill '{skill_name}': frontmatter must be a mapping of fields, "
+                f"got {type(parsed).__name__}"
+            )
+            continue
+
+        # YAML resolves unquoted `on`/`yes` keys to booleans, so normalise to
+        # text before comparing: such a key is simply an unexpected field.
+        top = {str(key): value for key, value in parsed.items()}
+        fields = set(top)
+
+        unexpected = fields - ALLOWED_FRONTMATTER_FIELDS
+        if unexpected:
+            errors.append(
+                f"Skill '{skill_name}': unexpected frontmatter field(s) "
+                f"{sorted(unexpected)} — only {sorted(ALLOWED_FRONTMATTER_FIELDS)} "
+                f"are allowed at the top level"
+            )
+
+        for required in ("name", "description"):
+            if required not in fields:
+                errors.append(
+                    f"Skill '{skill_name}': frontmatter is missing '{required}'"
+                )
+            elif top[required] is None:
+                errors.append(
+                    f"Skill '{skill_name}': frontmatter '{required}' is empty"
+                )
+            elif not isinstance(top[required], str):
+                # e.g. `description: false` parses as a bool, not a description
+                errors.append(
+                    f"Skill '{skill_name}': frontmatter '{required}' must be text, "
+                    f"got {type(top[required]).__name__} ({top[required]!r})"
+                )
+            elif not top[required].strip():
+                errors.append(
+                    f"Skill '{skill_name}': frontmatter '{required}' is empty"
+                )
+
+        declared = top.get("name")
+        if isinstance(declared, str) and declared.strip():
+            if not VALID_SKILL_NAME_RE.fullmatch(declared):
+                errors.append(
+                    f"Skill '{skill_name}': name '{declared}' must be lowercase "
+                    f"letters, digits and single hyphens only"
+                )
+            elif declared != skill_dir.name:
+                errors.append(
+                    f"Skill '{skill_name}': name '{declared}' does not match its "
+                    f"directory '{skill_dir.name}'"
+                )
+
+        # `user-invocable` is only honoured at the top level, so a nested one
+        # silently does nothing rather than failing loudly. Flag it even when a
+        # top-level copy exists: the nested one is still dead, misleading config.
+        if "user-invocable" in nested_keys(parsed):
+            errors.append(
+                f"Skill '{skill_name}': 'user-invocable' is nested (likely under "
+                f"'metadata:') — it must be a top-level field"
+            )
+
+    return errors
+
+
+# --------------------------------------------------------------------------- #
+# Check 7: plugin version increments
 # --------------------------------------------------------------------------- #
 
 
@@ -261,22 +519,72 @@ def git_file_at_ref(ref: str, path: str) -> str | None:
     return result.stdout if result.returncode == 0 else None
 
 
-def check_version_increments(
-    plugin_dirs: dict[str, Path], base_branch: str
-) -> list[str]:
-    """If skills changed vs. base branch, the plugin version must be bumped."""
-    errors: list[str] = []
+class DiffContext(NamedTuple):
+    """The git state both version-increment checks need, resolved once.
 
+    `changed` is None when there is nothing to compare against, in which case
+    `errors` explains why — or is empty when skipping is the correct, silent
+    outcome (running on the base branch itself). Resolving this once keeps the
+    two checks' skip rules identical by construction rather than by convention,
+    and keeps `validate_repo.py` to one `git` invocation per fact.
+    """
+
+    base_branch: str
+    changed: set[str] | None
+    errors: list[str]
+
+
+def diff_context(base_branch: str) -> DiffContext:
+    """Resolve the diff against `base_branch`, or say why we cannot."""
     current = git_current_branch()
     if current is None:
-        return ["Could not determine current git branch"]
+        return DiffContext(base_branch, None, ["Could not determine current git branch"])
     if current == base_branch:
-        return []  # nothing to compare on the base branch itself
-
+        return DiffContext(base_branch, None, [])  # nothing to compare on the base branch
     if not git_branch_exists(base_branch):
-        return [f"Base branch '{base_branch}' not found — skipping version check"]
+        return DiffContext(
+            base_branch,
+            None,
+            [f"Base branch '{base_branch}' not found — skipping version checks"],
+        )
+    return DiffContext(base_branch, git_changed_files(base_branch), [])
 
-    changed = git_changed_files(base_branch)
+
+def parse_version(value: object) -> tuple[int, ...] | None:
+    """A dotted numeric version as a comparable tuple, or None if unparseable."""
+    if not isinstance(value, str):
+        return None
+    parts = value.split(".")
+    if not parts or not all(p.isdigit() for p in parts):
+        return None
+    return tuple(int(p) for p in parts)
+
+
+def version_increased(current: object, base: object) -> bool | None:
+    """Whether `current` is strictly greater than `base`; None if either is unparseable.
+
+    An equality test is not enough: it accepts a downgrade, which is as wrong
+    as forgetting the bump and harder to notice.
+    """
+    current_parsed, base_parsed = parse_version(current), parse_version(base)
+    if current_parsed is None or base_parsed is None:
+        return None
+    return current_parsed > base_parsed
+
+
+def check_version_increments(
+    plugin_dirs: dict[str, Path], diff: DiffContext
+) -> list[str]:
+    """If skills changed vs. base branch, the plugin version must be bumped.
+
+    This check owns reporting the shared context errors; the tile check stays
+    silent about them so they are not reported twice.
+    """
+    errors: list[str] = []
+
+    if diff.changed is None:
+        return diff.errors
+    changed = diff.changed
     if not changed:
         return []
 
@@ -297,20 +605,82 @@ def check_version_increments(
         current_version = json.loads(plugin_json_path.read_text()).get("version")
 
         # Read base version
-        base_content = git_file_at_ref(base_branch, plugin_json_rel)
+        base_content = git_file_at_ref(diff.base_branch, plugin_json_rel)
         if base_content is None:
             # Plugin is new — version check not applicable
             continue
         base_version = json.loads(base_content).get("version")
 
-        if current_version == base_version:
+        increased = version_increased(current_version, base_version)
+        if increased is None:
+            errors.append(
+                f"Plugin '{plugin_name}': cannot compare versions in "
+                f"{plugin_json_rel} (base {base_version!r}, current "
+                f"{current_version!r}) — expected dotted numbers like '1.5.1'"
+            )
+        elif not increased:
             errors.append(
                 f"Plugin '{plugin_name}' has skill changes but version "
-                f"({current_version}) was not incremented in {plugin_json_rel}. "
+                f"({current_version}) is not an increase over the base "
+                f"({base_version}) in {plugin_json_rel}. "
                 f"Changed: {', '.join(skill_changes)}"
             )
 
     return errors
+
+
+# --------------------------------------------------------------------------- #
+# Check 8: tile.json version increment
+# --------------------------------------------------------------------------- #
+
+
+def check_tile_version_increment(diff: DiffContext) -> list[str]:
+    """If any skill's content changed vs. base branch, tile.json must be bumped.
+
+    tile.json versions the Tessl tile as a whole (see RELEASING.md), so it moves
+    on any skill change regardless of which plugin the skill belongs to. Like
+    the per-plugin check, this counts only skill content — files matching
+    skills/<plugin>/skills/. A plugin manifest bump on its own changes nothing
+    Tessl publishes and must not force a tile bump.
+    """
+    # Context errors are reported by the plugin version check, not here.
+    if not diff.changed:
+        return []
+
+    # Matched on path shape rather than against the plugin directories that
+    # exist now: a PR that deletes a whole plugin still has its skill files in
+    # the diff, and that is exactly when the tile's skill list changes.
+    skills_root = re.escape(str(SKILLS_DIR.relative_to(REPO_ROOT)))
+    skill_content = re.compile(rf"^{skills_root}/[^/]+/skills/.+")
+    skill_changes = sorted(f for f in diff.changed if skill_content.match(f))
+    if not skill_changes:
+        return []
+
+    tile_rel = str(TILE_JSON.relative_to(REPO_ROOT))
+    if not TILE_JSON.exists():
+        # check_tile_json already reported this; do not crash on read_text()
+        return []
+    base_content = git_file_at_ref(diff.base_branch, tile_rel)
+    if base_content is None:
+        return []
+
+    current_version = json.loads(TILE_JSON.read_text()).get("version")
+    base_version = json.loads(base_content).get("version")
+
+    increased = version_increased(current_version, base_version)
+    if increased is None:
+        return [
+            f"Cannot compare {tile_rel} versions (base {base_version!r}, current "
+            f"{current_version!r}) — expected dotted numbers like '1.5.2'"
+        ]
+    if increased:
+        return []
+
+    return [
+        f"{len(skill_changes)} skill file(s) changed but the {tile_rel} version "
+        f"({current_version}) is not an increase over the base ({base_version}). "
+        f"Changed: {', '.join(skill_changes)}"
+    ]
 
 
 # --------------------------------------------------------------------------- #
@@ -329,6 +699,8 @@ def main() -> int:
 
     skills = find_all_skills()
     plugin_dirs = find_all_plugin_dirs()
+    # Resolved once and shared: both version checks apply the same skip rules.
+    diff = diff_context(args.base_branch)
     all_errors: list[str] = []
 
     checks = [
@@ -343,6 +715,19 @@ def main() -> int:
             lambda: f"All {len(plugin_dirs)} plugin folders listed correctly",
         ),
         (
+            "Cursor marketplace manifests",
+            lambda: check_cursor_marketplace(plugin_dirs),
+            lambda: (
+                f"All {len(read_marketplace_entries(CURSOR_MARKETPLACE_JSON))} "
+                f"listed Cursor plugin(s) have manifests"
+            ),
+        ),
+        (
+            "Manifest names and versions across marketplaces",
+            lambda: check_manifest_coherence(plugin_dirs),
+            lambda: "Plugin names and versions agree across manifests",
+        ),
+        (
             "File references within skills",
             lambda: check_file_references(skills),
             lambda: (
@@ -351,9 +736,19 @@ def main() -> int:
             ),
         ),
         (
+            "SKILL.md frontmatter",
+            lambda: check_frontmatter(skills),
+            lambda: f"All {len(skills)} skills have valid frontmatter",
+        ),
+        (
             "Plugin version increments",
-            lambda: check_version_increments(plugin_dirs, args.base_branch),
+            lambda: check_version_increments(plugin_dirs, diff),
             lambda: "Plugin versions are up to date",
+        ),
+        (
+            "tile.json version increment",
+            lambda: check_tile_version_increment(diff),
+            lambda: "tile.json version is up to date",
         ),
     ]
 

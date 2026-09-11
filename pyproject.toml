@@ -4,13 +4,18 @@ version = "0.1.0"
 description = "Agent Skills for working with dbt"
 readme = "README.md"
 requires-python = ">=3.11"
+# Frontmatter validation in scripts/validate_repo.py parses real YAML rather
+# than approximating it; see the discussion on PR #161.
+dependencies = [
+    "pyyaml>=6.0",
+]
 
 [build-system]
 requires = ["setuptools>=82.0.1"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-exclude = ["evals", "evals.*", "scripts", "scripts.*"]
+exclude = ["evals", "evals.*", "scripts", "scripts.*", "tests", "tests.*"]
 
 [tool.setuptools.package-data]
 # The precompiled issue bundles are scoped to this one skill deliberately: they
@@ -27,5 +32,9 @@ skills = [
 
 [dependency-groups]
 dev = [
+    "pytest>=8.0",
     "skills-ref @ git+https://github.com/agentskills/agentskills.git#subdirectory=skills-ref",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

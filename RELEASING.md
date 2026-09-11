@@ -13,6 +13,9 @@ Bump the `version` field in each plugin manifest that has changed:
 | dbt-extras | `skills/dbt-extras/.claude-plugin/plugin.json` |
 | tessl (all plugins) | `tile.json` |
 
+A plugin with manifests in more than one marketplace (currently `dbt`) must carry
+the **same version** in each of them — `scripts/validate_repo.py` enforces this.
+
 ---
 
 ## Cursor Plugin Marketplace

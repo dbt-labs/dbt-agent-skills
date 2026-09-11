@@ -1,0 +1,9 @@
+kind: Fixes
+body: Register the `using-dbt-state` skill in `tile.json` so it publishes to the
+    Tessl registry, and fix supporting-file references in `upgrading-dbt-core` and
+    `using-dbt-for-analytics-engineering` that were written as plain text instead of
+    markdown links.
+time: 2026-09-10T13:20:36.000000Z
+custom:
+    Author: C00ldudeNoonan
+    Issue: "99"
