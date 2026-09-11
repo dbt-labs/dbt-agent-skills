@@ -341,9 +341,52 @@ ALLOWED_FRONTMATTER_FIELDS = {
 
 VALID_SKILL_NAME_RE = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
 FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\s*(\r?\n|\Z)", re.DOTALL)
-# Top-level keys only: nested keys and wrapped scalars are always indented
-TOP_LEVEL_KEY_RE = re.compile(r"^([A-Za-z0-9_-]+):", re.MULTILINE)
-NESTED_USER_INVOCABLE_RE = re.compile(r"^[ \t]+user-invocable:", re.MULTILINE)
+KEY_RE = re.compile(r"^([ \t]*)([A-Za-z0-9_-]+):[ \t]*(.*)$")
+
+
+def scalar_value(raw: str) -> str:
+    """The value of a YAML scalar, without quotes or a trailing comment."""
+    raw = raw.strip()
+    if raw[:1] in ("'", '"'):
+        quote, end = raw[0], raw.find(raw[0], 1)
+        return raw[1:end] if end > 0 else raw[1:]
+    # A '#' only starts a comment when preceded by whitespace
+    return re.split(r"\s+#", raw, maxsplit=1)[0].strip()
+
+
+def parse_frontmatter(block: str) -> tuple[dict[str, str], set[str]]:
+    """Split a frontmatter block into (top-level key -> value, nested key names).
+
+    Block scalars (`description: |` / `>`) are understood: their indented body
+    is free text, so a line inside one that merely looks like `key: value` is
+    not structure and is ignored. A regex alone cannot tell those apart, which
+    is why this is a scanner.
+    """
+    top: dict[str, str] = {}
+    nested: set[str] = set()
+    in_block_scalar = False
+
+    for line in block.splitlines():
+        if not line.strip():
+            continue
+        indent = len(line) - len(line.expandtabs().lstrip())
+        if in_block_scalar:
+            if indent > 0:
+                continue  # still inside the scalar's body
+            in_block_scalar = False
+
+        match = KEY_RE.match(line)
+        if not match:
+            continue
+        key, raw = match.group(2), match.group(3)
+
+        if indent == 0:
+            top[key] = scalar_value(raw)
+            in_block_scalar = raw.strip()[:1] in ("|", ">")
+        else:
+            nested.add(key)
+
+    return top, nested
 
 
 def check_frontmatter(skills: dict[str, Path]) -> list[str]:
@@ -362,9 +405,9 @@ def check_frontmatter(skills: dict[str, Path]) -> list[str]:
         if not match:
             errors.append(f"Skill '{skill_name}': SKILL.md has no YAML frontmatter")
             continue
-        block = match.group(1)
 
-        fields = set(TOP_LEVEL_KEY_RE.findall(block))
+        top, nested = parse_frontmatter(match.group(1))
+        fields = set(top)
 
         unexpected = fields - ALLOWED_FRONTMATTER_FIELDS
         if unexpected:
@@ -380,9 +423,8 @@ def check_frontmatter(skills: dict[str, Path]) -> list[str]:
                     f"Skill '{skill_name}': frontmatter is missing '{required}'"
                 )
 
-        name_match = re.search(r"^name:[ \t]*(.+?)[ \t]*$", block, re.MULTILINE)
-        if name_match:
-            declared = name_match.group(1).strip("\"'")
+        declared = top.get("name")
+        if declared:
             if not VALID_SKILL_NAME_RE.fullmatch(declared):
                 errors.append(
                     f"Skill '{skill_name}': name '{declared}' must be lowercase "
@@ -396,7 +438,7 @@ def check_frontmatter(skills: dict[str, Path]) -> list[str]:
 
         # `user-invocable` is only honoured at the top level, so a nested one
         # silently does nothing rather than failing loudly.
-        if NESTED_USER_INVOCABLE_RE.search(block):
+        if "user-invocable" in nested and "user-invocable" not in top:
             errors.append(
                 f"Skill '{skill_name}': 'user-invocable' is nested (likely under "
                 f"'metadata:') — it must be a top-level field"
@@ -483,6 +525,28 @@ def diff_context(base_branch: str) -> DiffContext:
     return DiffContext(base_branch, git_changed_files(base_branch), [])
 
 
+def parse_version(value: object) -> tuple[int, ...] | None:
+    """A dotted numeric version as a comparable tuple, or None if unparseable."""
+    if not isinstance(value, str):
+        return None
+    parts = value.split(".")
+    if not parts or not all(p.isdigit() for p in parts):
+        return None
+    return tuple(int(p) for p in parts)
+
+
+def version_increased(current: object, base: object) -> bool | None:
+    """Whether `current` is strictly greater than `base`; None if either is unparseable.
+
+    An equality test is not enough: it accepts a downgrade, which is as wrong
+    as forgetting the bump and harder to notice.
+    """
+    current_parsed, base_parsed = parse_version(current), parse_version(base)
+    if current_parsed is None or base_parsed is None:
+        return None
+    return current_parsed > base_parsed
+
+
 def check_version_increments(
     plugin_dirs: dict[str, Path], diff: DiffContext
 ) -> list[str]:
@@ -522,10 +586,18 @@ def check_version_increments(
             continue
         base_version = json.loads(base_content).get("version")
 
-        if current_version == base_version:
+        increased = version_increased(current_version, base_version)
+        if increased is None:
+            errors.append(
+                f"Plugin '{plugin_name}': cannot compare versions in "
+                f"{plugin_json_rel} (base {base_version!r}, current "
+                f"{current_version!r}) — expected dotted numbers like '1.5.1'"
+            )
+        elif not increased:
             errors.append(
                 f"Plugin '{plugin_name}' has skill changes but version "
-                f"({current_version}) was not incremented in {plugin_json_rel}. "
+                f"({current_version}) is not an increase over the base "
+                f"({base_version}) in {plugin_json_rel}. "
                 f"Changed: {', '.join(skill_changes)}"
             )
 
@@ -568,12 +640,20 @@ def check_tile_version_increment(
         return []
 
     current_version = json.loads(TILE_JSON.read_text()).get("version")
-    if current_version != json.loads(base_content).get("version"):
+    base_version = json.loads(base_content).get("version")
+
+    increased = version_increased(current_version, base_version)
+    if increased is None:
+        return [
+            f"Cannot compare {tile_rel} versions (base {base_version!r}, current "
+            f"{current_version!r}) — expected dotted numbers like '1.5.2'"
+        ]
+    if increased:
         return []
 
     return [
         f"{len(skill_changes)} skill file(s) changed but the {tile_rel} version "
-        f"({current_version}) was not incremented. "
+        f"({current_version}) is not an increase over the base ({base_version}). "
         f"Changed: {', '.join(skill_changes)}"
     ]
 

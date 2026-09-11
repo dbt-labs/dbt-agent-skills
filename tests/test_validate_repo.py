@@ -88,6 +88,37 @@ def test_frontmatter_accepts_block_scalar_and_nested_metadata(vr, tmp_path):
     assert vr.check_frontmatter({"doing-a-thing": skill}) == []
 
 
+def test_frontmatter_allows_block_scalar_mentioning_user_invocable(vr, tmp_path):
+    """A block scalar's body is free text, not structure.
+
+    `description: |` followed by an indented line that merely looks like
+    `user-invocable: ...` must not be read as a nested field.
+    """
+    # Deliberately NO top-level user-invocable: otherwise the nested-key check
+    # short-circuits and the test cannot detect a scanner that misreads the
+    # block scalar's body as structure.
+    frontmatter = (
+        "name: doing-a-thing\n"
+        "description: |\n"
+        "  Use when doing a thing. Configuration note:\n"
+        "  user-invocable: false belongs at the top level, never in metadata."
+    )
+    skill = make_skill(tmp_path, "doing-a-thing", frontmatter)
+    assert vr.check_frontmatter({"doing-a-thing": skill}) == []
+
+
+def test_frontmatter_ignores_inline_comment_after_name(vr, tmp_path):
+    skill = make_skill(
+        tmp_path, "doing-a-thing", "name: doing-a-thing  # keep in sync with the dir\ndescription: d"
+    )
+    assert vr.check_frontmatter({"doing-a-thing": skill}) == []
+
+
+def test_frontmatter_accepts_quoted_name(vr, tmp_path):
+    skill = make_skill(tmp_path, "doing-a-thing", 'name: "doing-a-thing"\ndescription: d')
+    assert vr.check_frontmatter({"doing-a-thing": skill}) == []
+
+
 def test_frontmatter_rejects_unexpected_top_level_fields(vr, tmp_path):
     skill = make_skill(
         tmp_path, "doing-a-thing", "name: doing-a-thing\ndescription: d\nversion: 1.0.0\nauthor: me"
@@ -354,7 +385,7 @@ def test_tile_rejects_skill_change_without_bump(vr, tile_repo, tile_plugin_dirs)
     diff = tile_repo("1.5.1", "1.5.1", ["skills/dbt/skills/a-skill/SKILL.md"])
     errors = vr.check_tile_version_increment(tile_plugin_dirs, diff)
     assert len(errors) == 1
-    assert "was not incremented" in errors[0]
+    assert "is not an increase over the base" in errors[0]
 
 
 def test_tile_accepts_skill_change_with_bump(vr, tile_repo, tile_plugin_dirs):
@@ -405,6 +436,48 @@ def test_tile_counts_only_skill_content_in_its_message(vr, tile_repo, tile_plugi
 def test_tile_skips_when_there_is_nothing_to_compare(vr, tile_repo, tile_plugin_dirs):
     tile_repo("1.5.1", "1.5.1", [])
     assert vr.check_tile_version_increment(tile_plugin_dirs, vr.DiffContext("main", None, [])) == []
+
+
+# --------------------------------------------------------------------------- #
+# version_increased
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize(
+    "current,base,expected",
+    [
+        ("1.5.2", "1.5.1", True),
+        ("1.6.0", "1.5.9", True),
+        ("2.0.0", "1.9.9", True),
+        ("1.5.1", "1.5.1", False),   # unchanged
+        ("1.5.1", "1.5.2", False),   # downgrade
+        ("1.4.0", "1.5.0", False),   # downgrade
+        ("1.10.0", "1.9.0", True),   # numeric, not lexicographic
+        ("1.9.0", "1.10.0", False),
+        ("1.5", "1.5.1", False),
+        ("v1.5.2", "1.5.1", None),   # unparseable
+        ("1.5.2-rc1", "1.5.1", None),
+        (None, "1.5.1", None),
+        ("1.5.2", None, None),
+    ],
+)
+def test_version_increased(vr, current, base, expected):
+    assert vr.version_increased(current, base) is expected
+
+
+def test_tile_rejects_a_version_downgrade(vr, tile_repo, tile_plugin_dirs):
+    """An equality test would pass this: 1.5.1 differs from 1.5.2."""
+    diff = tile_repo("1.5.1", "1.5.2", ["skills/dbt/skills/a-skill/SKILL.md"])
+    errors = vr.check_tile_version_increment(tile_plugin_dirs, diff)
+    assert len(errors) == 1
+    assert "is not an increase over the base" in errors[0]
+
+
+def test_tile_reports_an_unparseable_version(vr, tile_repo, tile_plugin_dirs):
+    diff = tile_repo("nightly", "1.5.1", ["skills/dbt/skills/a-skill/SKILL.md"])
+    errors = vr.check_tile_version_increment(tile_plugin_dirs, diff)
+    assert len(errors) == 1
+    assert "Cannot compare" in errors[0]
 
 
 # --------------------------------------------------------------------------- #
