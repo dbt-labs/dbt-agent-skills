@@ -348,7 +348,12 @@ ALLOWED_FRONTMATTER_FIELDS = {
 
 VALID_SKILL_NAME_RE = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
 FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\s*(\r?\n|\Z)", re.DOTALL)
-KEY_RE = re.compile(r"^([ \t]*)([A-Za-z0-9_-]+):[ \t]*(.*)$")
+KEY_RE = re.compile(
+    r"^(?P<indent>[ \t]*)"
+    # A key may be quoted; `"author": me` is the same field as `author: me`
+    r"""(?:"(?P<dq>[^"]+)"|'(?P<sq>[^']+)'|(?P<plain>[A-Za-z0-9_-]+))"""
+    r"[ \t]*:[ \t]*(?P<value>.*)$"
+)
 
 
 def scalar_value(raw: str) -> str:
@@ -389,6 +394,9 @@ def parse_frontmatter(block: str) -> Frontmatter:
     # body is every following line indented deeper than it — which is how a
     # scalar nested under `metadata:` is handled as well as a top-level one.
     scalar_indent: int | None = None
+    # The top-level key that scalar belongs to, so its body becomes the value.
+    # Storing the `|` marker instead would make an empty scalar look non-empty.
+    scalar_key: str | None = None
 
     for line in block.splitlines():
         if not line.strip():
@@ -396,13 +404,17 @@ def parse_frontmatter(block: str) -> Frontmatter:
         indent = len(line) - len(line.expandtabs().lstrip())
         if scalar_indent is not None:
             if indent > scalar_indent:
+                if scalar_key is not None:
+                    top[scalar_key] = f"{top[scalar_key]} {line.strip()}".strip()
                 continue  # still inside the scalar's body
             scalar_indent = None
+            scalar_key = None
 
         match = KEY_RE.match(line)
         if not match:
             continue
-        key, raw = match.group(2), match.group(3)
+        key = match["dq"] or match["sq"] or match["plain"]
+        raw = match["value"]
 
         if raw.strip()[:1] == "{":
             flow_keys.add(key)
@@ -412,8 +424,12 @@ def parse_frontmatter(block: str) -> Frontmatter:
         else:
             nested.add(key)
 
+        # Covers |, >, and the |- / >- / |+ chomping variants
         if raw.strip()[:1] in ("|", ">"):
             scalar_indent = indent
+            if indent == 0:
+                scalar_key = key
+                top[key] = ""  # the body, if any, fills this in
 
     return Frontmatter(top, nested, flow_keys)
 

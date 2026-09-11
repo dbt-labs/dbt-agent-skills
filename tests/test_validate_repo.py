@@ -187,6 +187,39 @@ def test_frontmatter_rejects_empty_required_values(vr, tmp_path, frontmatter, fi
     assert any(f"'{field}' is empty" in e for e in errors)
 
 
+@pytest.mark.parametrize("marker", ["|", ">", "|-", ">-", "|+"])
+def test_frontmatter_rejects_an_empty_block_scalar(vr, tmp_path, marker):
+    """YAML decodes a body-less block scalar to an empty string.
+
+    The scanner used to store the `|` marker as the value, which is truthy, so
+    a required field with no content passed.
+    """
+    skill = make_skill(tmp_path, "doing-a-thing", f"name: doing-a-thing\ndescription: {marker}")
+    errors = vr.check_frontmatter({"doing-a-thing": skill})
+    assert any("'description' is empty" in e for e in errors)
+
+
+def test_frontmatter_captures_block_scalar_body_as_the_value(vr, tmp_path):
+    parsed = vr.parse_frontmatter("description: |\n  Use when doing.\n  More text.")
+    assert parsed.top["description"] == "Use when doing. More text."
+
+
+def test_frontmatter_rejects_a_quoted_disallowed_key(vr, tmp_path):
+    """`"author": me` is the same field as `author: me` and must not slip past."""
+    skill = make_skill(
+        tmp_path, "doing-a-thing", 'name: doing-a-thing\ndescription: d\n"author": me'
+    )
+    errors = vr.check_frontmatter({"doing-a-thing": skill})
+    assert any("unexpected frontmatter field(s) ['author']" in e for e in errors)
+
+
+def test_frontmatter_accepts_a_quoted_allowed_key(vr, tmp_path):
+    skill = make_skill(
+        tmp_path, "doing-a-thing", '"name": doing-a-thing\n"description": Use when doing.'
+    )
+    assert vr.check_frontmatter({"doing-a-thing": skill}) == []
+
+
 def test_frontmatter_rejects_flow_mapping(vr, tmp_path):
     """`metadata: {user-invocable: false}` hides a nested key from a line scanner.
 
