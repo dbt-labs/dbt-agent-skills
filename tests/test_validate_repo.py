@@ -107,6 +107,38 @@ def test_frontmatter_allows_block_scalar_mentioning_user_invocable(vr, tmp_path)
     assert vr.check_frontmatter({"doing-a-thing": skill}) == []
 
 
+def test_frontmatter_allows_block_scalar_nested_under_metadata(vr, tmp_path):
+    """A block scalar's body is text at any depth, not just at the top level.
+
+    `metadata:` -> `notes: |` -> indented text mentioning `user-invocable:`
+    must not be read as a nested field.
+    """
+    frontmatter = (
+        "name: doing-a-thing\n"
+        "description: Use when doing a thing.\n"
+        "metadata:\n"
+        "  notes: |\n"
+        "    user-invocable: false is only honoured at the top level.\n"
+        "  author: dbt-labs"
+    )
+    skill = make_skill(tmp_path, "doing-a-thing", frontmatter)
+    assert vr.check_frontmatter({"doing-a-thing": skill}) == []
+
+
+def test_frontmatter_still_sees_keys_after_a_block_scalar_ends(vr, tmp_path):
+    """Exiting the scalar must resume parsing, or real nested keys get missed."""
+    frontmatter = (
+        "name: doing-a-thing\n"
+        "description: |\n"
+        "  Use when doing a thing.\n"
+        "metadata:\n"
+        "  user-invocable: false"
+    )
+    skill = make_skill(tmp_path, "doing-a-thing", frontmatter)
+    errors = vr.check_frontmatter({"doing-a-thing": skill})
+    assert any("must be a top-level field" in e for e in errors)
+
+
 def test_frontmatter_ignores_inline_comment_after_name(vr, tmp_path):
     skill = make_skill(
         tmp_path, "doing-a-thing", "name: doing-a-thing  # keep in sync with the dir\ndescription: d"
@@ -344,7 +376,7 @@ def test_context_errors_are_reported_exactly_once(vr, stub_git, tile_plugin_dirs
     stub_git(base_exists=False)
     diff = vr.diff_context("main")
     plugin_errors = vr.check_version_increments(tile_plugin_dirs, diff)
-    tile_errors = vr.check_tile_version_increment(tile_plugin_dirs, diff)
+    tile_errors = vr.check_tile_version_increment(diff)
     assert len(plugin_errors) == 1
     assert tile_errors == []
 
@@ -381,24 +413,24 @@ def tile_repo(vr, tmp_path, monkeypatch):
     return configure
 
 
-def test_tile_rejects_skill_change_without_bump(vr, tile_repo, tile_plugin_dirs):
+def test_tile_rejects_skill_change_without_bump(vr, tile_repo):
     diff = tile_repo("1.5.1", "1.5.1", ["skills/dbt/skills/a-skill/SKILL.md"])
-    errors = vr.check_tile_version_increment(tile_plugin_dirs, diff)
+    errors = vr.check_tile_version_increment(diff)
     assert len(errors) == 1
     assert "is not an increase over the base" in errors[0]
 
 
-def test_tile_accepts_skill_change_with_bump(vr, tile_repo, tile_plugin_dirs):
+def test_tile_accepts_skill_change_with_bump(vr, tile_repo):
     diff = tile_repo("1.5.2", "1.5.1", ["skills/dbt/skills/a-skill/SKILL.md"])
-    assert vr.check_tile_version_increment(tile_plugin_dirs, diff) == []
+    assert vr.check_tile_version_increment(diff) == []
 
 
-def test_tile_ignores_changes_outside_skills(vr, tile_repo, tile_plugin_dirs):
+def test_tile_ignores_changes_outside_skills(vr, tile_repo):
     diff = tile_repo("1.5.1", "1.5.1", ["README.md", "scripts/validate_repo.py"])
-    assert vr.check_tile_version_increment(tile_plugin_dirs, diff) == []
+    assert vr.check_tile_version_increment(diff) == []
 
 
-def test_tile_ignores_plugin_manifest_only_changes(vr, tile_repo, tile_plugin_dirs):
+def test_tile_ignores_plugin_manifest_only_changes(vr, tile_repo):
     """A manifest bump changes nothing Tessl publishes, so it must not force a bump.
 
     Only files under a plugin's skills/ directory count as skill content — the
@@ -413,10 +445,10 @@ def test_tile_ignores_plugin_manifest_only_changes(vr, tile_repo, tile_plugin_di
             "skills/dbt-migration/.claude-plugin/plugin.json",
         ],
     )
-    assert vr.check_tile_version_increment(tile_plugin_dirs, diff) == []
+    assert vr.check_tile_version_increment(diff) == []
 
 
-def test_tile_counts_only_skill_content_in_its_message(vr, tile_repo, tile_plugin_dirs):
+def test_tile_counts_only_skill_content_in_its_message(vr, tile_repo):
     """Mixed change set: the manifest bumps must not be counted or listed."""
     diff = tile_repo(
         "1.5.1",
@@ -427,15 +459,40 @@ def test_tile_counts_only_skill_content_in_its_message(vr, tile_repo, tile_plugi
             "skills/dbt-migration/skills/b-skill/SKILL.md",
         ],
     )
-    errors = vr.check_tile_version_increment(tile_plugin_dirs, diff)
+    errors = vr.check_tile_version_increment(diff)
     assert len(errors) == 1
     assert "2 skill file(s) changed" in errors[0]
     assert "plugin.json" not in errors[0]
 
 
-def test_tile_skips_when_there_is_nothing_to_compare(vr, tile_repo, tile_plugin_dirs):
+def test_tile_catches_a_deleted_plugin(vr, tile_repo):
+    """Deleting a whole plugin changes the tile's skill list, so it needs a bump.
+
+    Matching on existing plugin directories missed this: the deleted plugin's
+    files are in the diff but its directory is gone from the working tree.
+    """
+    diff = tile_repo(
+        "1.5.1",
+        "1.5.1",
+        [
+            "skills/dbt-extras/skills/removed-skill/SKILL.md",
+            "skills/dbt-extras/.claude-plugin/plugin.json",
+        ],
+    )
+    errors = vr.check_tile_version_increment(diff)
+    assert len(errors) == 1
+    assert "1 skill file(s) changed" in errors[0]
+
+
+def test_tile_ignores_a_bare_skills_dir_path(vr, tile_repo):
+    """`skills/<plugin>/skills/` itself is not skill content; it needs a file under it."""
+    diff = tile_repo("1.5.1", "1.5.1", ["skills/dbt/skills/"])
+    assert vr.check_tile_version_increment(diff) == []
+
+
+def test_tile_skips_when_there_is_nothing_to_compare(vr, tile_repo):
     tile_repo("1.5.1", "1.5.1", [])
-    assert vr.check_tile_version_increment(tile_plugin_dirs, vr.DiffContext("main", None, [])) == []
+    assert vr.check_tile_version_increment(vr.DiffContext("main", None, [])) == []
 
 
 # --------------------------------------------------------------------------- #
@@ -465,17 +522,17 @@ def test_version_increased(vr, current, base, expected):
     assert vr.version_increased(current, base) is expected
 
 
-def test_tile_rejects_a_version_downgrade(vr, tile_repo, tile_plugin_dirs):
+def test_tile_rejects_a_version_downgrade(vr, tile_repo):
     """An equality test would pass this: 1.5.1 differs from 1.5.2."""
     diff = tile_repo("1.5.1", "1.5.2", ["skills/dbt/skills/a-skill/SKILL.md"])
-    errors = vr.check_tile_version_increment(tile_plugin_dirs, diff)
+    errors = vr.check_tile_version_increment(diff)
     assert len(errors) == 1
     assert "is not an increase over the base" in errors[0]
 
 
-def test_tile_reports_an_unparseable_version(vr, tile_repo, tile_plugin_dirs):
+def test_tile_reports_an_unparseable_version(vr, tile_repo):
     diff = tile_repo("nightly", "1.5.1", ["skills/dbt/skills/a-skill/SKILL.md"])
-    errors = vr.check_tile_version_increment(tile_plugin_dirs, diff)
+    errors = vr.check_tile_version_increment(diff)
     assert len(errors) == 1
     assert "Cannot compare" in errors[0]
 

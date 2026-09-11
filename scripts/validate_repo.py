@@ -364,16 +364,19 @@ def parse_frontmatter(block: str) -> tuple[dict[str, str], set[str]]:
     """
     top: dict[str, str] = {}
     nested: set[str] = set()
-    in_block_scalar = False
+    # Indentation of the key that opened the current block scalar, if any. Its
+    # body is every following line indented deeper than it — which is how a
+    # scalar nested under `metadata:` is handled as well as a top-level one.
+    scalar_indent: int | None = None
 
     for line in block.splitlines():
         if not line.strip():
             continue
         indent = len(line) - len(line.expandtabs().lstrip())
-        if in_block_scalar:
-            if indent > 0:
+        if scalar_indent is not None:
+            if indent > scalar_indent:
                 continue  # still inside the scalar's body
-            in_block_scalar = False
+            scalar_indent = None
 
         match = KEY_RE.match(line)
         if not match:
@@ -382,9 +385,11 @@ def parse_frontmatter(block: str) -> tuple[dict[str, str], set[str]]:
 
         if indent == 0:
             top[key] = scalar_value(raw)
-            in_block_scalar = raw.strip()[:1] in ("|", ">")
         else:
             nested.add(key)
+
+        if raw.strip()[:1] in ("|", ">"):
+            scalar_indent = indent
 
     return top, nested
 
@@ -609,28 +614,25 @@ def check_version_increments(
 # --------------------------------------------------------------------------- #
 
 
-def check_tile_version_increment(
-    plugin_dirs: dict[str, Path], diff: DiffContext
-) -> list[str]:
+def check_tile_version_increment(diff: DiffContext) -> list[str]:
     """If any skill's content changed vs. base branch, tile.json must be bumped.
 
     tile.json versions the Tessl tile as a whole (see RELEASING.md), so it moves
     on any skill change regardless of which plugin the skill belongs to. Like
-    the per-plugin check, this counts only skill content — files under a
-    plugin's skills/ directory. A plugin manifest bump on its own changes
-    nothing Tessl publishes and must not force a tile bump.
+    the per-plugin check, this counts only skill content — files matching
+    skills/<plugin>/skills/. A plugin manifest bump on its own changes nothing
+    Tessl publishes and must not force a tile bump.
     """
     # Context errors are reported by the plugin version check, not here.
     if not diff.changed:
         return []
 
-    skill_prefixes = tuple(
-        f"{plugin_dir.relative_to(REPO_ROOT)}/skills/"
-        for plugin_dir in plugin_dirs.values()
-    )
-    skill_changes = sorted(
-        f for f in diff.changed if f.startswith(skill_prefixes)
-    )
+    # Matched on path shape rather than against the plugin directories that
+    # exist now: a PR that deletes a whole plugin still has its skill files in
+    # the diff, and that is exactly when the tile's skill list changes.
+    skills_root = re.escape(str(SKILLS_DIR.relative_to(REPO_ROOT)))
+    skill_content = re.compile(rf"^{skills_root}/[^/]+/skills/.+")
+    skill_changes = sorted(f for f in diff.changed if skill_content.match(f))
     if not skill_changes:
         return []
 
@@ -722,7 +724,7 @@ def main() -> int:
         ),
         (
             "tile.json version increment",
-            lambda: check_tile_version_increment(plugin_dirs, diff),
+            lambda: check_tile_version_increment(diff),
             lambda: "tile.json version is up to date",
         ),
     ]
