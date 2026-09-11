@@ -6,13 +6,12 @@ Thank you for your interest in contributing to dbt Agent Skills! This guide will
 
 1. [About this Repository](#about-this-repository)
 2. [How to Contribute](#how-to-contribute)
-3. [Setup](#setup)
-4. [Creating a New dbt Skill](#creating-a-new-dbt-skill)
-5. [Skill Quality Guidelines](#skill-quality-guidelines)
-6. [Testing Your Skill](#testing-your-skill)
-7. [Submitting a Pull Request](#submitting-a-pull-request)
-8. [Style Guide](#style-guide)
-9. [Troubleshooting](#troubleshooting)
+3. [Creating a New dbt Skill](#creating-a-new-dbt-skill)
+4. [Style Guide](#style-guide)
+5. [dbt Skill Ideas](#dbt-skill-ideas)
+6. [Resources](#resources)
+7. [Questions or Issues?](#questions-or-issues)
+8. [License](#license)
 
 ## About this Repository
 
