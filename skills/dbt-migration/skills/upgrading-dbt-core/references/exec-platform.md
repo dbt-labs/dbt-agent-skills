@@ -13,7 +13,8 @@ locally is done with a Studio tool below.
 Three consequences worth stating plainly:
 
 - **`dbt_command` accepts exactly two binaries: `dbt` and `dbt-autofix`.** Nothing
-  else is on the allowlist.
+  else is on the allowlist — notably not `dbt-migrate-1x` (see `autofix` below),
+  which is why this migration's deterministic fixes are applied by hand here.
 - **You write the artifacts yourself** with `edit_file`. No script validates them,
   so the schemas in SKILL.md are the contract — never invent a field, a status
   value, or a phase id.
@@ -73,11 +74,17 @@ memory: read it, change the one record you mean to change, write it back.
 | `edit_file` | Every file change, including creating the artifacts |
 | `delete_file` | Remove a file a fix retires |
 | `git` (`status`, `branches`, `diff`, `checkout`, `commit`, `push`, `pull`, `revert`, `merge`) | Preflight, diffs for approval, undo. **No `stash`** |
-| `dbt_command`, `dbt_command_status`, `dbt_command_cancel` | The `dbt parse` gate and the `dbt-autofix` run |
+| `dbt_command`, `dbt_command_status`, `dbt_command_cancel` | The whole verification gate — `dbt parse`, then `dbt build` / `dbt test`. **Not** the deterministic 1.x → 1.x fixes — `dbt-migrate-1x` is not on this tool's allowlist; see `autofix` below |
 | `request_user_input` | Every question you put to the user |
-| `get_job_details` | Read one job by id — its `execute_steps` and pinned `dbt_version`. Also how you build `migration_jobs.json` (`jobs-file`) |
-| `list_jobs` | Use with care: it returns every job in the **account**, not this project. Work from the legacy job ids you were given |
-| `trigger_job_run`, `get_job_run_details`, `get_job_run_error`, `list_job_run_artifacts` | The optional `verify-jobs` exit gate |
+| `get_job_details` | Read one job by id — its `execute_steps` and pinned `dbt_version`. This is how you build `migration_jobs.json` (`jobs-file`) |
+| `list_jobs` | Discover this project's jobs, scoped by the `project_id` in your context. This is the first step of `jobs-file` |
+
+**You do not trigger jobs.** `trigger_job_run` is not part of this skill. A job
+run executes on the deployment environment's own credentials and its own target
+schema, which is very often production — the migration has no business writing
+there, and a `schema_override` is a flag you can forget. Verification stays in
+this session, on this session's development credentials. See
+[`verify-commands`](#verify-commands--the-command-checks).
 
 `$PROJECT` = the project's root. `$ADAPTER` = the adapter type. `$FROM` = the
 starting version. `<id>` = an `issue_id` from the bundle.
@@ -137,23 +144,18 @@ a run resumable.
 There is no query tool; the file is small enough to read whole.
 
 ### `autofix`
-`dbt_command` with:
 
-```
-dbt-autofix migrate-1x --from <FROM> --to 1.8
-```
+`dbt-autofix migrate-1x` is **Not available here.**
 
-then `git diff` to see which files it touched.
-
-The subcommand matters. `migrate-1x` is the 1.x → 1.x pass; `deprecations` is
-the Fusion/v1.10 pass and is **not** this migration. `--from` must be the
-project's real starting version, not the tool's 1.3 default, so autofix replays
-exactly the hops the bundle covers — an out-of-range rule would change files
-that map onto no collected issue. `--to` stays at 1.8 because everything after
-it is behavior-flag gated and pinned by `set-flag`, never rewritten.
-
-This is the one step that works the same way it does locally, because
-`dbt-autofix` is on the `dbt_command` allowlist.
+**So there is no separate autofix pass in this profile.** Treat every
+`detected` issue with `automation_type: deterministic` exactly like an
+`agentic` one in Step 5: apply the fix yourself per `context.fixing`, `git
+diff` to see what changed, then `set-status` `fixed` — never
+`handled-by-autofix`, which claims a tool did it and nothing did here. Skip
+Step 4 as its own pass (there is nothing for it to do); fold its issues into
+Step 5's work instead, and `status-set` `autofix` = `complete` immediately
+with a note saying why (`"no dbt-migrate-1x tool in Studio; N deterministic
+issues folded into Step 5"`).
 
 ### `set-flag`
 `edit_file` on `dbt_project.yml`, adding the flag named in that issue's
@@ -165,25 +167,37 @@ only flags for behaviors detection actually found.
 ### `parse`
 `dbt_command` with `dbt parse`. Poll with `dbt_command_status`.
 
-The gate is only meaningful against **dbt-core 1.12** — the target version. Treat
-the session as running 1.12 for the purposes of this skill.
+**This session already runs on the target release track.** The platform moves your
+develop session onto it before handing off to you, and verifies that it took effect
+rather than assuming it — so this is a real gate against the target, not against the
+version you are migrating away from. You do not need to check the running version,
+and you must not try to change it.
+
+What the gate is: the *cheap* check. Run it before `verify-commands`, because it
+catches the small mistakes — a bad `ref`, malformed YAML, a config that moved — in
+seconds instead of in a `dbt build` that spends warehouse compute to tell you the
+same thing. It proves the project **parses**. It cannot prove behaviour; that is
+`verify-commands`.
 
 ### `jobs-file`
 
 **You create this file here.** No extension ran before you, so unlike the local
-profile there is nothing on disk to read — you build it from the legacy job ids you
-were given, then record your verdicts in it.
+profile there is nothing on disk to read — you discover the jobs yourself, then
+record your verdicts in it.
 
-1. For each legacy job id, `get_job_details` → its `execute_steps`.
-2. `edit_file` on `migration_jobs.json` at the **project root** (not under
+1. `list_jobs` for this project. `project_id` is in your context; the account is
+   supplied by the tool and is never yours to pass.
+2. Keep only the jobs on a **legacy** version — below 1.8. Use each job's own
+   pinned version if it has one, otherwise its environment's.
+3. For each kept job, `get_job_details` → its `execute_steps`.
+4. `edit_file` on `migration_jobs.json` at the **project root** (not under
    `target/`), creating it with one entry per job and one step entry per command,
    every step `status: "pending"` and `updated: null`.
-3. Then `edit_file` the same file as you work through the issues, setting each step
+5. Then `edit_file` the same file as you work through the issues, setting each step
    to `ok` / `needs_change` / `manual`.
 
-Set `"source": "platform"`. Use the legacy job ids you were given — **not**
-`list_jobs`, which is account-wide and would pull in jobs from projects that are
-none of this migration's business.
+Set `"source": "platform"`. Do not list an account's other projects, and never
+edit or run a job.
 
 The schema is **fixed and shared with the VS Code extension**, which writes the
 same file deterministically on the local path: see
@@ -191,8 +205,14 @@ same file deterministically on the local path: see
 Nothing validates it for you here, so that section is the contract — do not add
 fields, rename them, or invent status values.
 
-Writing this file is not permission to change the jobs. `verify-jobs` may *run*
-them; nothing in this skill edits them.
+Write it in **Step 2**, before detection, not when the first job-command issue
+turns up. Later steps record verdicts against it, so it has to exist whether or
+not any out-of-repo issue was found.
+
+This file is for **tracking and reporting only**. `verify-commands` does not read
+it — that gate runs a fixed set of commands, listed below. What this file is for
+is telling the customer which of their job commands they have to change after
+merging. Nothing in this skill edits a job, and nothing in this skill runs one.
 
 ### `revert`
 `git` `revert` with a `files` list. That undoes those uncommitted changes, which
@@ -219,57 +239,54 @@ work — say both.
 **before** asking, with a note saying what you asked, and set it back to
 `in_progress` the moment they answer.
 
-### `verify-jobs` — the optional exit gate
+### `verify-commands` — the command checks
 
-Platform only. This is the `verify-jobs` operation SKILL.md describes after
-Step 9: run the customer's **own existing jobs** on the target version and see
-whether they actually work. `dbt parse` cannot catch behavior-only changes —
-connector swaps, quoting, timeout defaults — and those are exactly what breaks
-after a version bump.
+Platform only. These are the checks above `parse` in SKILL.md's Step 7. `dbt parse`
+cannot catch behavior-only changes — connector swaps, quoting, timeout defaults, a
+changed materialization default — and those are exactly what breaks after a
+version bump. Commands that compile and build can.
 
-Admin tools, all bound to the signed-in user:
+Same tool as the parse check: `dbt_command`, polled with `dbt_command_status`.
 
-| Tool | Use |
-|---|---|
-| `get_job_details` | Read each legacy job by id — its `execute_steps` and pinned `dbt_version`. Pick targets from the legacy job ids you were given, not from `list_jobs`, which is account-wide |
-| `trigger_job_run` | Start one run, with `dbt_version_override` plus `git_branch` and `schema_override` |
-| `get_job_run_details` | Poll that run to completion |
-| `get_job_run_error` | Read the failure when it fails |
-| `list_job_run_artifacts` | Pull artifacts from the run if you need more than the error |
+**The commands are fixed. Run these four, in this order:**
 
-**The loop.** For each job whose effective version is legacy — every one of them,
-not a sample:
+1. `dbt parse` — check 1, already run. Do not repeat it here.
+2. `dbt compile`
+3. `dbt test`
+3. `dbt build`
 
-1. `trigger_job_run` with `dbt_version_override` set to the target version,
-   `git_branch` set to the migration branch, and `schema_override` set to a
-   **scratch schema**. Never the job's real target schema.
-2. Poll with `get_job_run_details`.
-3. Green → record it and move to the next job.
-4. Red → `get_job_run_error`, attribute the failure to an issue, go back to
-   Step 5 or 6, re-run Step 7's parse gate, and only then retry. Record what you
-   changed in the issue's notes.
+Stop at the first red. Do not substitute, add or reorder them, and do not take
+commands from `migration_jobs.json`.
 
-When every legacy job is green, re-issue the report.
+`dbt deps` first if the project needs its packages. That is setup, not
+verification, and it is the one extra command you may run.
 
-**Guardrails — these are the operation, not decoration:**
+Never pass `--target`, `--profile`, or `--profiles-dir`. The session already runs on the signed-in user's own development
+credential and schema, which is where these commands are meant to build.
 
-- **Ask before *every* triggered run**, not just the first, with
-  `request_user_input`, and set the phase to `waiting_input` while you wait. Each
-  run spends real warehouse compute on the customer's account. Studio's in-session
-  approval for `dbt_command` does **not** cover `trigger_job_run` — it is a
-  server-side action with no equivalent gate — so this instruction is the only
-  thing standing between the user and an unrequested bill.
+**The loop.** `ask` for approval once, up front, saying that `dbt build` will
+materialize the project into the development schema. Then for each command in
+order:
 
-  Per-run approval is also what bounds the loop: there is no attempt cap here
-  precisely because you cannot start another run without being told to. Never
-  batch several runs behind one approval.
-- **Always a scratch schema**, via `schema_override`. Never write to the schema a
-  real job targets.
-- **One job at a time.** Do not fan out.
-- **Never trigger anything on `main`/`master`** — always the migration branch.
+1. `dbt_command` with the command, no extra selectors.
+2. Poll with `dbt_command_status`. Green → next command.
+3. Red → read the node-level errors in the status output, attribute the failure to
+   an issue, go back to Step 5 or 6, then re-run Step 7 **from the parse check**.
+   Record what you changed in the issue's notes.
 
-**If you cannot run it** — `dbt_version_override` unavailable on `trigger_job_run`,
-or the user lacks run permission, or they decline — that is a normal outcome.
-Say so plainly, let the parse gate stand as the verification, and make sure the
-report names **every job left unverified** so the user knows exactly what was
-and was not proven.
+When all four are green, go on to Step 8.
+
+**Guardrails:**
+- **One command at a time.** Do not fan out; `dbt_command` is per-command anyway
+  and concurrent builds into one schema will collide.
+- **Max 3 trips round the loop**, then stop. Unlike a job trigger there is no
+  per-run approval bounding this, so the cap is what bounds it. Say you hit the
+  cap rather than quietly stopping.
+- **Never on `main`/`master`** — always the migration branch, same as everything
+  else in this skill.
+
+**If you cannot run it** — the user declines, the session has no warehouse
+connection, the project's schema generation is not safe to build into — that is a
+normal outcome. Say so plainly, let the parse gate stand as the verification, and
+make sure the report names **every command left unverified** so the user knows
+exactly what was and was not proven.

@@ -1,7 +1,7 @@
 issue_id: "1_6_001"
 sort_order: 4010
 change: New warning when --state and --target point to the same directory
-action: Fix --state/--target configuration so they reference distinct directories
+action: Report the --state/--target configuration so the owner can point them at distinct directories
 category: Behavior
 component: core
 adapter_type: null
@@ -27,14 +27,20 @@ context:
     - Note the value is frequently supplied outside the repo (dbt platform job definitions,
       orchestration tools), which parse cannot see.
   fixing: |-
-    - Point `--state` at a directory separate from the run's `--target` — e.g. keep run output in
-      `target/` and the comparison manifest in a distinct dir such as `state/` or `prod-artifacts/`.
-    - Concretely, in the offending script/CI step change the duplicated paths so a command like
-      `dbt build --state ./state --target-path ./target` uses different dirs, and populate the state
-      artifacts there.
-    - If the same-directory usage lives outside the repo (a dbt platform job command, an orchestration
-      tool), it cannot be edited from the repo.
-    - For that out-of-repo case: record it in the results artifact (target/dbt_migration_results.json)
-      as manual-required with the issue_id, the invocation location if known, and the suggested command
-      change, then prompt the user.
+    - NEVER EDIT AN INVOCATION SITE FOR THIS ISSUE. Do not rewrite the shell script, Makefile, CI
+      YAML, or `dbt_project.yml`, and do not offer the edit as a HITL diff. This issue is
+      report-only. The reason is not squeamishness: `--state` has to point at
+      a directory that already holds the *comparison* manifest, and which directory that is depends
+      on how the artifacts get published in the real deployment — a CI cache key, an S3 prefix, a
+      dbt platform job's deferral setting. None of that is visible from the repo, so any path this
+      skill invents ("./state") names a directory that does not exist and silently turns a warning
+      into a broken deferral.
+    - ALWAYS add a results entry (`manual-required`) listing, for each affected invocation: the file
+      and line, the command verbatim as it stands today, and the suggested replacement as *text for
+      the user to apply* — e.g. `dbt build --state ./state --target-path ./target`, with a note that
+      the `--state` directory must be populated with the production manifest first.
+    - When the affected invocation is a dbt platform job command, the record belongs in the jobs file
+      via `jobs-file` (status `needs_change`, with `reason`), not only in the issue note.
+    - If detection found no in-repo invocation site, still record `manual-required` with a note that
+      `--state`/`--target-path` may be paired in out-of-repo job definitions the skill cannot see.
     - This change never requires a repo edit to pass `dbt parse`; it is advisory / out-of-repo only.

@@ -24,6 +24,12 @@ context:
       metric, or `filters:` (the list-of-dict old form).
     - The new MetricFlow schema instead uses `type:` with values simple|ratio|cumulative|derived
       plus a `type_params:` block. If a metric already has `type_params:`, it is migrated — skip it.
+    - If EVERY metric already uses `type:` + `type_params:`, or the project defines no metrics at all,
+      this issue is `skipped-not-present` and the correct outcome is ZERO file changes. In
+      particular, do NOT add a `metricflow_time_spine` model, a `time_spine` block, or any
+      `semantic_models:` entry to an already-migrated project. A missing time spine in a project
+      that already parses is not this issue, and adding one is an unrequested change that will not
+      match the report.
     - Also grep packages.yml for `dbt_metrics` usage and models for `metrics.calculate(` /
       `metrics.develop(` macro calls — those depend on the old package and must be flagged too.
   fixing: |-
@@ -72,6 +78,11 @@ context:
     - Derived example: `calculation_method: derived` + `expression: revenue - cost` becomes
       `type: derived` with `type_params: {expr: 'revenue - cost', metrics: [{name: revenue},
       {name: cost}]}`.
+    - Time spine: MetricFlow needs a time-spine model only when a rewritten metric actually
+      requires one — `type: cumulative`, or a `derived`/`ratio` metric with an offset window. When
+      one of those is present, add `models/metricflow_time_spine.sql` plus its `time_spine:` block
+      and record the new file in `files_changed`. When no rewritten metric needs it, do NOT create
+      it. Never create it for an issue that detection marked `skipped-not-present`.
     - Judgment-heavy: 1.6 requires a `semantic_models:` layer that did not exist in 1.5, so the
       measure/entity/dimension split cannot always be inferred mechanically.
     - If you cannot confidently reconstruct the semantic model (e.g. the source model's grain or

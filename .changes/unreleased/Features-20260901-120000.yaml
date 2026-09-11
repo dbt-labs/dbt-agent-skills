@@ -1,0 +1,6 @@
+kind: Features
+body: Replace the upgrading-dbt-core job-trigger exit gate with an in-session verification gate. On dbt platform it runs a fixed command set (dbt parse, compile, build, test) on the develop session's own credentials; in VS Code it is dbt parse only. Jobs are discovered from the project rather than passed in, and migration_jobs.json is now tracking and reporting only.
+time: 2026-09-01T12:00:00.000000Z
+custom:
+    Author: sriramr-dbt
+    Issue: "N/A"

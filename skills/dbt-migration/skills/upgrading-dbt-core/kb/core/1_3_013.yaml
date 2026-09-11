@@ -22,5 +22,7 @@ context:
     - Handled by `dbt-autofix deprecations` (attribute rename to expression/calculation_method).
     - Review the autofix diff and confirm each metric was rewritten.
     - NOTE: this is the 1.3->1.4 attribute rename only; the full MetricFlow rewrite is the separate
-      1.5->1.6 issue 1_5_001.
+      1.5->1.6 issue 1_5_001. Scope this fix to renaming attributes. Do NOT add `semantic_models:`,
+      a `metricflow_time_spine` model, or `type_params:` here — that work belongs to 1_5_001 and
+      must be recorded against 1_5_001's issue_id, not this one.
     - Manual fallback: apply the attribute renames yourself if autofix skipped any.
