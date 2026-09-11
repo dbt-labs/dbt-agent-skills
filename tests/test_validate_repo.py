@@ -167,6 +167,41 @@ def test_frontmatter_rejects_missing_frontmatter(vr, tmp_path):
     assert "no YAML frontmatter" in errors[0]
 
 
+@pytest.mark.parametrize(
+    "frontmatter,field",
+    [
+        ("name:\ndescription: d", "name"),
+        ('name: ""\ndescription: d', "name"),
+        ("name: doing-a-thing\ndescription:", "description"),
+        ("name: doing-a-thing\ndescription: '  '", "description"),
+    ],
+)
+def test_frontmatter_rejects_empty_required_values(vr, tmp_path, frontmatter, field):
+    """An empty value is not a present value.
+
+    An empty name also used to skip the kebab-case and directory-match checks
+    entirely, so malformed frontmatter passed clean.
+    """
+    skill = make_skill(tmp_path, "doing-a-thing", frontmatter)
+    errors = vr.check_frontmatter({"doing-a-thing": skill})
+    assert any(f"'{field}' is empty" in e for e in errors)
+
+
+def test_frontmatter_rejects_flow_mapping(vr, tmp_path):
+    """`metadata: {user-invocable: false}` hides a nested key from a line scanner.
+
+    Rather than appear to validate placement it cannot see, the check reports
+    flow style and asks for block style. No skill in the repo uses it.
+    """
+    skill = make_skill(
+        tmp_path,
+        "doing-a-thing",
+        "name: doing-a-thing\ndescription: d\nmetadata: {user-invocable: false}",
+    )
+    errors = vr.check_frontmatter({"doing-a-thing": skill})
+    assert any("flow style" in e for e in errors)
+
+
 def test_frontmatter_rejects_missing_description(vr, tmp_path):
     skill = make_skill(tmp_path, "doing-a-thing", "name: doing-a-thing")
     errors = vr.check_frontmatter({"doing-a-thing": skill})
@@ -305,6 +340,18 @@ def test_coherence_ignores_plugins_with_a_single_manifest(vr, coherence_repo):
     plugin_dirs, _, _ = coherence_repo
     write_manifest(vr, plugin_dirs["dbt"], "claude", "dbt", "1.5.0")
     assert vr.check_manifest_coherence(plugin_dirs) == []
+
+
+def test_coherence_rejects_a_missing_version(vr, coherence_repo):
+    """Both manifests omitting 'version' used to collapse to {None} and pass."""
+    plugin_dirs, _, _ = coherence_repo
+    for marketplace in ("claude", "cursor"):
+        path = plugin_dirs["dbt"] / vr.PLUGIN_MANIFESTS[marketplace]
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"name": "dbt"}))
+    errors = vr.check_manifest_coherence(plugin_dirs)
+    assert len(errors) == 2
+    assert all("no usable 'version'" in e for e in errors)
 
 
 def test_coherence_rejects_manifest_name_mismatch(vr, coherence_repo):
@@ -493,6 +540,74 @@ def test_tile_ignores_a_bare_skills_dir_path(vr, tile_repo):
 def test_tile_skips_when_there_is_nothing_to_compare(vr, tile_repo):
     tile_repo("1.5.1", "1.5.1", [])
     assert vr.check_tile_version_increment(vr.DiffContext("main", None, [])) == []
+
+
+# --------------------------------------------------------------------------- #
+# check_version_increments — the per-plugin path
+# --------------------------------------------------------------------------- #
+
+
+@pytest.fixture
+def plugin_version_repo(vr, tmp_path, monkeypatch):
+    """A synthetic plugin whose manifest version can be set at both ends."""
+    monkeypatch.setattr(vr, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(vr, "SKILLS_DIR", tmp_path / "skills")
+    plugin_dir = tmp_path / "skills" / "dbt"
+    manifest = plugin_dir / vr.PLUGIN_MANIFESTS["claude"]
+    manifest.parent.mkdir(parents=True)
+
+    def configure(head_version, base_version, changed=("skills/dbt/skills/a/SKILL.md",)):
+        manifest.write_text(json.dumps({"name": "dbt", "version": head_version}))
+        monkeypatch.setattr(
+            vr,
+            "git_file_at_ref",
+            lambda ref, path: None
+            if base_version is None
+            else json.dumps({"name": "dbt", "version": base_version}),
+        )
+        return {"dbt": plugin_dir}, vr.DiffContext("main", set(changed), [])
+
+    return configure
+
+
+def test_plugin_version_accepts_an_increase(vr, plugin_version_repo):
+    dirs, diff = plugin_version_repo("1.5.1", "1.5.0")
+    assert vr.check_version_increments(dirs, diff) == []
+
+
+def test_plugin_version_rejects_an_unchanged_version(vr, plugin_version_repo):
+    dirs, diff = plugin_version_repo("1.5.0", "1.5.0")
+    errors = vr.check_version_increments(dirs, diff)
+    assert len(errors) == 1
+    assert "is not an increase over the base" in errors[0]
+
+
+def test_plugin_version_rejects_a_downgrade(vr, plugin_version_repo):
+    """Differs from the base, so an equality test would have passed it."""
+    dirs, diff = plugin_version_repo("1.4.0", "1.5.0")
+    errors = vr.check_version_increments(dirs, diff)
+    assert len(errors) == 1
+    assert "is not an increase over the base" in errors[0]
+
+
+def test_plugin_version_reports_an_unparseable_version(vr, plugin_version_repo):
+    dirs, diff = plugin_version_repo("nightly", "1.5.0")
+    errors = vr.check_version_increments(dirs, diff)
+    assert len(errors) == 1
+    assert "cannot compare versions" in errors[0]
+
+
+def test_plugin_version_ignores_non_skill_changes(vr, plugin_version_repo):
+    dirs, diff = plugin_version_repo(
+        "1.5.0", "1.5.0", changed=("skills/dbt/.claude-plugin/plugin.json", "README.md")
+    )
+    assert vr.check_version_increments(dirs, diff) == []
+
+
+def test_plugin_version_skips_a_new_plugin(vr, plugin_version_repo):
+    """No manifest at the base ref means the plugin is new; nothing to compare."""
+    dirs, diff = plugin_version_repo("1.0.0", None)
+    assert vr.check_version_increments(dirs, diff) == []
 
 
 # --------------------------------------------------------------------------- #

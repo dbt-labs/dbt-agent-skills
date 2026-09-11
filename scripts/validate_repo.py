@@ -220,7 +220,14 @@ def check_manifest_coherence(plugin_dirs: dict[str, Path]) -> list[str]:
                     f"skills/{folder}/{manifest_rel} declares name "
                     f"'{manifest.get('name')}' — expected '{folder}'"
                 )
-            versions[marketplace] = manifest.get("version")
+            version = manifest.get("version")
+            if not isinstance(version, str) or not version.strip():
+                errors.append(
+                    f"skills/{folder}/{manifest_rel} has no usable 'version' "
+                    f"(got {version!r})"
+                )
+                continue
+            versions[marketplace] = version
 
         if len(set(versions.values())) > 1:
             detail = ", ".join(f"{m}={v}" for m, v in sorted(versions.items()))
@@ -354,7 +361,20 @@ def scalar_value(raw: str) -> str:
     return re.split(r"\s+#", raw, maxsplit=1)[0].strip()
 
 
-def parse_frontmatter(block: str) -> tuple[dict[str, str], set[str]]:
+class Frontmatter(NamedTuple):
+    """A parsed frontmatter block.
+
+    `flow_keys` are keys written in flow style (`metadata: {a: b}`). Keys
+    hidden inside one are invisible to a line scanner, so rather than appear
+    to validate them, they are reported and the author asked for block style.
+    """
+
+    top: dict[str, str]
+    nested: set[str]
+    flow_keys: set[str]
+
+
+def parse_frontmatter(block: str) -> Frontmatter:
     """Split a frontmatter block into (top-level key -> value, nested key names).
 
     Block scalars (`description: |` / `>`) are understood: their indented body
@@ -364,6 +384,7 @@ def parse_frontmatter(block: str) -> tuple[dict[str, str], set[str]]:
     """
     top: dict[str, str] = {}
     nested: set[str] = set()
+    flow_keys: set[str] = set()
     # Indentation of the key that opened the current block scalar, if any. Its
     # body is every following line indented deeper than it — which is how a
     # scalar nested under `metadata:` is handled as well as a top-level one.
@@ -383,6 +404,9 @@ def parse_frontmatter(block: str) -> tuple[dict[str, str], set[str]]:
             continue
         key, raw = match.group(2), match.group(3)
 
+        if raw.strip()[:1] == "{":
+            flow_keys.add(key)
+
         if indent == 0:
             top[key] = scalar_value(raw)
         else:
@@ -391,7 +415,7 @@ def parse_frontmatter(block: str) -> tuple[dict[str, str], set[str]]:
         if raw.strip()[:1] in ("|", ">"):
             scalar_indent = indent
 
-    return top, nested
+    return Frontmatter(top, nested, flow_keys)
 
 
 def check_frontmatter(skills: dict[str, Path]) -> list[str]:
@@ -411,8 +435,16 @@ def check_frontmatter(skills: dict[str, Path]) -> list[str]:
             errors.append(f"Skill '{skill_name}': SKILL.md has no YAML frontmatter")
             continue
 
-        top, nested = parse_frontmatter(match.group(1))
+        parsed = parse_frontmatter(match.group(1))
+        top, nested = parsed.top, parsed.nested
         fields = set(top)
+
+        if parsed.flow_keys:
+            errors.append(
+                f"Skill '{skill_name}': frontmatter key(s) "
+                f"{sorted(parsed.flow_keys)} use flow style (`key: {{...}}`) — "
+                f"use block style so field placement can be validated"
+            )
 
         unexpected = fields - ALLOWED_FRONTMATTER_FIELDS
         if unexpected:
@@ -426,6 +458,10 @@ def check_frontmatter(skills: dict[str, Path]) -> list[str]:
             if required not in fields:
                 errors.append(
                     f"Skill '{skill_name}': frontmatter is missing '{required}'"
+                )
+            elif not top[required].strip():
+                errors.append(
+                    f"Skill '{skill_name}': frontmatter '{required}' is empty"
                 )
 
         declared = top.get("name")
@@ -637,6 +673,9 @@ def check_tile_version_increment(diff: DiffContext) -> list[str]:
         return []
 
     tile_rel = str(TILE_JSON.relative_to(REPO_ROOT))
+    if not TILE_JSON.exists():
+        # check_tile_json already reported this; do not crash on read_text()
+        return []
     base_content = git_file_at_ref(diff.base_branch, tile_rel)
     if base_content is None:
         return []
