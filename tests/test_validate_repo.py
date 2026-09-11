@@ -254,6 +254,29 @@ def test_frontmatter_rejects_name_not_matching_directory(vr, tmp_path):
     assert any("does not match its directory" in e for e in errors)
 
 
+def test_frontmatter_rejects_nested_user_invocable_as_a_sequence_item(vr, tmp_path):
+    """`metadata:` -> `- user-invocable: false` is a nested mapping in YAML.
+
+    A key written as a sequence item does not start immediately after the
+    indentation, so the scanner used to skip the line entirely.
+    """
+    frontmatter = "name: doing-a-thing\ndescription: d\nmetadata:\n  - user-invocable: false"
+    skill = make_skill(tmp_path, "doing-a-thing", frontmatter)
+    errors = vr.check_frontmatter({"doing-a-thing": skill})
+    assert any("must be a top-level field" in e for e in errors)
+
+
+def test_frontmatter_rejects_nested_user_invocable_even_with_a_top_level_copy(vr, tmp_path):
+    """The nested copy is dead config either way, and misleading to a reader."""
+    frontmatter = (
+        "name: doing-a-thing\ndescription: d\nuser-invocable: false\n"
+        "metadata:\n  user-invocable: false"
+    )
+    skill = make_skill(tmp_path, "doing-a-thing", frontmatter)
+    errors = vr.check_frontmatter({"doing-a-thing": skill})
+    assert any("must be a top-level field" in e for e in errors)
+
+
 def test_frontmatter_rejects_nested_user_invocable(vr, tmp_path):
     frontmatter = "name: doing-a-thing\ndescription: d\nmetadata:\n  user-invocable: false"
     skill = make_skill(tmp_path, "doing-a-thing", frontmatter)

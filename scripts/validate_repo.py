@@ -350,6 +350,8 @@ VALID_SKILL_NAME_RE = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
 FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\s*(\r?\n|\Z)", re.DOTALL)
 KEY_RE = re.compile(
     r"^(?P<indent>[ \t]*)"
+    # A mapping may be written as a sequence item: `- user-invocable: false`
+    r"(?:-[ \t]+)?"
     # A key may be quoted; `"author": me` is the same field as `author: me`
     r"""(?:"(?P<dq>[^"]+)"|'(?P<sq>[^']+)'|(?P<plain>[A-Za-z0-9_-]+))"""
     r"[ \t]*:[ \t]*(?P<value>.*)$"
@@ -494,8 +496,9 @@ def check_frontmatter(skills: dict[str, Path]) -> list[str]:
                 )
 
         # `user-invocable` is only honoured at the top level, so a nested one
-        # silently does nothing rather than failing loudly.
-        if "user-invocable" in nested and "user-invocable" not in top:
+        # silently does nothing rather than failing loudly. Flag it even when a
+        # top-level copy exists: the nested one is still dead, misleading config.
+        if "user-invocable" in nested:
             errors.append(
                 f"Skill '{skill_name}': 'user-invocable' is nested (likely under "
                 f"'metadata:') — it must be a top-level field"
