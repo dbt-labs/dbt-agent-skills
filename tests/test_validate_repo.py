@@ -199,9 +199,13 @@ def test_frontmatter_rejects_an_empty_block_scalar(vr, tmp_path, marker):
     assert any("'description' is empty" in e for e in errors)
 
 
-def test_frontmatter_captures_block_scalar_body_as_the_value(vr, tmp_path):
-    parsed = vr.parse_frontmatter("description: |\n  Use when doing.\n  More text.")
-    assert parsed.top["description"] == "Use when doing. More text."
+def test_frontmatter_accepts_a_block_scalar_with_a_body(vr, tmp_path):
+    skill = make_skill(
+        tmp_path,
+        "doing-a-thing",
+        "name: doing-a-thing\ndescription: |\n  Use when doing a thing.\n  More detail.",
+    )
+    assert vr.check_frontmatter({"doing-a-thing": skill}) == []
 
 
 def test_frontmatter_rejects_a_quoted_disallowed_key(vr, tmp_path):
@@ -220,11 +224,66 @@ def test_frontmatter_accepts_a_quoted_allowed_key(vr, tmp_path):
     assert vr.check_frontmatter({"doing-a-thing": skill}) == []
 
 
-def test_frontmatter_rejects_flow_mapping(vr, tmp_path):
-    """`metadata: {user-invocable: false}` hides a nested key from a line scanner.
+@pytest.mark.parametrize(
+    "value,kind",
+    [("false", "bool"), ("true", "bool"), ("42", "int"), ("1.5", "float")],
+)
+def test_frontmatter_rejects_a_non_text_description(vr, tmp_path, value, kind):
+    """`description: false` is a boolean, not a description.
 
-    Rather than appear to validate placement it cannot see, the check reports
-    flow style and asks for block style. No skill in the repo uses it.
+    The previous line scanner read every unquoted scalar as text and could not
+    tell; YAML type resolution is what a real parser is for.
+    """
+    skill = make_skill(tmp_path, "doing-a-thing", f"name: doing-a-thing\ndescription: {value}")
+    errors = vr.check_frontmatter({"doing-a-thing": skill})
+    assert any(f"'description' must be text, got {kind}" in e for e in errors)
+
+
+def test_frontmatter_rejects_a_non_text_name(vr, tmp_path):
+    skill = make_skill(tmp_path, "true", "name: true\ndescription: Use when doing.")
+    errors = vr.check_frontmatter({"true": skill})
+    assert any("'name' must be text" in e for e in errors)
+
+
+def test_frontmatter_normalises_yaml_boolean_keys(vr, tmp_path):
+    """YAML 1.1 resolves an unquoted `on:` key to True; it is still a bad field."""
+    skill = make_skill(
+        tmp_path, "doing-a-thing", "name: doing-a-thing\ndescription: Use when doing.\non: nope"
+    )
+    errors = vr.check_frontmatter({"doing-a-thing": skill})
+    assert any("unexpected frontmatter field(s) ['True']" in e for e in errors)
+
+
+def test_frontmatter_reports_invalid_yaml(vr, tmp_path):
+    skill = make_skill(tmp_path, "doing-a-thing", "name: doing-a-thing\n  bad: [unclosed")
+    errors = vr.check_frontmatter({"doing-a-thing": skill})
+    assert len(errors) == 1
+    assert "not valid YAML" in errors[0]
+
+
+def test_frontmatter_rejects_a_non_mapping(vr, tmp_path):
+    skill = make_skill(tmp_path, "doing-a-thing", "- just\n- a\n- list")
+    errors = vr.check_frontmatter({"doing-a-thing": skill})
+    assert len(errors) == 1
+    assert "must be a mapping" in errors[0]
+
+
+def test_frontmatter_sees_nested_key_in_a_sequence_of_mappings(vr, tmp_path):
+    """nested_keys walks lists, so a mapping inside a sequence is still nested."""
+    skill = make_skill(
+        tmp_path,
+        "doing-a-thing",
+        "name: doing-a-thing\ndescription: d\nmetadata:\n  - user-invocable: false",
+    )
+    errors = vr.check_frontmatter({"doing-a-thing": skill})
+    assert any("must be a top-level field" in e for e in errors)
+
+
+def test_frontmatter_sees_nested_key_in_a_flow_mapping(vr, tmp_path):
+    """Flow style is now parsed, so the placement rule applies to it properly.
+
+    The hand-rolled scanner could not see inside `{...}` and had to reject flow
+    style outright; a real parse validates it like any other mapping.
     """
     skill = make_skill(
         tmp_path,
@@ -232,7 +291,16 @@ def test_frontmatter_rejects_flow_mapping(vr, tmp_path):
         "name: doing-a-thing\ndescription: d\nmetadata: {user-invocable: false}",
     )
     errors = vr.check_frontmatter({"doing-a-thing": skill})
-    assert any("flow style" in e for e in errors)
+    assert any("must be a top-level field" in e for e in errors)
+
+
+def test_frontmatter_accepts_a_valid_flow_mapping(vr, tmp_path):
+    skill = make_skill(
+        tmp_path,
+        "doing-a-thing",
+        "name: doing-a-thing\ndescription: Use when doing.\nmetadata: {author: dbt-labs}",
+    )
+    assert vr.check_frontmatter({"doing-a-thing": skill}) == []
 
 
 def test_frontmatter_rejects_missing_description(vr, tmp_path):

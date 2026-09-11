@@ -14,8 +14,8 @@ Checks:
 Checks 7 and 8 share one resolved diff against the base branch (see DiffContext).
 
 Usage:
-    python scripts/validate_repo.py
-    python scripts/validate_repo.py --base-branch origin/main
+    uv run python scripts/validate_repo.py
+    uv run python scripts/validate_repo.py --base-branch origin/main
 """
 
 import argparse
@@ -25,6 +25,8 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import NamedTuple
+
+import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TILE_JSON = REPO_ROOT / "tile.json"
@@ -348,92 +350,27 @@ ALLOWED_FRONTMATTER_FIELDS = {
 
 VALID_SKILL_NAME_RE = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
 FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\s*(\r?\n|\Z)", re.DOTALL)
-KEY_RE = re.compile(
-    r"^(?P<indent>[ \t]*)"
-    # A mapping may be written as a sequence item: `- user-invocable: false`
-    r"(?:-[ \t]+)?"
-    # A key may be quoted; `"author": me` is the same field as `author: me`
-    r"""(?:"(?P<dq>[^"]+)"|'(?P<sq>[^']+)'|(?P<plain>[A-Za-z0-9_-]+))"""
-    r"[ \t]*:[ \t]*(?P<value>.*)$"
-)
+def nested_keys(mapping: dict) -> set[str]:
+    """Every mapping key below the top level, at any depth.
 
-
-def scalar_value(raw: str) -> str:
-    """The value of a YAML scalar, without quotes or a trailing comment."""
-    raw = raw.strip()
-    if raw[:1] in ("'", '"'):
-        quote, end = raw[0], raw.find(raw[0], 1)
-        return raw[1:end] if end > 0 else raw[1:]
-    # A '#' only starts a comment when preceded by whitespace
-    return re.split(r"\s+#", raw, maxsplit=1)[0].strip()
-
-
-class Frontmatter(NamedTuple):
-    """A parsed frontmatter block.
-
-    `flow_keys` are keys written in flow style (`metadata: {a: b}`). Keys
-    hidden inside one are invisible to a line scanner, so rather than appear
-    to validate them, they are reported and the author asked for block style.
+    Walks lists too, so `metadata: [{user-invocable: false}]` is seen. String
+    values are never walked, so a description that merely mentions a key name
+    is text, not structure — which a line scanner could not reliably tell.
     """
+    found: set[str] = set()
 
-    top: dict[str, str]
-    nested: set[str]
-    flow_keys: set[str]
+    def walk(node: object, depth: int) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if depth > 0:
+                    found.add(str(key))
+                walk(value, depth + 1)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item, depth)
 
-
-def parse_frontmatter(block: str) -> Frontmatter:
-    """Split a frontmatter block into (top-level key -> value, nested key names).
-
-    Block scalars (`description: |` / `>`) are understood: their indented body
-    is free text, so a line inside one that merely looks like `key: value` is
-    not structure and is ignored. A regex alone cannot tell those apart, which
-    is why this is a scanner.
-    """
-    top: dict[str, str] = {}
-    nested: set[str] = set()
-    flow_keys: set[str] = set()
-    # Indentation of the key that opened the current block scalar, if any. Its
-    # body is every following line indented deeper than it — which is how a
-    # scalar nested under `metadata:` is handled as well as a top-level one.
-    scalar_indent: int | None = None
-    # The top-level key that scalar belongs to, so its body becomes the value.
-    # Storing the `|` marker instead would make an empty scalar look non-empty.
-    scalar_key: str | None = None
-
-    for line in block.splitlines():
-        if not line.strip():
-            continue
-        indent = len(line) - len(line.expandtabs().lstrip())
-        if scalar_indent is not None:
-            if indent > scalar_indent:
-                if scalar_key is not None:
-                    top[scalar_key] = f"{top[scalar_key]} {line.strip()}".strip()
-                continue  # still inside the scalar's body
-            scalar_indent = None
-            scalar_key = None
-
-        match = KEY_RE.match(line)
-        if not match:
-            continue
-        key = match["dq"] or match["sq"] or match["plain"]
-        raw = match["value"]
-
-        if raw.strip()[:1] == "{":
-            flow_keys.add(key)
-
-        if indent == 0:
-            top[key] = scalar_value(raw)
-        else:
-            nested.add(key)
-
-        # Covers |, >, and the |- / >- / |+ chomping variants
-        if raw.strip()[:1] in ("|", ">"):
-            scalar_indent = indent
-            if indent == 0:
-                scalar_key = key
-                top[key] = ""  # the body, if any, fills this in
-
-    return Frontmatter(top, nested, flow_keys)
+    walk(mapping, 0)
+    return found
 
 
 def check_frontmatter(skills: dict[str, Path]) -> list[str]:
@@ -453,16 +390,24 @@ def check_frontmatter(skills: dict[str, Path]) -> list[str]:
             errors.append(f"Skill '{skill_name}': SKILL.md has no YAML frontmatter")
             continue
 
-        parsed = parse_frontmatter(match.group(1))
-        top, nested = parsed.top, parsed.nested
-        fields = set(top)
+        try:
+            parsed = yaml.safe_load(match.group(1))
+        except yaml.YAMLError as exc:
+            detail = str(exc).replace("\n", " ")
+            errors.append(f"Skill '{skill_name}': frontmatter is not valid YAML — {detail}")
+            continue
 
-        if parsed.flow_keys:
+        if not isinstance(parsed, dict):
             errors.append(
-                f"Skill '{skill_name}': frontmatter key(s) "
-                f"{sorted(parsed.flow_keys)} use flow style (`key: {{...}}`) — "
-                f"use block style so field placement can be validated"
+                f"Skill '{skill_name}': frontmatter must be a mapping of fields, "
+                f"got {type(parsed).__name__}"
             )
+            continue
+
+        # YAML resolves unquoted `on`/`yes` keys to booleans, so normalise to
+        # text before comparing: such a key is simply an unexpected field.
+        top = {str(key): value for key, value in parsed.items()}
+        fields = set(top)
 
         unexpected = fields - ALLOWED_FRONTMATTER_FIELDS
         if unexpected:
@@ -477,13 +422,23 @@ def check_frontmatter(skills: dict[str, Path]) -> list[str]:
                 errors.append(
                     f"Skill '{skill_name}': frontmatter is missing '{required}'"
                 )
+            elif top[required] is None:
+                errors.append(
+                    f"Skill '{skill_name}': frontmatter '{required}' is empty"
+                )
+            elif not isinstance(top[required], str):
+                # e.g. `description: false` parses as a bool, not a description
+                errors.append(
+                    f"Skill '{skill_name}': frontmatter '{required}' must be text, "
+                    f"got {type(top[required]).__name__} ({top[required]!r})"
+                )
             elif not top[required].strip():
                 errors.append(
                     f"Skill '{skill_name}': frontmatter '{required}' is empty"
                 )
 
         declared = top.get("name")
-        if declared:
+        if isinstance(declared, str) and declared.strip():
             if not VALID_SKILL_NAME_RE.fullmatch(declared):
                 errors.append(
                     f"Skill '{skill_name}': name '{declared}' must be lowercase "
@@ -498,7 +453,7 @@ def check_frontmatter(skills: dict[str, Path]) -> list[str]:
         # `user-invocable` is only honoured at the top level, so a nested one
         # silently does nothing rather than failing loudly. Flag it even when a
         # top-level copy exists: the nested one is still dead, misleading config.
-        if "user-invocable" in nested:
+        if "user-invocable" in nested_keys(parsed):
             errors.append(
                 f"Skill '{skill_name}': 'user-invocable' is nested (likely under "
                 f"'metadata:') — it must be a top-level field"
