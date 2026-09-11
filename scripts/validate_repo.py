@@ -39,6 +39,11 @@ PLUGIN_MANIFESTS = {
     "claude": ".claude-plugin/plugin.json",
     "cursor": ".cursor-plugin/plugin.json",
 }
+# RELEASING.md lists a Claude manifest for every plugin, so a missing one is an
+# error. Cursor lists a deliberate subset of the plugins (#93), so its manifest
+# is optional per plugin and its absence is checked against that marketplace's
+# listing instead.
+REQUIRED_PLUGIN_MANIFESTS = {"claude"}
 
 # Matches [text](path) and [text](path#heading)
 MARKDOWN_LINK_RE = re.compile(r"\[(?:[^\]]*)\]\(([^)]+)\)")
@@ -214,6 +219,11 @@ def check_manifest_coherence(plugin_dirs: dict[str, Path]) -> list[str]:
         for marketplace, manifest_rel in PLUGIN_MANIFESTS.items():
             manifest_path = plugin_dir / manifest_rel
             if not manifest_path.exists():
+                if marketplace in REQUIRED_PLUGIN_MANIFESTS:
+                    errors.append(
+                        f"skills/{folder}/{manifest_rel} is missing — every plugin "
+                        f"needs a {marketplace} manifest (see RELEASING.md)"
+                    )
                 continue
             manifest = json.loads(manifest_path.read_text())
 

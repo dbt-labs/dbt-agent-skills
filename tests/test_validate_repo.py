@@ -466,6 +466,24 @@ def test_coherence_ignores_plugins_with_a_single_manifest(vr, coherence_repo):
     assert vr.check_manifest_coherence(plugin_dirs) == []
 
 
+def test_coherence_requires_a_claude_manifest(vr, coherence_repo):
+    """Every plugin needs one (RELEASING.md); nothing else caught its absence.
+
+    check_marketplace only compares folder names, and the version check only
+    looks at plugins whose skill content changed.
+    """
+    plugin_dirs, _, _ = coherence_repo
+    errors = vr.check_manifest_coherence(plugin_dirs)
+    assert any(".claude-plugin/plugin.json is missing" in e for e in errors)
+
+
+def test_coherence_treats_a_cursor_manifest_as_optional(vr, coherence_repo):
+    """Cursor lists a deliberate subset of plugins (#93), so absence is normal."""
+    plugin_dirs, _, _ = coherence_repo
+    write_manifest(vr, plugin_dirs["dbt"], "claude", "dbt", "1.5.0")
+    assert vr.check_manifest_coherence(plugin_dirs) == []
+
+
 def test_coherence_rejects_a_missing_version(vr, coherence_repo):
     """Both manifests omitting 'version' used to collapse to {None} and pass."""
     plugin_dirs, _, _ = coherence_repo
