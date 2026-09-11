@@ -260,6 +260,65 @@ def test_coherence_rejects_marketplace_entry_name_mismatch(vr, coherence_repo):
 
 
 # --------------------------------------------------------------------------- #
+# diff_context — the skip rules shared by both version checks
+# --------------------------------------------------------------------------- #
+
+
+@pytest.fixture
+def stub_git(vr, monkeypatch):
+    """Stub the git primitives so no real history is needed."""
+
+    def configure(current="feature", base_exists=True, changed=("a.md",)):
+        monkeypatch.setattr(vr, "git_current_branch", lambda: current)
+        monkeypatch.setattr(vr, "git_branch_exists", lambda b: base_exists)
+        monkeypatch.setattr(vr, "git_changed_files", lambda b: set(changed))
+
+    return configure
+
+
+def test_diff_context_resolves_the_diff(vr, stub_git):
+    stub_git(changed=("skills/dbt/skills/a-skill/SKILL.md",))
+    diff = vr.diff_context("main")
+    assert diff.base_branch == "main"
+    assert diff.changed == {"skills/dbt/skills/a-skill/SKILL.md"}
+    assert diff.errors == []
+
+
+def test_diff_context_skips_silently_on_the_base_branch(vr, stub_git):
+    stub_git(current="main")
+    diff = vr.diff_context("main")
+    assert diff.changed is None
+    assert diff.errors == []  # skipping here is correct, not worth reporting
+
+
+def test_diff_context_reports_a_missing_base_branch(vr, stub_git):
+    stub_git(base_exists=False)
+    diff = vr.diff_context("main")
+    assert diff.changed is None
+    assert len(diff.errors) == 1 and "not found" in diff.errors[0]
+
+
+def test_diff_context_reports_an_undeterminable_branch(vr, stub_git):
+    stub_git(current=None)
+    diff = vr.diff_context("main")
+    assert diff.changed is None
+    assert diff.errors == ["Could not determine current git branch"]
+
+
+def test_context_errors_are_reported_exactly_once(vr, stub_git, tile_plugin_dirs):
+    """The plugin check owns these; the tile check must stay silent about them.
+
+    Otherwise a missing base branch would be reported twice in one run.
+    """
+    stub_git(base_exists=False)
+    diff = vr.diff_context("main")
+    plugin_errors = vr.check_version_increments(tile_plugin_dirs, diff)
+    tile_errors = vr.check_tile_version_increment(tile_plugin_dirs, diff)
+    assert len(plugin_errors) == 1
+    assert tile_errors == []
+
+
+# --------------------------------------------------------------------------- #
 # check_tile_version_increment
 # --------------------------------------------------------------------------- #
 
@@ -271,39 +330,41 @@ def tile_plugin_dirs(tmp_path):
 
 @pytest.fixture
 def tile_repo(vr, tmp_path, monkeypatch):
-    """Synthetic repo plus stubbed git helpers, so no real history is needed."""
+    """Point the module at a synthetic repo and build a DiffContext directly.
+
+    The check no longer resolves git state itself, so these tests need no git
+    stubs — that logic is covered by the diff_context tests above.
+    """
     tile_json = tmp_path / "tile.json"
     monkeypatch.setattr(vr, "REPO_ROOT", tmp_path)
     monkeypatch.setattr(vr, "SKILLS_DIR", tmp_path / "skills")
     monkeypatch.setattr(vr, "TILE_JSON", tile_json)
-    monkeypatch.setattr(vr, "git_current_branch", lambda: "feature")
-    monkeypatch.setattr(vr, "git_branch_exists", lambda branch: True)
 
     def configure(head_version, base_version, changed):
         tile_json.write_text(json.dumps({"version": head_version}))
-        monkeypatch.setattr(vr, "git_changed_files", lambda base: set(changed))
         monkeypatch.setattr(
             vr, "git_file_at_ref", lambda ref, path: json.dumps({"version": base_version})
         )
+        return vr.DiffContext("main", set(changed), [])
 
     return configure
 
 
 def test_tile_rejects_skill_change_without_bump(vr, tile_repo, tile_plugin_dirs):
-    tile_repo("1.5.1", "1.5.1", ["skills/dbt/skills/a-skill/SKILL.md"])
-    errors = vr.check_tile_version_increment(tile_plugin_dirs, "main")
+    diff = tile_repo("1.5.1", "1.5.1", ["skills/dbt/skills/a-skill/SKILL.md"])
+    errors = vr.check_tile_version_increment(tile_plugin_dirs, diff)
     assert len(errors) == 1
     assert "was not incremented" in errors[0]
 
 
 def test_tile_accepts_skill_change_with_bump(vr, tile_repo, tile_plugin_dirs):
-    tile_repo("1.5.2", "1.5.1", ["skills/dbt/skills/a-skill/SKILL.md"])
-    assert vr.check_tile_version_increment(tile_plugin_dirs, "main") == []
+    diff = tile_repo("1.5.2", "1.5.1", ["skills/dbt/skills/a-skill/SKILL.md"])
+    assert vr.check_tile_version_increment(tile_plugin_dirs, diff) == []
 
 
 def test_tile_ignores_changes_outside_skills(vr, tile_repo, tile_plugin_dirs):
-    tile_repo("1.5.1", "1.5.1", ["README.md", "scripts/validate_repo.py"])
-    assert vr.check_tile_version_increment(tile_plugin_dirs, "main") == []
+    diff = tile_repo("1.5.1", "1.5.1", ["README.md", "scripts/validate_repo.py"])
+    assert vr.check_tile_version_increment(tile_plugin_dirs, diff) == []
 
 
 def test_tile_ignores_plugin_manifest_only_changes(vr, tile_repo, tile_plugin_dirs):
@@ -312,7 +373,7 @@ def test_tile_ignores_plugin_manifest_only_changes(vr, tile_repo, tile_plugin_di
     Only files under a plugin's skills/ directory count as skill content — the
     same rule the per-plugin version check applies.
     """
-    tile_repo(
+    diff = tile_repo(
         "1.5.1",
         "1.5.1",
         [
@@ -321,12 +382,12 @@ def test_tile_ignores_plugin_manifest_only_changes(vr, tile_repo, tile_plugin_di
             "skills/dbt-migration/.claude-plugin/plugin.json",
         ],
     )
-    assert vr.check_tile_version_increment(tile_plugin_dirs, "main") == []
+    assert vr.check_tile_version_increment(tile_plugin_dirs, diff) == []
 
 
 def test_tile_counts_only_skill_content_in_its_message(vr, tile_repo, tile_plugin_dirs):
     """Mixed change set: the manifest bumps must not be counted or listed."""
-    tile_repo(
+    diff = tile_repo(
         "1.5.1",
         "1.5.1",
         [
@@ -335,23 +396,15 @@ def test_tile_counts_only_skill_content_in_its_message(vr, tile_repo, tile_plugi
             "skills/dbt-migration/skills/b-skill/SKILL.md",
         ],
     )
-    errors = vr.check_tile_version_increment(tile_plugin_dirs, "main")
+    errors = vr.check_tile_version_increment(tile_plugin_dirs, diff)
     assert len(errors) == 1
     assert "2 skill file(s) changed" in errors[0]
     assert "plugin.json" not in errors[0]
 
 
-def test_tile_skips_on_the_base_branch(vr, tile_repo, tile_plugin_dirs, monkeypatch):
-    tile_repo("1.5.1", "1.5.1", ["skills/dbt/skills/a-skill/SKILL.md"])
-    monkeypatch.setattr(vr, "git_current_branch", lambda: "main")
-    assert vr.check_tile_version_increment(tile_plugin_dirs, "main") == []
-
-
-def test_tile_skips_when_base_branch_is_absent(vr, tile_repo, tile_plugin_dirs, monkeypatch):
-    """The plugin version check already reports this; don't double-report."""
-    tile_repo("1.5.1", "1.5.1", ["skills/dbt/skills/a-skill/SKILL.md"])
-    monkeypatch.setattr(vr, "git_branch_exists", lambda branch: False)
-    assert vr.check_tile_version_increment(tile_plugin_dirs, "main") == []
+def test_tile_skips_when_there_is_nothing_to_compare(vr, tile_repo, tile_plugin_dirs):
+    tile_repo("1.5.1", "1.5.1", [])
+    assert vr.check_tile_version_increment(tile_plugin_dirs, vr.DiffContext("main", None, [])) == []
 
 
 # --------------------------------------------------------------------------- #

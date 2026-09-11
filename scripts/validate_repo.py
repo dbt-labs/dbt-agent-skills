@@ -11,6 +11,8 @@ Checks:
 7. Plugin versions are incremented when skill content changes (vs. main branch)
 8. tile.json is versioned alongside skill changes (vs. main branch)
 
+Checks 7 and 8 share one resolved diff against the base branch (see DiffContext).
+
 Usage:
     python scripts/validate_repo.py
     python scripts/validate_repo.py --base-branch origin/main
@@ -22,6 +24,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import NamedTuple
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TILE_JSON = REPO_ROOT / "tile.json"
@@ -449,22 +452,50 @@ def git_file_at_ref(ref: str, path: str) -> str | None:
     return result.stdout if result.returncode == 0 else None
 
 
-def check_version_increments(
-    plugin_dirs: dict[str, Path], base_branch: str
-) -> list[str]:
-    """If skills changed vs. base branch, the plugin version must be bumped."""
-    errors: list[str] = []
+class DiffContext(NamedTuple):
+    """The git state both version-increment checks need, resolved once.
 
+    `changed` is None when there is nothing to compare against, in which case
+    `errors` explains why — or is empty when skipping is the correct, silent
+    outcome (running on the base branch itself). Resolving this once keeps the
+    two checks' skip rules identical by construction rather than by convention,
+    and keeps `validate_repo.py` to one `git` invocation per fact.
+    """
+
+    base_branch: str
+    changed: set[str] | None
+    errors: list[str]
+
+
+def diff_context(base_branch: str) -> DiffContext:
+    """Resolve the diff against `base_branch`, or say why we cannot."""
     current = git_current_branch()
     if current is None:
-        return ["Could not determine current git branch"]
+        return DiffContext(base_branch, None, ["Could not determine current git branch"])
     if current == base_branch:
-        return []  # nothing to compare on the base branch itself
-
+        return DiffContext(base_branch, None, [])  # nothing to compare on the base branch
     if not git_branch_exists(base_branch):
-        return [f"Base branch '{base_branch}' not found — skipping version check"]
+        return DiffContext(
+            base_branch,
+            None,
+            [f"Base branch '{base_branch}' not found — skipping version checks"],
+        )
+    return DiffContext(base_branch, git_changed_files(base_branch), [])
 
-    changed = git_changed_files(base_branch)
+
+def check_version_increments(
+    plugin_dirs: dict[str, Path], diff: DiffContext
+) -> list[str]:
+    """If skills changed vs. base branch, the plugin version must be bumped.
+
+    This check owns reporting the shared context errors; the tile check stays
+    silent about them so they are not reported twice.
+    """
+    errors: list[str] = []
+
+    if diff.changed is None:
+        return diff.errors
+    changed = diff.changed
     if not changed:
         return []
 
@@ -485,7 +516,7 @@ def check_version_increments(
         current_version = json.loads(plugin_json_path.read_text()).get("version")
 
         # Read base version
-        base_content = git_file_at_ref(base_branch, plugin_json_rel)
+        base_content = git_file_at_ref(diff.base_branch, plugin_json_rel)
         if base_content is None:
             # Plugin is new — version check not applicable
             continue
@@ -507,7 +538,7 @@ def check_version_increments(
 
 
 def check_tile_version_increment(
-    plugin_dirs: dict[str, Path], base_branch: str
+    plugin_dirs: dict[str, Path], diff: DiffContext
 ) -> list[str]:
     """If any skill's content changed vs. base branch, tile.json must be bumped.
 
@@ -517,11 +548,8 @@ def check_tile_version_increment(
     plugin's skills/ directory. A plugin manifest bump on its own changes
     nothing Tessl publishes and must not force a tile bump.
     """
-    current = git_current_branch()
-    if current is None or current == base_branch:
-        return []
-    if not git_branch_exists(base_branch):
-        # Already reported by the plugin version check
+    # Context errors are reported by the plugin version check, not here.
+    if not diff.changed:
         return []
 
     skill_prefixes = tuple(
@@ -529,13 +557,13 @@ def check_tile_version_increment(
         for plugin_dir in plugin_dirs.values()
     )
     skill_changes = sorted(
-        f for f in git_changed_files(base_branch) if f.startswith(skill_prefixes)
+        f for f in diff.changed if f.startswith(skill_prefixes)
     )
     if not skill_changes:
         return []
 
     tile_rel = str(TILE_JSON.relative_to(REPO_ROOT))
-    base_content = git_file_at_ref(base_branch, tile_rel)
+    base_content = git_file_at_ref(diff.base_branch, tile_rel)
     if base_content is None:
         return []
 
@@ -566,6 +594,8 @@ def main() -> int:
 
     skills = find_all_skills()
     plugin_dirs = find_all_plugin_dirs()
+    # Resolved once and shared: both version checks apply the same skip rules.
+    diff = diff_context(args.base_branch)
     all_errors: list[str] = []
 
     checks = [
@@ -607,12 +637,12 @@ def main() -> int:
         ),
         (
             "Plugin version increments",
-            lambda: check_version_increments(plugin_dirs, args.base_branch),
+            lambda: check_version_increments(plugin_dirs, diff),
             lambda: "Plugin versions are up to date",
         ),
         (
             "tile.json version increment",
-            lambda: check_tile_version_increment(plugin_dirs, args.base_branch),
+            lambda: check_tile_version_increment(plugin_dirs, diff),
             lambda: "tile.json version is up to date",
         ),
     ]
