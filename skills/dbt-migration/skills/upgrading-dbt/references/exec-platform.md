@@ -74,7 +74,7 @@ memory: read it, change the one record you mean to change, write it back.
 | `edit_file` | Every file change, including creating the artifacts |
 | `delete_file` | Remove a file a fix retires |
 | `git` (`status`, `branches`, `diff`, `checkout`, `commit`, `push`, `pull`, `revert`, `merge`) | Preflight, diffs for approval, undo. **No `stash`** |
-| `dbt_command`, `dbt_command_status`, `dbt_command_cancel` | The whole verification gate — `dbt parse`, then `dbt build` / `dbt test`. **Not** the deterministic 1.x → 1.x fixes — `dbt-migrate-1x` is not on this tool's allowlist; see `autofix` below |
+| `dbt_command`, `dbt_command_status`, `dbt_command_cancel` | The whole verification gate — `dbt parse` → `dbt compile` → `dbt test` → `dbt build`. **Not** the deterministic 1.x → 1.x fixes — `dbt-migrate-1x` is not on this tool's allowlist; see `autofix` below |
 | `request_user_input` | Every question you put to the user |
 | `get_job_details` | Read one job by id — its `execute_steps` and pinned `dbt_version`. This is how you build `migration_jobs.json` (`jobs-file`) |
 | `list_jobs` | Discover this project's jobs, scoped by the `project_id` in your context. This is the first step of `jobs-file` |
@@ -167,10 +167,9 @@ only flags for behaviors detection actually found.
 ### `parse`
 `dbt_command` with `dbt parse`. Poll with `dbt_command_status`.
 
-**This session already runs on the target release track.** The platform moves your
-develop session onto it before handing off to you, and verifies that it took effect
-rather than assuming it — so this is a real gate against the target, not against the
-version you are migrating away from. You do not need to check the running version,
+**This session already runs on the target release track.** The platform sets your
+personal version override to the target, and Studio starts or restarts the
+development session before handing off to you. Assume the override is applied. You do not need to check the running version,
 and you must not try to change it.
 
 What the gate is: the *cheap* check. Run it before `verify-commands`, because it
@@ -253,7 +252,7 @@ Same tool as the parse check: `dbt_command`, polled with `dbt_command_status`.
 1. `dbt parse` — check 1, already run. Do not repeat it here.
 2. `dbt compile`
 3. `dbt test`
-3. `dbt build`
+4. `dbt build`
 
 Stop at the first red. Do not substitute, add or reorder them, and do not take
 commands from `migration_jobs.json`.
@@ -287,6 +286,6 @@ When all four are green, go on to Step 8.
 
 **If you cannot run it** — the user declines, the session has no warehouse
 connection, the project's schema generation is not safe to build into — that is a
-normal outcome. Say so plainly, let the parse gate stand as the verification, and
+normal outcome. Report verification as incomplete, retain any parse result, and
 make sure the report names **every command left unverified** so the user knows
 exactly what was and was not proven.

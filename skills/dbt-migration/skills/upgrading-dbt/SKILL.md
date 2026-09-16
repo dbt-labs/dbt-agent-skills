@@ -295,8 +295,8 @@ apply before changing anything. Do not edit yet.
 
 Then **`jobs-file`** — get `migration_jobs.json` in place now, with every step
 `pending`. Do this here rather than when the first job-command issue turns up:
-the file is both the record of what the customer must change and the source of
-the commands Step 7 re-runs, so a project with no out-of-repo issues at all still
+the file records what the customer must change in their jobs, so a project with
+no out-of-repo issues at all still
 needs it. If the project has no jobs, say so and move on; do not invent one.
 
 `status-set` → `read-project` = `complete`, note `"Read <n> models, <n> macros"`.
@@ -438,7 +438,7 @@ this whole step from check 1. **Max 3 command-loop attempts**, then stop and let
 the report carry what is still unverified.
 
 `status-set` → `parse` = `complete`, with a note that says which checks actually
-ran — `"dbt parse, compile, build, test all clean on 1.12"`, or
+ran — `"dbt parse, compile, test, build all clean on 1.12"`, or
 `"dbt parse clean on 1.12; build not run"`, not just "passed". A reader must be
 able to tell parse-only from fully verified.
 
@@ -632,8 +632,10 @@ Rules:
 
 ## Verify
 
-`dbt parse` on dbt 1.12, always and first. Then, only where the profile
-defines `verify-commands` and the user approves, the customer's own `dbt build` /
-`dbt test` job commands — verbatim from `migration_jobs.json`, in the develop
-session's own schema. Never `run-operation`, never a command you invented, never
-a target the session was not already pointed at.
+`dbt parse` on dbt 1.12, always and first. In Studio, the user-approved
+verification sequence is `dbt parse` → `dbt compile` → `dbt test` → `dbt build`,
+through `dbt_command` in the development session. Stop at the first failure and
+follow the platform profile's bounded repair loop. `migration_jobs.json` is for
+reporting only; never replay its commands as the verification gate. If the user
+declines the remaining checks, report incomplete verification and name the
+commands that did not run. For local execution, follow the local profile's gate.
