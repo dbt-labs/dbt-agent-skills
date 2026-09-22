@@ -1,6 +1,6 @@
-name: upgrading-dbt-core KB
+name: upgrading-dbt KB
 
-# The upgrading-dbt-core skill reads pre-compiled reference bundles
+# The upgrading-dbt skill reads pre-compiled reference bundles
 # (references/kb_<version>_<warehouse>.json) rather than running `collect` at
 # migration time. The bundles are a pure function of kb/ + tools.py and are
 # committed, so this job regenerates them on every PR that could invalidate them
@@ -22,10 +22,10 @@ permissions:
 on:
   pull_request:
     paths:
-      - "skills/dbt-migration/skills/upgrading-dbt-core/kb/**"
-      - "skills/dbt-migration/skills/upgrading-dbt-core/references/**"
-      - "skills/dbt-migration/skills/upgrading-dbt-core/scripts/**"
-      - ".github/workflows/upgrading-dbt-core-kb.yml"
+      - "skills/dbt-migration/skills/upgrading-dbt/kb/**"
+      - "skills/dbt-migration/skills/upgrading-dbt/references/**"
+      - "skills/dbt-migration/skills/upgrading-dbt/scripts/**"
+      - ".github/workflows/upgrading-dbt-kb.yml"
   workflow_dispatch:
 
 concurrency:
@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: skills/dbt-migration/skills/upgrading-dbt-core
+        working-directory: skills/dbt-migration/skills/upgrading-dbt
     env:
       HEAD_REF: ${{ github.event.pull_request.head.ref }}
       # A fork PR gets a read-only GITHUB_TOKEN and no push access to the fork,
@@ -78,7 +78,7 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add references
-          git commit -m "chore: regenerate upgrading-dbt-core reference bundles"
+          git commit -m "chore: regenerate upgrading-dbt reference bundles"
           # Retry on a race with a contributor pushing to the same branch
           # mid-run; the rebase replays our commit on top of theirs.
           for attempt in 1 2 3; do
