@@ -1,0 +1,7 @@
+kind: Docs
+body: Fix the CONTRIBUTING.md table of contents, which linked to five sections that
+    do not exist and omitted four that do.
+time: 2026-09-10T19:37:56.000000Z
+custom:
+    Author: C00ldudeNoonan
+    Issue: "124"

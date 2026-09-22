@@ -14,6 +14,7 @@
     "running-dbt-commands": { "path": "skills/dbt/skills/running-dbt-commands/SKILL.md" },
     "troubleshooting-dbt-job-errors": { "path": "skills/dbt/skills/troubleshooting-dbt-job-errors/SKILL.md" },
     "using-dbt-for-analytics-engineering": { "path": "skills/dbt/skills/using-dbt-for-analytics-engineering/SKILL.md" },
+    "using-dbt-state": { "path": "skills/dbt/skills/using-dbt-state/SKILL.md" },
     "working-with-dbt-mesh": { "path": "skills/dbt/skills/working-with-dbt-mesh/SKILL.md" },
     "migrating-dbt-core-to-v2": { "path": "skills/dbt-migration/skills/migrating-dbt-core-to-v2/SKILL.md" },
     "migrating-dbt-project-across-platforms": { "path": "skills/dbt-migration/skills/migrating-dbt-project-across-platforms/SKILL.md" },

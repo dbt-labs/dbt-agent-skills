@@ -1,0 +1,7 @@
+kind: Under the Hood
+body: Parse SKILL.md frontmatter with PyYAML in `scripts/validate_repo.py` instead of
+    approximating YAML with regexes, which silently accepted malformed frontmatter.
+time: 2026-09-11T20:05:43.000000Z
+custom:
+    Author: C00ldudeNoonan
+    Issue: "99"
