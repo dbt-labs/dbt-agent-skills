@@ -8,6 +8,7 @@ Complete catalog of dbt-core to dbt v2 migration error patterns, organized by ty
 - [Config/API Changes](#configapi-changes)
 - [SQL/Jinja Issues](#sqljinja-issues)
 - [Static Analysis Issues](#static-analysis-issues)
+- [Case-Sensitive Identifier Mismatches](#case-sensitive-identifier-mismatches)
 - [Source Name Issues](#source-name-issues)
 - [Schema/Model Issues](#schemamodel-issues)
 - [Connection/Credential Errors](#connectioncredential-errors)
@@ -139,6 +140,8 @@ tests:
 |------------|--------|-----|
 | `dbt02xx` (in `analyses/`) | Static analysis errors in analyses directory | Add `{{ config(static_analysis='off') }}` at top of file |
 
+Run with `--static-analysis strict` appended — see [Repro Command Behavior](../SKILL.md#repro-command-behavior). Bare `dbt compile` already reports these findings as warnings; strict mode promotes those same warnings to build-blocking failures — it isn't running analysis that compile skipped entirely.
+
 ### Example: Disable static analysis
 
 ```sql
@@ -147,6 +150,29 @@ tests:
 
 SELECT *
 FROM {{ ref('my_model') }}
+```
+
+**Production models**: only after [warehouse verification](classification-categories.md#verifying-against-the-real-warehouse-before-classifying-as-category-d) — see [guardrails](classification-categories.md#guardrail-suppressing-static-analysis-on-production-models). Never suppress an unverified error this way.
+
+## Case-Sensitive Identifier Mismatches
+
+| Error Code | Signal | Fix |
+|------------|--------|-----|
+| `dbt0227` | UnresolvedIdentifier — "No column X found" or "Available are ..." listing the same name in a different case | Quote the identifier with its real stored casing, source-side only |
+| `dbt0209` | FunctionResolutionFailed on a production model (not `analyses/`), **only** when the message shows the same "Available are ..." casing evidence as `dbt0227` | Same as above |
+
+`dbt0209` is a generic FunctionResolutionFailed signal — most occurrences are missing functions or wrong argument types, not casing. Only apply this fix when the casing evidence above is present; otherwise triage it as a normal function/adapter issue. A common v2-strict-mode pattern — see the [fix procedure](classification-categories.md#fix-procedure-case-sensitive-column-identifier-mismatch) in Classification Categories.
+
+### Example: Case-sensitive identifier fix
+
+Shown for Snowflake, where unquoted identifiers are stored uppercase by default. Other adapters differ — Postgres/Redshift store unquoted identifiers lowercase, and some adapters are case-insensitive entirely. Always substitute the exact casing your adapter's query returns (see [Verifying Against the Real Warehouse](classification-categories.md#verifying-against-the-real-warehouse-before-classifying-as-category-d)) rather than assuming uppercase.
+
+```sql
+-- Before (dbt0227 UnresolvedIdentifier — Snowflake: real column is stored as DEFAULT)
+SELECT "default" FROM {{ source('my_source', 'my_table') }}
+
+-- After
+SELECT "DEFAULT" AS "default" FROM {{ source('my_source', 'my_table') }}
 ```
 
 ## Source Name Issues
@@ -186,6 +212,8 @@ v2 requires exact name matching. dbt-core was lenient with spaces vs underscores
 ## v2 Engine Gaps (Category D)
 
 These require v2 engine updates. Alternatives can be suggested with caveats about risks and fragility.
+
+Before classifying `UnresolvedIdentifier`/`FunctionResolutionFailed` here, complete [warehouse verification](classification-categories.md#verifying-against-the-real-warehouse-before-classifying-as-category-d) first.
 
 | Signal | Meaning | Action |
 |--------|---------|--------|
