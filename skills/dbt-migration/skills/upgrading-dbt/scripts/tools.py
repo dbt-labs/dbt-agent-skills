@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic helpers for the upgrading-dbt-core skill.
+"""Deterministic helpers for the upgrading-dbt skill.
 
 The agent should NOT hand-roll issue selection, filtering, ordering, results
 bookkeeping, or report rendering — those are mechanical and must be identical on
@@ -893,7 +893,7 @@ def cmd_set_flag(args) -> int:
 
 
 def main() -> int:
-    p = argparse.ArgumentParser(description="Deterministic helpers for the upgrading-dbt-core skill")
+    p = argparse.ArgumentParser(description="Deterministic helpers for the upgrading-dbt skill")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     c = sub.add_parser(

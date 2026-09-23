@@ -1,6 +1,6 @@
 # Execution profile — local / VS Code extension
 
-Mechanics for running `upgrading-dbt-core` where a **shell is available**. The
+Mechanics for running `upgrading-dbt` where a **shell is available**. The
 rules, the phase order, and when to do each of these live in SKILL.md; this file
 only says *how*. If you are in dbt platform Studio, you want
 `exec-platform.md` instead — nothing here can run there.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the upgrading-dbt-core issue corpus.
+"""Validate the upgrading-dbt issue corpus.
 
 Checks, for every kb/**/*.yaml file:
   1. Conformance to issues/_schema.json.

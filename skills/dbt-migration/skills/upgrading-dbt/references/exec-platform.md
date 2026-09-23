@@ -1,6 +1,6 @@
 # Execution profile — dbt platform (Studio)
 
-Mechanics for running `upgrading-dbt-core` inside a Studio develop session. The
+Mechanics for running `upgrading-dbt` inside a Studio develop session. The
 rules, the phase order, and when to do each of these live in SKILL.md; this file
 only says *how*. If you have a shell, you want `exec-local.md` instead.
 
