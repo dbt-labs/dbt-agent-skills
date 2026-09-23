@@ -1,7 +1,7 @@
 {
   "name": "dbt-migration",
   "description": "Skills for migrating dbt projects — moving from dbt Core to dbt v2 or across data platforms.",
-  "version": "1.3.4",
+  "version": "1.3.5",
   "author": {
     "name": "dbt Labs"
   },

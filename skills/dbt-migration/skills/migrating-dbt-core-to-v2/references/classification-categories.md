@@ -7,6 +7,7 @@ Detailed definitions for the 4-category triage framework used to classify dbt-co
 - [Category B: Guided Fixes (Need Approval)](#category-b-guided-fixes-need-approval)
 - [Category C: Needs Your Input](#category-c-needs-your-input)
 - [Category D: Blocked (Not Fixable in Project)](#category-d-blocked-not-fixable-in-project)
+- [Verifying Against the Real Warehouse Before Classifying as Category D](#verifying-against-the-real-warehouse-before-classifying-as-category-d)
 
 ## Category A: Auto-Fixable (Safe)
 
@@ -41,6 +42,8 @@ These fixes are well-understood but may change project behavior. Always show the
 | Plain dict `.meta_get()` error | `dbt1501` | "unknown method: map has no method named meta_get" | `dict.meta_get()` to `dict.get()` | LOW — method name only |
 | Unused schema.yml entries | `dbt1005` | "Unused schema.yml entry for model 'ModelName'" | Remove orphaned YAML entry | LOW — just a warning |
 | Source name mismatches | `dbt1005` | "Source 'Name' not found" | Align source references with YAML definitions | MEDIUM — v2 is strict on naming |
+| Case-sensitive column identifier mismatch | `dbt0227` (UnresolvedIdentifier), or `dbt0209` (FunctionResolutionFailed) only when the signal below is present | "No column X found" or "Available are ..." listing the same name in a different case, naming a quoted/reserved column — other `FunctionResolutionFailed` causes (missing function, wrong overload/argument types) are a different problem, not this pattern | Quote the identifier with its real stored casing (verify via `INFORMATION_SCHEMA.COLUMNS`, not just the analyzer's cached schema), source-side only | MEDIUM — reserved words (`group`, `unique`, `option`, `interval`, `global`, `default`, `action`, `to`) must be quoted, and quoting makes them case-sensitive |
+| Static analysis false positive on a PRODUCTION model | `dbt0227`, `dbt0209` (identifier/column-existence findings only — not other static analysis codes) | Error persists after [warehouse verification](#verifying-against-the-real-warehouse-before-classifying-as-category-d) confirms the analyzer's cached schema is stale, not the code | `static_analysis: off`, scoped per-model, with explicit user sign-off | HIGH if unverified (silences a real runtime failure) — safe only after verification |
 | YAML syntax errors | `dbt1013` | "YAML mapping values not allowed" | Fix quotes, indentation, colons | MEDIUM — syntax dependent |
 | Unexpected config keys | `dbt1060` | "Unexpected key in config" | Move custom keys to `meta:` section | MEDIUM — changes config structure |
 | Package version issues | `dbt1005`, `dbt8999` | "Package not in lookup map", "Cannot combine non-exact versions" | Update versions, use exact pins | MEDIUM — may change package behavior |
@@ -55,6 +58,25 @@ These fixes are well-understood but may change project behavior. Always show the
 - Multiple files may be affected
 - The change could affect query behavior or project structure
 - The user should see exactly what will change before it's applied
+
+### Fix procedure: case-sensitive column identifier mismatch
+
+A common v2-strict-mode pattern when running the repro command with `--static-analysis strict`. Reserved words must be quoted to parse, but quoting also makes them case-sensitive — a common bug is quoting the word in its natural lowercase (`"default"`) when the real column is unquoted-created and therefore stored uppercase (`DEFAULT`). This pattern requires the "Available are ..." evidence in the Signal column above — a `dbt0209` FunctionResolutionFailed without that evidence is a different problem (e.g. missing function or wrong argument types) and should be triaged separately, not assumed to be a casing issue.
+
+1. Confirm the real stored casing by querying `INFORMATION_SCHEMA.COLUMNS` (or your warehouse's equivalent — see [Verifying Against the Real Warehouse](#verifying-against-the-real-warehouse-before-classifying-as-category-d)) against the live warehouse. Do not substitute the error's own "Available are ..." list for this — that list is drawn from the same cached schema this check exists to catch, and can itself be stale. Use it only as a secondary comparison against the query result, never as a replacement for it.
+2. Check the model's own `schema.yml` for a documented column name/casing contract before changing anything. If the column is documented (or has tests) under a specific output name, add an explicit alias so the fix corrects only the source-side reference, not the resulting column name.
+3. Apply the corrected quoting/casing on the source side only.
+4. Re-run the repro command scoped to that one node (`--select <model>`) before moving to the next file.
+
+### Guardrail: suppressing static analysis on production models
+
+This applies only to `dbt0227`/`dbt0209` identifier/column-existence findings that [warehouse verification](#verifying-against-the-real-warehouse-before-classifying-as-category-d) confirms are cache artifacts — not a general license to suppress other static analysis codes, which the column-existence check can't validate.
+
+Never apply `static_analysis: off` to a production model without first completing that verification — it doesn't change what the warehouse resolves at runtime, so suppressing a real mismatch turns a compile-time error into a silent production failure.
+
+- Scope per-model in `dbt_project.yml`, not directory-wide, unless every model in the directory is genuinely affected
+- Get explicit sign-off per model or per confirmed-safe batch
+- Flag any model suppressed WITHOUT verification as a follow-up — don't let it disappear from the classification summary
 
 ---
 
@@ -106,3 +128,25 @@ When you suspect a v2 bug:
 2. If open issue exists: Link it and explain status
 3. If closed: Suggest updating v2 version
 4. If no issue found: Document the error pattern for the user to report
+
+---
+
+## Verifying Against the Real Warehouse Before Classifying as Category D
+
+Before concluding an `UnresolvedIdentifier`/`FunctionResolutionFailed` error is a real bug OR a v2 engine/cache gap, verify against the live warehouse. `INFORMATION_SCHEMA.COLUMNS` qualification differs by adapter — use the query matching your warehouse:
+
+| Adapter | Query |
+|---|---|
+| Snowflake | `dbt show --inline "SELECT column_name FROM <database>.INFORMATION_SCHEMA.COLUMNS WHERE table_schema = '<SCHEMA>' AND table_name = '<TABLE>' ORDER BY ordinal_position"` |
+| Postgres / Redshift | `dbt show --inline "SELECT column_name FROM information_schema.columns WHERE table_schema = '<schema>' AND table_name = '<table>' ORDER BY ordinal_position"` (no database qualifier — these only see the connected database) |
+| BigQuery | `dbt show --inline "SELECT column_name FROM \`<project>.<dataset>.INFORMATION_SCHEMA.COLUMNS\` WHERE table_name = '<table>' ORDER BY ordinal_position"` (dataset-qualified; no `table_schema` filter needed) |
+| Databricks | `dbt show --inline "SELECT column_name FROM <catalog>.information_schema.columns WHERE table_schema = '<schema>' AND table_name = '<table>' ORDER BY ordinal_position"` (catalog-qualified, Unity Catalog) |
+
+If your adapter isn't listed, check its docs for the equivalent metadata view — the pattern (query column names for the actual table, compare to what the error claims) holds regardless of syntax.
+
+This is metadata-only (column names/types), not row-level data, and safe to run freely.
+
+- If the column exists with different real-world casing than the model references → real bug, fix the casing (see the [case-sensitive identifier fix procedure](#fix-procedure-case-sensitive-column-identifier-mismatch)).
+- If the column exists exactly as referenced, matching the error's own "Available are ..." list → this is a static-analysis cache artifact, not a real bug. Try `dbt clean` + recompile first. If it still fails, or fails inconsistently between an isolated `--select` compile and a full-project compile with unchanged code, that inconsistency itself is the evidence — don't keep guessing at code changes to satisfy a non-deterministic checker.
+
+Do not classify an error as Category D from the error message alone. The message's "Available are ..." column list can itself be stale — cross-check it against `INFORMATION_SCHEMA` before trusting it either way.

@@ -1,0 +1,12 @@
+kind: Fixes
+body: Fix gaps in `migrating-dbt-core-to-v2` found during a real production migration —
+    default the repro command to `--static-analysis strict` (plain `dbt compile` was
+    masking real errors), add a case-sensitive/reserved-word identifier mismatch
+    pattern, add warehouse-verification steps to distinguish real bugs from static
+    analysis cache false positives, extend `static_analysis: off` guidance to
+    production models with sign-off guardrails, and flag same-node latent duplicate
+    errors and autofix diff placement issues.
+time: 2026-09-23T11:49:25.000000Z
+custom:
+    Author: b-per
+    Issue: "N/A"
