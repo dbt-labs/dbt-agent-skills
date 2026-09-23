@@ -27,7 +27,7 @@ exclude = ["evals", "evals.*", "scripts", "scripts.*", "tests", "tests.*"]
 skills = [
     "**/*.md",
     "**/*.sh",
-    "dbt-migration/skills/upgrading-dbt-core/references/*.json",
+    "dbt-migration/skills/upgrading-dbt/references/*.json",
 ]
 
 [dependency-groups]

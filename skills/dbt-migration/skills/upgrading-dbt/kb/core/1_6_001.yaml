@@ -1,0 +1,46 @@
+issue_id: "1_6_001"
+sort_order: 4010
+change: New warning when --state and --target point to the same directory
+action: Report the --state/--target configuration so the owner can point them at distinct directories
+category: Behavior
+component: core
+adapter_type: null
+impact: >-
+  WarnStateTargetEqual raised (informational) for previously silent misconfiguration; fatal under
+  --warn-error
+from_version: '1.6'
+to_version: '1.7'
+automation_type: deterministic
+out_of_repo_risk: true
+environment_change: false
+context:
+  detection: |-
+    - This is a runtime CLI/job configuration issue, not a repo-source issue, so `dbt parse` cannot
+      surface it. Detect by scanning invocation sites, not models.
+    - Grep the repo for `--state` and `--target` / `--target-path` in shell scripts, Makefiles, and
+      `scripts/**/*.sh`.
+    - Also grep CI configs: `.github/workflows/*.yml`, `.gitlab-ci.yml`, `azure-pipelines.yml`, `tox.ini`.
+    - Check `dbt_project.yml` for a `target-path:` key (deprecated since 1.5 but may still be present).
+    - Check for `DBT_STATE` / `DBT_TARGET_PATH` env vars in CI.
+    - Flag any invocation where `--state` and `--target`/`--target-path` resolve to the same directory
+      (commonly both set to `target/`).
+    - Note the value is frequently supplied outside the repo (dbt platform job definitions,
+      orchestration tools), which parse cannot see.
+  fixing: |-
+    - NEVER EDIT AN INVOCATION SITE FOR THIS ISSUE. Do not rewrite the shell script, Makefile, CI
+      YAML, or `dbt_project.yml`, and do not offer the edit as a HITL diff. This issue is
+      report-only. The reason is not squeamishness: `--state` has to point at
+      a directory that already holds the *comparison* manifest, and which directory that is depends
+      on how the artifacts get published in the real deployment — a CI cache key, an S3 prefix, a
+      dbt platform job's deferral setting. None of that is visible from the repo, so any path this
+      skill invents ("./state") names a directory that does not exist and silently turns a warning
+      into a broken deferral.
+    - ALWAYS add a results entry (`manual-required`) listing, for each affected invocation: the file
+      and line, the command verbatim as it stands today, and the suggested replacement as *text for
+      the user to apply* — e.g. `dbt build --state ./state --target-path ./target`, with a note that
+      the `--state` directory must be populated with the production manifest first.
+    - When the affected invocation is a dbt platform job command, the record belongs in the jobs file
+      via `jobs-file` (status `needs_change`, with `reason`), not only in the issue note.
+    - If detection found no in-repo invocation site, still record `manual-required` with a note that
+      `--state`/`--target-path` may be paired in out-of-repo job definitions the skill cannot see.
+    - This change never requires a repo edit to pass `dbt parse`; it is advisory / out-of-repo only.
