@@ -1,6 +1,6 @@
 kind: Features
 body: Add the `querying-the-dbt-information-schema` skill. It teaches agents to answer project-metadata questions on dbt v2 with `dbt show --info` and `{{ info_schema() }}`, and covers query routing, stale metadata locations, JSON-encoded columns, and when runtime views are populated.
-time: 2026-10-01T12:00:00.000000Z
+time: 2026-10-01T10:57:55.000000Z
 custom:
     Author: b-per
     Issue: "N/A"

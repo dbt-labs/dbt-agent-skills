@@ -133,6 +133,7 @@ The views grow as dbt processes more of the project:
 | `compile` | A row in `invocations`. Still no `run_results`. |
 | `compile` / `run` / `build` with `--static-analysis strict` | Adds column types in `node_columns.data_type_*` and rows in `column_lineage`. |
 | `run` / `build` | Adds `run_results`, `diagnostics` and `adapter_queries`. |
+| `dbt freshness` (or `dbt source freshness`) | Adds `freshness`. |
 | `--write-catalog` | Adds `relations` (warehouse catalog). |
 
 An empty `run_results`, `freshness`, `relations` or `column_lineage`, or null `data_type_*`, is usually expected for whatever last ran. It is not an error. Tell the user which command fills the view. Don't treat a `compile` as the "last run": it has no timings. Don't run `build` on their project unless they ask, because it runs against the warehouse.
@@ -156,10 +157,12 @@ where m.enabled
     where u.model = m.name and u.package_name = m.package_name)
 order by 1
 
--- Models missing a description (to write the descriptions, use the maintaining-dbt-documentation skill)
+-- Root-project models missing a description (to write them, use the maintaining-dbt-documentation skill)
 select name, original_file_path
 from {{ info_schema('models') }}
-where enabled and coalesce(description, '') = ''
+where enabled
+  and package_name = (select project_name from {{ info_schema('project') }})
+  and coalesce(description, '') = ''
 
 -- Downstream impact of a model, grouped by hops and resource type.
 -- Start from the exact unique_id: a name can match several packages or model versions.
@@ -216,9 +219,12 @@ When you answer a rule-shaped question, give the answer first. Then offer to sav
 
 ```sql
 -- checks/models_have_descriptions.sql   (the file name is the check name)
+-- Filter to the root project, or undocumented package models fail the user's build.
 select unique_id
 from {{ info_schema('models') }}
-where enabled and coalesce(description, '') = ''
+where enabled
+  and package_name = (select project_name from {{ info_schema('project') }})
+  and coalesce(description, '') = ''
 ```
 
 ```yaml
