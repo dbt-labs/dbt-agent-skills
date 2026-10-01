@@ -30,7 +30,6 @@ Use it to answer "what is in this project" questions with one SQL query, instead
 |---|---|---|
 | Table names | `{{ info_schema('models') }}` (Jinja, bare view name) | `dbt.models`, `dbt_rt.run_results` (after `.read views.sql`), or `'dbt.models.parquet'` |
 | Freshness | Updated by `build`, `run`, `check` by default | Updated only by a command run with `--generate-info-schema` |
-| Side effects | Writes `target/inline_*.sql`, overwrites `target/run_results.json` | None (read-only) |
 | Needs | dbt v2 | dbt v2 once, plus the `duckdb` CLI or a parquet library |
 | `dbt_rt.run_results_latest` | Not available | Available |
 | Speed per query | ~0.2–0.7 s | ~0.1 s |
@@ -68,11 +67,10 @@ dbt show --limit -1 --inline "describe select * from {{ info_schema('node_column
 
 | Rule | Why |
 |---|---|
-| Put a **literal** `{{ info_schema('view') }}` call in every `--inline` query. | dbt routes the query to DuckDB only when the SQL contains a literal call. `info_schema(my_var)` or a bare `dbt.models` sends it to the **warehouse**. It then takes 10+ seconds and fails with errors like `Schema '<db>.DBT' does not exist`. A slow query or a warehouse error means the query went to the wrong engine. |
+| Put a **literal** `{{ info_schema('view') }}` call in every `--inline` query. | dbt routes the query to DuckDB only when the SQL contains a literal call. `info_schema(my_var)` or a bare `dbt.models` sends it to the **warehouse**. It then takes 10+ seconds and fails with errors like `Schema '<db>.DBT' does not exist`. A slow query or a warehouse error means the query went to the wrong engine. A misrouted query also writes `target/inline_<hash>.sql` and overwrites `target/run_results.json`; a correctly routed one leaves `target/` alone. |
 | Pass bare view names: `--info models`, `info_schema('models')`. | `dbt.models` is rejected as an unknown view. |
 | Use `--limit -1` when you need every row. | The default limit is 10, so counts and lists are silently truncated. |
 | Use `--quiet --output json` when you will parse the output. | Without `--quiet`, a version banner and an execution summary wrap the JSON. The table output also truncates wide columns. Errors still print under `--quiet`, and the exit code is 1. |
-| Read `target/run_results.json` **before** running `dbt show`, if the user cares about it. | Every `dbt show` overwrites it with its own empty result and writes a `target/inline_<hash>.sql` file. To leave `target/` untouched, use Route B. |
 | Filter `enabled` on **both sides** when counting resources. | `models` and `data_tests` include **disabled** rows. `dag_nodes` holds only enabled resources. The counts will not match. |
 | Filter on `package_name` to separate your project from installed packages. | Package models appear in the same views. Read your project's name with `select project_name from {{ info_schema('project') }}`. |
 | No `ref()`, `source()` or other project macros. | They fail with `unknown function: Jinja macro or function ref is unknown`. You can't join metadata with warehouse data in one query. Run two queries, or export to JSON or CSV and join them yourself. |
