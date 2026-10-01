@@ -213,7 +213,9 @@ Notes on the lineage query:
 
 Some questions are really project rules. "Which models have no tests?" or "which public models lack a description?" usually means the user wants the answer to stay at zero. A `dbt check` enforces that on every `dbt build`, before any model compiles.
 
-A query is a good check when it returns **violations**, one row per offending resource, so zero rows means pass. The first two common queries above qualify. Lineage lookups, counts and run timings don't.
+A query is a good check when it returns **violations**, one row per offending resource, so zero rows means pass. The first two common queries above qualify once converted. Lineage lookups, counts and run timings don't.
+
+When you convert a query, **select `unique_id`**, not `name`. dbt narrows a check's violations to the `--select` selection only by matching a `unique_id` column. Without one, the check runs against the whole project, so `dbt build --select my_model` fails on unrelated models. For a check that returns other ID columns, such as `child_unique_id` from `edges`, set `selection_filter_on: <column>` in the check's config.
 
 When you answer a rule-shaped question, give the answer first. Then offer to save the query as a check. Don't create check files unless the user agrees, because a failing check stops every `dbt build`.
 
