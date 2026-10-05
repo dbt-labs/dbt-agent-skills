@@ -220,6 +220,11 @@ live, so a phase you never close reads as hung no matter how well the work went.
 Step 2 is the one with no other operation in it, which makes it the easiest to
 forget; it is not exempt.
 
+**Telemetry.** The platform profile also reports migration telemetry before
+every stop or give-up, when the verification gate exits, and at the end of the
+run. See its **Telemetry (platform only)** section. The local
+profile has no telemetry, so this does not apply to local runs.
+
 The notes below are **placeholders**: substitute the real numbers for this
 project ("Read 34 models, 6 macros"), never the literal `<n>`.
 

@@ -47,6 +47,12 @@ All migration state lives in **a single file**, `target/dbt_migration.json`:
       "files_changed": ["models/marts/customers.sql"],
       "notes": "renamed + rewrote ref"
     }
+  },
+  "outcome": {
+    "outcome": "completed_partial",
+    "reason": null,
+    "gate": { "parse": "passed", "compile": "passed", "test": "failed", "build": "not_run" },
+    "repair_attempts": 2
   }
 }
 ```
@@ -55,6 +61,13 @@ All migration state lives in **a single file**, `target/dbt_migration.json`:
 section defines — same phase ids, same status values, same fields. Only the
 packaging differs: locally these are two script-written files, here they are two
 keys in one file you write with `edit_file`.
+
+`outcome` is Studio-only and absent until the run ends. Write it once, in Step 9
+(or just before stopping, if the run ends early), with the same values you send
+as the `outcome` and `gate_result` telemetry events. See
+[Telemetry](#telemetry-platform-only) for the legal values. `reason` is the
+`gave_up` reason, or `null`. `gate` carries one verdict per command, and
+`repair_attempts` counts the repairs.
 
 One file, because you are writing it by hand and nothing checks your work.
 Two files can disagree — a phase marked `complete` while its issues still read
@@ -107,7 +120,9 @@ document from memory, or you will drop state you have already recorded.
 ### `preflight`
 `git status` and `git branches`. If the session is on `main`/`master` or the tree
 is dirty, `request_user_input` before going further. Create the migration branch
-with `git checkout` and `create_if_missing`.
+with `git checkout` and `create_if_missing`. If the run stops here, send
+`gave_up` first: reason `preflight_blocked` if git stayed unsafe, `user_aborted`
+if the user said not to continue.
 
 Studio also refuses commits to protected branches, so this is guarded twice —
 but do the check anyway; the point is to tell the user before doing work, not to
@@ -165,7 +180,9 @@ Add the key if `flags:` already exists rather than replacing the block, and pin
 only flags for behaviors detection actually found.
 
 ### `parse`
-`dbt_command` with `dbt parse`. Poll with `dbt_command_status`.
+`dbt_command` with `dbt parse`. Poll with `dbt_command_status`. When the
+5-attempt repair cap in SKILL.md Step 7 is reached, send `gave_up` (scope `gate`,
+reason `parse_cap_reached`) before you revert anything.
 
 **This session already runs on the target release track.** The platform sets your
 personal version override to the target, and Studio starts or restarts the
@@ -198,6 +215,12 @@ record your verdicts in it.
 Set `"source": "platform"`. Do not list an account's other projects, and never
 edit or run a job.
 
+**If `list_jobs` or `get_job_details` fails**, do not stop the migration. Write
+the file with whatever jobs you could read (an empty `jobs` list if none), carry
+on, and list "review job commands by hand: the job list could not be read" in the
+report as a manual action. Send `gave_up` with reason `list_jobs_failed` only if
+this failure ends the run.
+
 The schema is **fixed and shared with the VS Code extension**, which writes the
 same file deterministically on the local path: see
 [Job commands](../SKILL.md#job-commands--migration_jobsjson) and match it exactly.
@@ -221,7 +244,9 @@ is what `git restore` does locally. There is no `stash`.
 `read_file` on `target/dbt_migration.json` and `edit_file` to write
 `migration_report.md` from its `issues` map, grouped by outcome, then show it in
 chat. Locally a script renders this; here you render it yourself, which is the
-reason the state file has to have been kept accurate all the way through.
+reason the state file has to have been kept accurate all the way through. Then
+write the state file's `outcome` object and send the `outcome` event, both before
+`status-set` → `report` = `complete`.
 
 Cover what changed, which behavior flags were pinned and why, anything left
 `manual-required` or `failed`, and — for this environment specifically — **every
@@ -271,16 +296,20 @@ order:
 2. Poll with `dbt_command_status`. Green → next command.
 3. Red → read the node-level errors in the status output, attribute the failure to
    an issue, go back to Step 5 or 6, then re-run Step 7 **from the parse check**.
-   Record what you changed in the issue's notes.
+   Record what you changed in the issue's notes. A warehouse auth or timeout
+   failure that no issue explains is not something to repair. Send `gave_up`
+   (scope `gate`, reason `warehouse_error`) and stop the gate.
 
-When all four are green, go on to Step 8.
+When all four are green, go on to Step 8. Whenever the gate exits, green or not,
+send `gate_result` once.
 
 **Guardrails:**
 - **One command at a time.** Do not fan out; `dbt_command` is per-command anyway
   and concurrent builds into one schema will collide.
 - **Max 3 trips round the loop**, then stop. Unlike a job trigger there is no
   per-run approval bounding this, so the cap is what bounds it. Say you hit the
-  cap rather than quietly stopping.
+  cap rather than quietly stopping. Send `gave_up` (scope `gate`, reason
+  `command_cap_reached`) before you stop.
 - **Never on `main`/`master`** — always the migration branch, same as everything
   else in this skill.
 
@@ -288,4 +317,48 @@ When all four are green, go on to Step 8.
 connection, the project's schema generation is not safe to build into — that is a
 normal outcome. Report verification as incomplete, retain any parse result, and
 make sure the report names **every command left unverified** so the user knows
-exactly what was and was not proven.
+exactly what was and was not proven. Send `gave_up` (scope `gate`) first, with
+reason `no_warehouse_connection` when there is no connection and
+`verification_declined` otherwise. Those unrun commands are `declined` in
+`gate_result`.
+
+## Telemetry (platform only)
+
+`record_migration_event` is a server tool. It records how the run went so the dbt
+platform can measure migrations. Call it **only if it is in your tool list.** It
+is telemetry only:
+
+- It never blocks the migration or changes any decision in it.
+- If a call errors, carry on and do not retry.
+- Never mention it to the user, in chat or in the report.
+
+Every call passes `kind` plus that kind's fields:
+
+| `kind` | When | Fields |
+|---|---|---|
+| `gave_up` | **Before** you stop retrying, or stop the run, on every stop path | `scope` ∈ `gate` · `run`, `reason`, `last_command` ∈ `deps` · `parse` · `compile` · `test` · `build` · `none`, `attempts_used`, `error_category`, `unresolved_issue_ids` |
+| `gate_result` | Exactly once, when Step 7 exits (pass or not) | `final` = `{parse, compile, test, build}`, each ∈ `passed` · `failed` · `declined` · `not_run`; `repair_attempts` (every repair across the whole gate: each parse retry plus each trip round the command loop; `0` if nothing needed repairing) |
+| `outcome` | Exactly once, at the end of Step 9, or just before stopping if the run ends early | `outcome`, `reason` (the `gave_up` reason, if any), `files_changed_count`, `flags_pinned_count` (`flag-set` issues), `manual_actions_count` (every manual action the report lists), `jobs_to_flip_count` (environments and jobs the report says to flip) |
+
+`error_category` ∈ `syntax` · `deprecated_config` · `macro` · `adapter` ·
+`warehouse_auth` · `warehouse_timeout` · `test_failure` · `other`.
+
+`gave_up` reason, one per stop path:
+
+| Stop path | `scope` | `reason` |
+|---|---|---|
+| Git still unsafe after preflight | `run` | `preflight_blocked` |
+| User declines to continue, at any point | `run` | `user_aborted` |
+| Parse repair cap (5) reached | `gate` | `parse_cap_reached` |
+| Command-loop cap (3) reached | `gate` | `command_cap_reached` |
+| User declines the command checks, or the schema is not safe to build into | `gate` | `verification_declined` |
+| Session has no warehouse connection | `gate` | `no_warehouse_connection` |
+| Warehouse auth or timeout failure that no issue explains | `gate` | `warehouse_error` |
+| `list_jobs` failure that ends the run | `run` | `list_jobs_failed` |
+
+`outcome` values:
+
+- `completed`: all four gate commands `passed`, and no issue is `manual-required` or `failed`.
+- `completed_partial`: the run reached the report, but `completed` does not hold.
+- `gave_up`: a `run`-scope `gave_up` ended the run.
+- `failed`: the run reached the report, but `dbt parse` never passed.
