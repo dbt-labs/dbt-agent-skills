@@ -1,0 +1,6 @@
+kind: Features
+body: Add the `enforcing-dbt-lowercase-style` skill. It enforces the lowercase `dbt` brand convention when writing, editing, or reviewing documentation — always writing `dbt` (never `DBT`, `Dbt`, or `DBt`, including at the start of a sentence), while preserving the casing of `dbt Labs`, `dbt Core`, and `dbt Cloud`, and leaving code identifiers like `DBT_PROFILES_DIR` untouched.
+time: 2026-10-05T11:07:09.000000Z
+custom:
+    Author: sebafreiman
+    Issue: "169"
