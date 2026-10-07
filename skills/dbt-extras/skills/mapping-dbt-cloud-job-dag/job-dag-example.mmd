@@ -1,0 +1,34 @@
+%% Example job completion DAG (fictional ids) — paste into https://mermaid.live %%
+%%{init: {"flowchart": {"defaultRenderer": "elk", "htmlLabels": true, "nodeSpacing": 40, "rankSpacing": 25, "padding": 12, "useMaxWidth": false}}}%%
+flowchart LR
+  %% Color classes %%
+  classDef projectA stroke:#2dd4bf,fill:#f0fdfa
+  classDef projectB stroke:#a78bfa,fill:#f5f3ff
+
+  %% Project: Example Warehouse Project | 100001 (projectA) %%
+  subgraph proj_100001["Example Warehouse Project | 100001"]
+    direction TB
+    job_50001["Nightly Transform | 50001"]
+    job_50002["Run on Merge | 50002"]
+    job_50003["dbt run CI | 50003"]
+    job_50004["Semantic Layer Export | 50004"]
+    job_50005["Adhoc SQL | 50005"]
+    job_50006["Weekly Full Refresh | 50006"]
+  end
+
+  %% Project: Example Analytics Downstream | 100002 (projectB) %%
+  subgraph proj_100002["Example Analytics Downstream | 100002"]
+    direction TB
+    job_60001["Consume Warehouse Job | 60001"]
+    job_60002["Metrics Sync | 60002"]
+    job_60003["Docs Generate | 60003"]
+  end
+
+  %% Completion-trigger dependencies %%
+  job_50002 --> job_50003
+  job_50001 --> job_50004
+  job_50001 -. "triggers downstream project job" .-> job_60001
+
+  %% Apply styles %%
+  class proj_100001,job_50001,job_50002,job_50003,job_50004,job_50005,job_50006 projectA
+  class proj_100002,job_60001,job_60002,job_60003 projectB
