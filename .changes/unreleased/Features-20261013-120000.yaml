@@ -1,0 +1,6 @@
+kind: Features
+body: The upgrading-dbt local profile now records the run's outcome in target/dbt_migration_status.json when `report` runs, so the VS Code extension can report how a migration ended.
+time: 2026-10-13T12:00:00.000000Z
+custom:
+    Author: ash2shukla
+    Issue: "N/A"

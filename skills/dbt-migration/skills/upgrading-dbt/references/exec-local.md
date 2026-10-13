@@ -202,6 +202,32 @@ uv run --with pyyaml python "$SKILL_DIR/scripts/tools.py" report --project-dir "
 Renders `target/dbt_migration_results.json` → `migration_report.md`, grouped by
 outcome.
 
+It also records the run's `outcome` in `target/dbt_migration_status.json`, which the
+VS Code extension reads to report how the run went. The script derives it from the
+same records the report is built from, so you write nothing extra and must not
+add it by hand:
+
+```json
+"outcome": {
+  "outcome": "completed_partial",
+  "reason": null,
+  "gate": { "parse": "passed", "compile": "not_run", "test": "not_run", "build": "not_run" },
+  "repair_attempts": null,
+  "files_changed_count": 12,
+  "flags_pinned_count": 2,
+  "manual_actions_count": 3,
+  "jobs_to_flip_count": null
+}
+```
+
+`outcome` is `completed` (the `parse` phase passed and nothing is `manual-required`,
+`failed` or still `detected`), `completed_partial` (it passed but something is
+outstanding), or `failed` (`parse` never passed). It is never `gave_up`: this
+profile has no way to end a run early. The gate is `dbt parse` alone, so `compile`,
+`test` and `build` are always `not_run`, and what this profile cannot know is
+`null`. Run `status-set --step parse` before `report`, because the gate result is
+read from that phase. Starting a new run with `status-init` clears it.
+
 ### `ask`
 Put the question to the user in chat and wait. Always `status-set` the current
 phase to `waiting_input` **before** asking, with a note saying what you asked.

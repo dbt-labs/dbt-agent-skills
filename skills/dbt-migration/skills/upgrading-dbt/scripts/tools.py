@@ -469,6 +469,60 @@ def _load_issue_metadata() -> dict[str, dict]:
     return out
 
 
+# Issue states that stop a run counting as `completed`: something the project still
+# needs a person for, or that was found and never resolved. `advisory` is shown in
+# the report but does not block.
+_OUTCOME_BLOCKING_STATUSES = {"manual-required", "failed", "detected"}
+
+
+def _derive_outcome(
+    results: dict, status: dict, *, flags_pinned: int, manual_actions: int
+) -> dict:
+    """The run's outcome, for whoever sends telemetry (the VS Code extension).
+
+    Derived here, from the same records the report is rendered from, so the numbers
+    cannot disagree with it and the agent has nothing extra to write. The shape and
+    values match the `outcome` object in the platform profile's state file; what this
+    profile cannot know is `null`. Its gate is `dbt parse` alone, so compile, test and
+    build are `not_run`, and nothing counts repairs or ends a run early, so the
+    outcome is never `gave_up`.
+    """
+    parse_step = next(
+        (s.get("status") for s in status.get("steps", []) if s.get("id") == "parse"), None
+    )
+    parse = {"complete": "passed", "failed": "failed"}.get(parse_step, "not_run")
+    files = {f for rec in results.values() for f in rec.get("files_changed", [])}
+    blocked = any(rec.get("status") in _OUTCOME_BLOCKING_STATUSES for rec in results.values())
+    if parse != "passed":
+        outcome = "failed"
+    elif blocked:
+        outcome = "completed_partial"
+    else:
+        outcome = "completed"
+    return {
+        "outcome": outcome,
+        "reason": None,
+        "gate": {"parse": parse, "compile": "not_run", "test": "not_run", "build": "not_run"},
+        "repair_attempts": None,
+        "files_changed_count": len(files),
+        "flags_pinned_count": flags_pinned,
+        "manual_actions_count": manual_actions,
+        "jobs_to_flip_count": None,
+    }
+
+
+def _record_outcome(project: Path, outcome: dict) -> bool:
+    """Add `outcome` to the status file the extension already watches. Returns False
+    when there is no status file yet, because creating one here would give the
+    extension a stepper with no steps."""
+    status = _load_status(project)
+    if not status.get("steps"):
+        return False
+    status["outcome"] = outcome
+    _write_status(project, status)
+    return True
+
+
 def cmd_report(args) -> int:
     project = Path(args.project_dir).resolve()
     data = _load_results(project)
@@ -555,6 +609,15 @@ def cmd_report(args) -> int:
     report = project / REPORT_REL
     report.write_text("\n".join(lines))
     print(f"wrote {report}")
+
+    outcome = _derive_outcome(
+        data,
+        _load_status(project),
+        flags_pinned=len(pinned),
+        manual_actions=len(needs_review),
+    )
+    if _record_outcome(project, outcome):
+        print(f"recorded outcome {outcome['outcome']} -> {_status_path(project)}")
     return 0
 
 
