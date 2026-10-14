@@ -82,6 +82,8 @@ That's fine — proceed to Step 1. But if connection errors appear later during 
 3. Check for autofix log files
 
 ### If NOT run yet:
+If the project is in git, record a baseline first: run `git stash create` and note the SHA (use `HEAD` if it prints nothing), and note the output of `git status --porcelain`.
+
 Prompt the user to run [dbt-autofix](https://github.com/dbt-labs/dbt-autofix) (a first-party tool maintained by dbt Labs that automatically fixes common deprecation patterns):
 ```bash
 uvx --from git+https://github.com/dbt-labs/dbt-autofix.git dbt-autofix deprecations
@@ -93,9 +95,9 @@ uvx --from git+https://github.com/dbt-labs/dbt-autofix.git dbt-autofix deprecati
 Before analyzing any migration errors, you MUST understand what autofix changed:
 
 1. **Review the git diff** (if project is in git):
-   ```bash
-   git diff HEAD~1
-   ```
+   - Baseline recorded before autofix: `git diff <baseline-sha>`. New `??` entries in `git status --porcelain` are files autofix created.
+   - Autofix already committed: `git show <autofix-commit>`.
+   - Otherwise: `git diff HEAD`. It may include the user's own uncommitted work, so confirm against the autofix logs before attributing a change to autofix.
 
 2. **Read autofix logs** (if available):
    - Look for autofix output files
