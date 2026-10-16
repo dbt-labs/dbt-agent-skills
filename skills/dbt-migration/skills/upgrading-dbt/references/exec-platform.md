@@ -68,7 +68,7 @@ keys in one file you write with `edit_file`.
 
 `outcome` is absent until Step 7 exits. Write `gate` and `repair_attempts` then, and
 the remaining fields in Step 9 (or just before stopping, if the run ends early). SKILL.md's **Run outcome** defines its fields
-and values. The `gate_result` and `outcome` telemetry events are filled from it.
+and values. The `GateResult` and `Outcome` telemetry events are filled from it.
 
 One file, because you are writing it by hand and nothing checks your work.
 Two files can disagree — a phase marked `complete` while its issues still read
@@ -92,7 +92,7 @@ memory: read it, change the one record you mean to change, write it back.
 | `request_user_input` | Every question you put to the user |
 | `get_job_details` | Read one job by id — its `execute_steps` and pinned `dbt_version`. This is how you build `migration_jobs.json` (`jobs-file`) |
 | `list_jobs` | Discover this project's jobs, scoped by the `project_id` in your context. This is the first step of `jobs-file` |
-| `record_migration_event` | Optional telemetry. Only if present in your tool list; see [Telemetry](#telemetry-platform-only) |
+| `record_telemetry` | Optional telemetry. Only if present in your tool list; see [Telemetry](#telemetry-platform-only) |
 
 **You do not trigger jobs.** `trigger_job_run` is not part of this skill. A job
 run executes on the deployment environment's own credentials and its own target
@@ -122,8 +122,8 @@ document from memory, or you will drop state you have already recorded.
 ### `preflight`
 `git status` and `git branches`. If the session is on `main`/`master` or the tree
 is dirty, `request_user_input` before going further. Create the migration branch
-with `git checkout` and `create_if_missing`. If the run stops here, send
-`gave_up` first: reason `preflight_blocked` if git stayed unsafe, `user_aborted`
+with `git checkout` and `create_if_missing`. If the run stops here, record a
+`GaveUp` event first: reason `preflight_blocked` if git stayed unsafe, `user_aborted`
 if the user said not to continue.
 
 Studio also refuses commits to protected branches, so this is guarded twice —
@@ -183,7 +183,7 @@ only flags for behaviors detection actually found.
 
 ### `parse`
 `dbt_command` with `dbt parse`. Poll with `dbt_command_status`. When the
-5-attempt repair cap in SKILL.md Step 7 is reached, send `gave_up` (scope `gate`,
+5-attempt repair cap in SKILL.md Step 7 is reached, record a `GaveUp` event (scope `gate`,
 reason `parse_cap_reached`) before you revert anything.
 
 **This session already runs on the target release track.** The platform sets your
@@ -298,18 +298,18 @@ order:
 3. Red → read the node-level errors in the status output, attribute the failure to
    an issue, go back to Step 5 or 6, then re-run Step 7 **from the parse check**.
    Record what you changed in the issue's notes. For a warehouse failure that no
-   issue explains (SKILL.md Step 7), send `gave_up` (scope `gate`, reason
+   issue explains (SKILL.md Step 7), record a `GaveUp` event (scope `gate`, reason
    `warehouse_error`).
 
 When all four are green, go on to Step 8. Whenever the gate exits, green or not,
-send `gate_result` once.
+record a `GateResult` event once.
 
 **Guardrails:**
 - **One command at a time.** Do not fan out; `dbt_command` is per-command anyway
   and concurrent builds into one schema will collide.
 - **Max 3 trips round the loop**, then stop. Unlike a job trigger there is no
   per-run approval bounding this, so the cap is what bounds it. Say you hit the
-  cap rather than quietly stopping. Send `gave_up` (scope `gate`, reason
+  cap rather than quietly stopping. Record a `GaveUp` event (scope `gate`, reason
   `command_cap_reached`) before you stop.
 - **Never on `main`/`master`** — always the migration branch, same as everything
   else in this skill.
@@ -318,32 +318,41 @@ send `gate_result` once.
 connection, the project's schema generation is not safe to build into — that is a
 normal outcome. Report verification as incomplete, retain any parse result, and
 make sure the report names **every command left unverified** so the user knows
-exactly what was and was not proven. Send `gave_up` (scope `gate`) first, with
+exactly what was and was not proven. Record a `GaveUp` event (scope `gate`) first, with
 reason `no_warehouse_connection` when there is no connection and
 `verification_declined` otherwise. Those unrun commands are `declined` in
-`gate_result`.
+the `GateResult` event.
 
 ## Telemetry (platform only)
 
-`record_migration_event` is a server tool. It records how the run went so the dbt
+`record_telemetry` is a server tool. It records how the run went so the dbt
 platform can measure migrations. Call it **only if it is in your tool list.** It
 is telemetry only:
 
 - It never blocks the migration or changes any decision in it.
 - If a call errors, carry on and do not retry.
 
-Every call passes `kind` plus that kind's fields:
+Every call passes `type`, the name of the event, and `event_args`, that event's
+fields. Send only the fields listed here; the server fills in everything else:
 
-| `kind` | When | Fields |
+| `type` | When | `event_args` |
 |---|---|---|
-| `gave_up` | **Before** you stop retrying, or stop the run, on every stop path | `scope` ∈ `gate` · `run`, `reason`, `last_command` ∈ `deps` · `parse` · `compile` · `test` · `build` · `none`, `attempts_used`, `error_category`, `unresolved_issue_ids` |
-| `gate_result` | Exactly once, when Step 7 exits (pass or not), after writing `gate` and `repair_attempts` to the state file's `outcome` | `final` (that `outcome.gate`) and `repair_attempts` |
-| `outcome` | Exactly once, at the end of Step 9, or just before stopping if the run ends early | The state file's `outcome` object, minus `gate` and `repair_attempts` |
+| `GaveUp` | **Before** you stop retrying, or stop the run, on every stop path | `scope` ∈ `gate` · `run`, `reason`, `last_command` ∈ `deps` · `parse` · `compile` · `test` · `build` · `none`, `attempts_used`, `error_category`, `unresolved_issue_ids` |
+| `GateResult` | Exactly once, when Step 7 exits (pass or not), after writing `gate` and `repair_attempts` to the state file's `outcome` | `parse`, `compile`, `test`, `build` (the four entries of that `outcome.gate`) and `repair_attempts` |
+| `Outcome` | Exactly once, at the end of Step 9, or just before stopping if the run ends early | The state file's `outcome` object, minus `gate` and `repair_attempts` |
+
+For example, a gate that stopped at `test`:
+
+    record_telemetry(
+      type="GateResult",
+      event_args={"parse": "passed", "compile": "passed", "test": "failed",
+                  "build": "not_run", "repair_attempts": 2},
+    )
 
 `error_category` ∈ `syntax` · `deprecated_config` · `macro` · `adapter` ·
 `warehouse_auth` · `warehouse_timeout` · `test_failure` · `other`.
 
-`gave_up` reason, one per stop path:
+`GaveUp` reason, one per stop path:
 
 | Stop path | `scope` | `reason` | Final `outcome` |
 |---|---|---|---|

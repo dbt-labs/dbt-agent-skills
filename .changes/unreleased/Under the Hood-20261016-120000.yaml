@@ -1,0 +1,6 @@
+kind: Under the Hood
+body: The upgrading-dbt platform profile now reports migration telemetry through the generic `record_telemetry` tool, with `type` (`GaveUp`, `GateResult` or `Outcome`) and `event_args`, instead of `record_migration_event` with `kind`.
+time: 2026-10-16T12:00:00.000000Z
+custom:
+    Author: ash2shukla
+    Issue: "N/A"

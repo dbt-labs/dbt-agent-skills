@@ -226,7 +226,7 @@ project ("Read 34 models, 6 macros"), never the literal `<n>`.
 **Telemetry.** The platform profile also reports migration telemetry before every
 stop or give-up, when the verification gate exits, and at the end of the run. See
 its **Telemetry (platform only)** section. The local profile never calls
-`record_migration_event`. Its `report` operation records the run's `outcome` in
+`record_telemetry`. Its `report` operation records the run's `outcome` in
 the status file instead, and the VS Code extension sends the telemetry from that,
 so there is nothing for you to report on a local run.
 
@@ -572,7 +572,7 @@ says so.
 ### Run outcome — `outcome`
 
 Optional. On the platform, `gate` and `repair_attempts` are written when Step 7
-exits (so `gate_result` can be sent from them) and the rest is filled in when the
+exits (so a `GateResult` event can be recorded from them) and the rest is filled in when the
 run ends: at Step 9, or when a platform run stops early. The local profile writes
 it all at once, in `report`. It lives at the top level of the state file, next to `steps`:
 
@@ -600,10 +600,10 @@ it all at once, in `report`. It lives at the top level of the state file, next t
     For example a gate check was `declined`, `failed` or did not run, or an issue
     is still outstanding.
   - `failed`: the run reached the report, but `parse` never passed.
-  - `gave_up`: a `run`-scope `gave_up` ended the run. Local runs never produce this.
-    A `gate`-scope `gave_up` does not end the run: it carries on to the report, and
+  - `gave_up`: a `run`-scope `GaveUp` event ended the run. Local runs never produce this.
+    A `gate`-scope `GaveUp` event does not end the run: it carries on to the report, and
     the outcome is `failed` if `parse` never passed, else `completed_partial`.
-- `reason`: the `gave_up` reason, or `null`.
+- `reason`: the `GaveUp` event's reason, or `null`.
 - `gate`: one verdict per command, each `passed`, `failed`, `declined` or `not_run`.
 - `repair_attempts`: each parse retry plus each trip round the command loop; `0` if
   nothing needed repairing.
