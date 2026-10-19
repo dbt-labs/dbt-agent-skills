@@ -84,7 +84,7 @@ That's fine — proceed to Step 1. But if connection errors appear later during 
 ### If NOT run yet:
 Prompt the user to run [dbt-autofix](https://github.com/dbt-labs/dbt-autofix) (a first-party tool maintained by dbt Labs that automatically fixes common deprecation patterns):
 ```bash
-uvx --from git+https://github.com/dbt-labs/dbt-autofix.git dbt-autofix deprecations
+uvx --from dbt-autofix==0.22.6 dbt-autofix deprecations
 ```
 
 **Important**: Wait for autofix to complete before proceeding with classification.

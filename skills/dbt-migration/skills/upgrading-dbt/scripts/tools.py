@@ -84,7 +84,15 @@ MIGRATION_STEPS: list[tuple[str, str]] = [
 # a spinner would tell them to keep waiting when they are the ones being waited on.
 STATUS_VALUES = {"pending", "in_progress", "waiting_input", "complete", "failed"}
 
-MIGRATE_1X_SPEC = "git+https://github.com/dbt-labs/dbt-autofix.git#subdirectory=packages/dbt_migrate_1x"
+# Pinned to a revision, not the default branch: this tool rewrites project files, so an
+# unpinned spec lets a fixed revision of this skill run whatever code the branch serves
+# at the time. `dbt-migrate-1x` is not published to PyPI and postdates the newest
+# dbt-autofix tag, so a commit is the only immutable pin available. Bump deliberately.
+MIGRATE_1X_SPEC = (
+    "git+https://github.com/dbt-labs/dbt-autofix.git"
+    "@6190ebeaf226015a6e605819857e623e496eef3d"
+    "#subdirectory=packages/dbt_migrate_1x"
+)
 
 # Upper bound for `dbt-migrate-1x`. Deterministic rewriting stops at 1.8:
 # every backwards-incompatible change after it is gated behind a behavior-change

@@ -1,0 +1,7 @@
+kind: Fixes
+body: Pin the dbt-autofix and dbt-migrate-1x invocations in the dbt-migration skills,
+    so a fixed skill revision always runs the same file-rewriting tool code
+time: 2026-10-19T11:00:00.000000Z
+custom:
+    Author: anoonan-dbt
+    Issue: "166"
