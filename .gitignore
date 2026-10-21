@@ -41,3 +41,6 @@ Thumbs.db
 
 # Virtual environments
 .venv/
+
+# Generated job DAG exports (timestamped); see job-dag-example.mmd for a static sample
+skills/dbt-extras/skills/mapping-dbt-cloud-job-dag/exports/
