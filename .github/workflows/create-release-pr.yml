@@ -1,0 +1,115 @@
+name: Create release PR
+
+# Bundles every unreleased changie fragment into one release and opens a PR
+# for it. `changie merge` also writes the new version into every versioned file
+# (the `replacements` in .changie.yaml), so the PR needs no hand edits. Merging
+# it triggers release.yml. See RELEASING.md.
+
+permissions:
+  contents: write
+  pull-requests: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        type: choice
+        description: Version bump. 'auto' derives it from the fragments' kinds.
+        default: auto
+        options:
+          - auto
+          - major
+          - minor
+          - patch
+      version:
+        type: string
+        description: Exact version (e.g. v2.1.0). Overrides 'bump' when set.
+        default: ""
+
+concurrency:
+  group: create-release-pr
+  cancel-in-progress: false
+
+jobs:
+  create-release-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
+
+      - name: Resolve the version argument
+        id: target
+        env:
+          BUMP: ${{ inputs.bump }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [[ -n "$VERSION" ]]; then
+            if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Invalid version: $VERSION (expected vMAJOR.MINOR.PATCH)" >&2
+              exit 1
+            fi
+            echo "arg=$VERSION" >> "$GITHUB_OUTPUT"
+          else
+            echo "arg=$BUMP" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+
+      # changie files a fragment with no component under an empty heading
+      # rather than failing, and batching deletes the fragments, so they are
+      # checked here while they still exist.
+      - name: Check the unreleased fragments
+        run: uv run python scripts/validate_repo.py
+
+      - name: Batch unreleased changes
+        uses: miniscruff/changie-action@6dcc2533cac0495148ed4046c438487e4dceaa23
+        with:
+          version: latest
+          args: batch ${{ steps.target.outputs.arg }}
+
+      - name: Merge into CHANGELOG.md and bump versioned files
+        uses: miniscruff/changie-action@6dcc2533cac0495148ed4046c438487e4dceaa23
+        with:
+          version: latest
+          args: merge
+
+      - name: Get the new version
+        id: changie-latest
+        uses: miniscruff/changie-action@6dcc2533cac0495148ed4046c438487e4dceaa23
+        with:
+          version: latest
+          args: latest
+
+      # Fails the run, rather than opening a broken PR, if a replacement in
+      # .changie.yaml missed a versioned file.
+      - name: Check every versioned file was bumped
+        run: uv run python scripts/validate_repo.py
+
+      - name: Read the release notes
+        id: notes
+        env:
+          VERSION: ${{ steps.changie-latest.outputs.output }}
+        run: |
+          {
+            echo "message<<EOF"
+            cat ".changes/$VERSION.md"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      # A PR opened with the default GITHUB_TOKEN does not trigger pull_request
+      # workflows, so Validate would never run on it. RELEASE_PR_TOKEN (a GitHub
+      # App or fine-grained token with contents + pull-requests write) avoids
+      # that; without it the PR is still opened, but checks must be run by hand.
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e
+        with:
+          token: ${{ secrets.RELEASE_PR_TOKEN || secrets.GITHUB_TOKEN }}
+          sign-commits: true
+          title: "version: ${{ steps.changie-latest.outputs.output }}"
+          branch: release/${{ steps.changie-latest.outputs.output }}
+          commit-message: "version: ${{ steps.changie-latest.outputs.output }}"
+          body: |
+            Release `${{ steps.changie-latest.outputs.output }}`. Merging this PR tags the release, publishes it on GitHub, releases it to the Claude marketplace (the `stable` branch) and publishes the Tessl tile.
+
+            ${{ steps.notes.outputs.message }}

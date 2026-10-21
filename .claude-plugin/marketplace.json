@@ -10,17 +10,32 @@
     {
       "name": "dbt",
       "description": "Skills for analytics engineering with dbt — building models, writing tests, querying the semantic layer, troubleshooting jobs, and more.",
-      "source": "./skills/dbt"
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/dbt-labs/dbt-agent-skills.git",
+        "path": "skills/dbt",
+        "ref": "stable"
+      }
     },
     {
       "name": "dbt-migration",
       "description": "Skills for migrating dbt projects — moving from dbt Core to the Fusion engine or across data platforms.",
-      "source": "./skills/dbt-migration"
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/dbt-labs/dbt-agent-skills.git",
+        "path": "skills/dbt-migration",
+        "ref": "stable"
+      }
     },
     {
       "name": "dbt-extras",
       "description": "Miscellaneous skills for dbt.",
-      "source": "./skills/dbt-extras"
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/dbt-labs/dbt-agent-skills.git",
+        "path": "skills/dbt-extras",
+        "ref": "stable"
+      }
     }
   ]
 }

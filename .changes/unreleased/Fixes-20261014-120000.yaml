@@ -1,6 +1,0 @@
-kind: Fixes
-body: Fix migrating-dbt-core-to-v2 autofix review step so it isolates changes made by dbt-autofix instead of diffing against HEAD~1
-time: 2026-10-14T12:00:00.000000+00:00
-custom:
-    Author: b-per
-    Issue: "176"

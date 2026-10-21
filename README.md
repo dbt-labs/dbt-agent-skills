@@ -101,17 +101,17 @@ packages:
   # Everyday dbt skills
   - git: "https://github.com/dbt-labs/dbt-agent-skills.git"
     subdirectory: "skills/dbt"
-    revision: main
+    revision: v2.0.0
 
   # Migration skills (typically a one-off)
   - git: "https://github.com/dbt-labs/dbt-agent-skills.git"
     subdirectory: "skills/dbt-migration"
-    revision: main
+    revision: v2.0.0
 
   # Extra skills
   - git: "https://github.com/dbt-labs/dbt-agent-skills.git"
     subdirectory: "skills/dbt-extras"
-    revision: main
+    revision: v2.0.0
 ```
 
 Then opt in by setting `ai_provider` in your own project's `dbt_project.yml` (it is ignored if set inside a package). Without it, `dbt deps` succeeds but installs no skills:
@@ -128,7 +128,7 @@ dbt deps
 ```
 
 > [!TIP]
-> `revision: main` tracks the latest changes. For reproducible installs, pin `revision` to a Git tag or commit SHA instead.
+> Pin `revision` to a [release tag](https://github.com/dbt-labs/dbt-agent-skills/releases). Every release tags the whole repo, so all three packages share one version. Use `revision: main` to track unreleased changes.
 
 See the [dbt documentation on package skills](https://docs.getdbt.com/docs/dbt-ai/package-skills) for the full configuration reference, including how to disable individual skills.
 

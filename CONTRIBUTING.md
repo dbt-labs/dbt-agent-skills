@@ -7,11 +7,12 @@ Thank you for your interest in contributing to dbt Agent Skills! This guide will
 1. [About this Repository](#about-this-repository)
 2. [How to Contribute](#how-to-contribute)
 3. [Creating a New dbt Skill](#creating-a-new-dbt-skill)
-4. [Style Guide](#style-guide)
-5. [dbt Skill Ideas](#dbt-skill-ideas)
-6. [Resources](#resources)
-7. [Questions or Issues?](#questions-or-issues)
-8. [License](#license)
+4. [Adding a CHANGELOG Entry](#adding-a-changelog-entry)
+5. [Style Guide](#style-guide)
+6. [dbt Skill Ideas](#dbt-skill-ideas)
+7. [Resources](#resources)
+8. [Questions or Issues?](#questions-or-issues)
+9. [License](#license)
 
 ## About this Repository
 
@@ -91,6 +92,31 @@ running-incremental-models/
     ├── incremental_model_example.sql
     └── selector_patterns.txt
 ```
+
+## Adding a CHANGELOG Entry
+
+Changes are released in batches, not one PR at a time (see [RELEASING.md](RELEASING.md)). Each PR records what it changed in a [changie](https://changie.dev) fragment, and the next release collects all fragments into `CHANGELOG.md`.
+
+Any PR that changes a file under `skills/` must add a fragment, and CI checks for one. For PRs that change only CI, scripts or docs, a fragment is optional; use the `repo` component when you add one.
+
+```bash
+changie new
+```
+
+changie prompts for:
+
+| Prompt | What to choose |
+|--------|----------------|
+| Component | The plugin you changed: `dbt`, `dbt-migration` or `dbt-extras`. Use `repo` for anything that does not ship in a plugin. If a PR changes two plugins, run `changie new` once per plugin. |
+| Kind | `Breaking Changes` (renamed or removed skill, changed install path), `Features` (new skill or capability), `Fixes`, `Docs`, `Under the Hood`, `Dependencies` or `Security`. The kind sets the next version number, so a breaking change triggers a major release. |
+| Body | One or two sentences for the user, written in the present tense. |
+| Author / Issue | Your GitHub username, and the issue number (or `N/A`). |
+
+Commit the generated `.changes/unreleased/*.yaml` file with your change.
+
+To try your changes in Claude Code before they are released, run `claude --plugin-dir skills/<plugin>`. The marketplace serves the latest release, not `main`.
+
+**Do not** bump any `version` field or edit `CHANGELOG.md` by hand. Every versioned file (plugin manifests, `tile.json`, `dbt_project.yml`) carries the same repo version, which changes only in a release PR. CI rejects a hand bump.
 
 ## Style Guide
 

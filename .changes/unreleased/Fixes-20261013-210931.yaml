@@ -1,6 +1,0 @@
-kind: Fixes
-body: Fix upgrading-dbt KB guidance for the require_explicit_package_overrides_for_builtin_materializations flag so it only applies when a package overrides a built-in materialization
-time: 2026-10-13T21:09:31.135259+05:30
-custom:
-    Author: sriramr98
-    Issue: NA

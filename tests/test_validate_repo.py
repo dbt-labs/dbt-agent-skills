@@ -469,8 +469,8 @@ def test_coherence_ignores_plugins_with_a_single_manifest(vr, coherence_repo):
 def test_coherence_requires_a_claude_manifest(vr, coherence_repo):
     """Every plugin needs one (RELEASING.md); nothing else caught its absence.
 
-    check_marketplace only compares folder names, and the version check only
-    looks at plugins whose skill content changed.
+    check_marketplace only compares folder names, and the lockstep check
+    finds manifests by glob, so it cannot notice one that is absent.
     """
     plugin_dirs, _, _ = coherence_repo
     errors = vr.check_manifest_coherence(plugin_dirs)
@@ -512,7 +512,7 @@ def test_coherence_rejects_marketplace_entry_name_mismatch(vr, coherence_repo):
 
 
 # --------------------------------------------------------------------------- #
-# diff_context — the skip rules shared by both version checks
+# diff_context — the skip rules for the changelog-entry check
 # --------------------------------------------------------------------------- #
 
 
@@ -520,26 +520,34 @@ def test_coherence_rejects_marketplace_entry_name_mismatch(vr, coherence_repo):
 def stub_git(vr, monkeypatch):
     """Stub the git primitives so no real history is needed."""
 
-    def configure(current="feature", base_exists=True, changed=("a.md",)):
+    def configure(current="feature", base_exists=True, changed=("a.md",), added=()):
         monkeypatch.setattr(vr, "git_current_branch", lambda: current)
         monkeypatch.setattr(vr, "git_branch_exists", lambda b: base_exists)
-        monkeypatch.setattr(vr, "git_changed_files", lambda b: set(changed))
+        monkeypatch.setattr(
+            vr,
+            "git_changed_files",
+            lambda b, diff_filter=None: set(added) if diff_filter == "A" else set(changed),
+        )
 
     return configure
 
 
 def test_diff_context_resolves_the_diff(vr, stub_git):
-    stub_git(changed=("skills/dbt/skills/a-skill/SKILL.md",))
+    stub_git(
+        changed=("skills/dbt/skills/a-skill/SKILL.md", ".changes/unreleased/x.yaml"),
+        added=(".changes/unreleased/x.yaml",),
+    )
     diff = vr.diff_context("main")
     assert diff.base_branch == "main"
-    assert diff.changed == {"skills/dbt/skills/a-skill/SKILL.md"}
+    assert diff.changed == {"skills/dbt/skills/a-skill/SKILL.md", ".changes/unreleased/x.yaml"}
+    assert diff.added == {".changes/unreleased/x.yaml"}
     assert diff.errors == []
 
 
 def test_diff_context_skips_silently_on_the_base_branch(vr, stub_git):
     stub_git(current="main")
     diff = vr.diff_context("main")
-    assert diff.changed is None
+    assert diff.changed is None and diff.added is None
     assert diff.errors == []  # skipping here is correct, not worth reporting
 
 
@@ -557,241 +565,334 @@ def test_diff_context_reports_an_undeterminable_branch(vr, stub_git):
     assert diff.errors == ["Could not determine current git branch"]
 
 
-def test_context_errors_are_reported_exactly_once(vr, stub_git, tile_plugin_dirs):
-    """The plugin check owns these; the tile check must stay silent about them.
-
-    Otherwise a missing base branch would be reported twice in one run.
-    """
-    stub_git(base_exists=False)
-    diff = vr.diff_context("main")
-    plugin_errors = vr.check_version_increments(tile_plugin_dirs, diff)
-    tile_errors = vr.check_tile_version_increment(diff)
-    assert len(plugin_errors) == 1
-    assert tile_errors == []
-
-
 # --------------------------------------------------------------------------- #
-# check_tile_version_increment
+# check_lockstep_versions
 # --------------------------------------------------------------------------- #
 
 
 @pytest.fixture
-def tile_plugin_dirs(tmp_path):
-    return {name: tmp_path / "skills" / name for name in ("dbt", "dbt-migration")}
-
-
-@pytest.fixture
-def tile_repo(vr, tmp_path, monkeypatch):
-    """Point the module at a synthetic repo and build a DiffContext directly.
-
-    The check no longer resolves git state itself, so these tests need no git
-    stubs — that logic is covered by the diff_context tests above.
-    """
-    tile_json = tmp_path / "tile.json"
+def lockstep_repo(vr, tmp_path, monkeypatch):
+    """A synthetic repo with every kind of versioned file, all at one version."""
     monkeypatch.setattr(vr, "REPO_ROOT", tmp_path)
-    monkeypatch.setattr(vr, "SKILLS_DIR", tmp_path / "skills")
-    monkeypatch.setattr(vr, "TILE_JSON", tile_json)
-
-    def configure(head_version, base_version, changed):
-        tile_json.write_text(json.dumps({"version": head_version}))
-        monkeypatch.setattr(
-            vr, "git_file_at_ref", lambda ref, path: json.dumps({"version": base_version})
+    monkeypatch.setattr(vr, "CHANGES_DIR", tmp_path / ".changes")
+    (tmp_path / ".changes").mkdir()
+    write_manifest(vr, tmp_path / "skills" / "dbt", "claude", "dbt", "2.0.0")
+    write_manifest(vr, tmp_path / "skills" / "dbt", "cursor", "dbt", "2.0.0")
+    write_manifest(vr, tmp_path / "skills" / "dbt-extras", "claude", "dbt-extras", "2.0.0")
+    for plugin in ("dbt", "dbt-extras"):
+        (tmp_path / "skills" / plugin / "dbt_project.yml").write_text(
+            f'name: {plugin.replace("-", "_")}\nversion: "2.0.0"\n'
         )
-        return vr.DiffContext("main", set(changed), [])
+    (tmp_path / "tile.json").write_text(json.dumps({"name": "t", "version": "2.0.0"}))
 
-    return configure
+    def release(*versions):
+        for v in versions:
+            (tmp_path / ".changes" / f"{v}.md").write_text(f"## {v}\n")
+
+    return tmp_path, release
 
 
-def test_tile_rejects_skill_change_without_bump(vr, tile_repo):
-    diff = tile_repo("1.5.1", "1.5.1", ["skills/dbt/skills/a-skill/SKILL.md"])
-    errors = vr.check_tile_version_increment(diff)
+def test_lockstep_accepts_files_at_the_latest_release(vr, lockstep_repo):
+    _, release = lockstep_repo
+    release("v1.0.0", "v2.0.0")
+    assert vr.check_lockstep_versions() == []
+
+
+def test_lockstep_finds_every_kind_of_versioned_file(vr, lockstep_repo):
+    """Both marketplaces, the dbt packages and the tile — across every plugin."""
+    root, _ = lockstep_repo
+    found = {str(p.relative_to(root)) for p in vr.find_versioned_files()}
+    assert found == {
+        "skills/dbt/.claude-plugin/plugin.json",
+        "skills/dbt/.cursor-plugin/plugin.json",
+        "skills/dbt-extras/.claude-plugin/plugin.json",
+        "skills/dbt/dbt_project.yml",
+        "skills/dbt-extras/dbt_project.yml",
+        "tile.json",
+    }
+
+
+def test_lockstep_rejects_a_hand_bumped_file(vr, lockstep_repo):
+    """The old per-PR habit: one plugin bumped ahead of the release."""
+    root, release = lockstep_repo
+    release("v2.0.0")
+    write_manifest(vr, root / "skills" / "dbt-extras", "claude", "dbt-extras", "2.0.1")
+    errors = vr.check_lockstep_versions()
     assert len(errors) == 1
-    assert "is not an increase over the base" in errors[0]
+    assert "dbt-extras/.claude-plugin/plugin.json" in errors[0]
+    assert "'2.0.1'" in errors[0] and "'2.0.0'" in errors[0]
 
 
-def test_tile_accepts_skill_change_with_bump(vr, tile_repo):
-    diff = tile_repo("1.5.2", "1.5.1", ["skills/dbt/skills/a-skill/SKILL.md"])
-    assert vr.check_tile_version_increment(diff) == []
+def test_lockstep_rejects_a_file_left_behind_by_a_release(vr, lockstep_repo):
+    """A versioned file the .changie.yaml replacements missed."""
+    _, release = lockstep_repo
+    release("v2.0.0", "v2.1.0")
+    errors = vr.check_lockstep_versions()
+    assert len(errors) == 6
+    assert all("latest release is '2.1.0'" in e for e in errors)
 
 
-def test_tile_ignores_changes_outside_skills(vr, tile_repo):
-    diff = tile_repo("1.5.1", "1.5.1", ["README.md", "scripts/validate_repo.py"])
-    assert vr.check_tile_version_increment(diff) == []
+def test_lockstep_compares_releases_numerically(vr, lockstep_repo):
+    _, release = lockstep_repo
+    release("v2.0.0", "v2.10.0", "v2.9.0")
+    assert vr.latest_release() == "2.10.0"
 
 
-def test_tile_ignores_plugin_manifest_only_changes(vr, tile_repo):
-    """A manifest bump changes nothing Tessl publishes, so it must not force a bump.
-
-    Only files under a plugin's skills/ directory count as skill content — the
-    same rule the per-plugin version check applies.
-    """
-    diff = tile_repo(
-        "1.5.1",
-        "1.5.1",
-        [
-            "skills/dbt/.claude-plugin/plugin.json",
-            "skills/dbt/.cursor-plugin/plugin.json",
-            "skills/dbt-migration/.claude-plugin/plugin.json",
-        ],
-    )
-    assert vr.check_tile_version_increment(diff) == []
+def test_lockstep_ignores_files_that_are_not_releases(vr, lockstep_repo):
+    """changie keeps its header template next to the release files."""
+    root, release = lockstep_repo
+    release("v2.0.0")
+    (root / ".changes" / "header.tpl.md").write_text("# Changelog\n")
+    (root / ".changes" / "vnext.md").write_text("")
+    assert vr.latest_release() == "2.0.0"
 
 
-def test_tile_counts_only_skill_content_in_its_message(vr, tile_repo):
-    """Mixed change set: the manifest bumps must not be counted or listed."""
-    diff = tile_repo(
-        "1.5.1",
-        "1.5.1",
-        [
-            "skills/dbt/.claude-plugin/plugin.json",
-            "skills/dbt/skills/a-skill/SKILL.md",
-            "skills/dbt-migration/skills/b-skill/SKILL.md",
-        ],
-    )
-    errors = vr.check_tile_version_increment(diff)
-    assert len(errors) == 1
-    assert "2 skill file(s) changed" in errors[0]
-    assert "plugin.json" not in errors[0]
+def test_lockstep_reports_a_missing_version(vr, lockstep_repo):
+    root, release = lockstep_repo
+    release("v2.0.0")
+    (root / "skills" / "dbt" / "dbt_project.yml").write_text("name: dbt_agent_skills\n")
+    errors = vr.check_lockstep_versions()
+    assert errors == ["skills/dbt/dbt_project.yml has no top-level 'version'"]
 
 
-def test_tile_catches_a_deleted_plugin(vr, tile_repo):
-    """Deleting a whole plugin changes the tile's skill list, so it needs a bump.
-
-    Matching on existing plugin directories missed this: the deleted plugin's
-    files are in the diff but its directory is gone from the working tree.
-    """
-    diff = tile_repo(
-        "1.5.1",
-        "1.5.1",
-        [
-            "skills/dbt-extras/skills/removed-skill/SKILL.md",
-            "skills/dbt-extras/.claude-plugin/plugin.json",
-        ],
-    )
-    errors = vr.check_tile_version_increment(diff)
-    assert len(errors) == 1
-    assert "1 skill file(s) changed" in errors[0]
-
-
-def test_tile_ignores_a_bare_skills_dir_path(vr, tile_repo):
-    """`skills/<plugin>/skills/` itself is not skill content; it needs a file under it."""
-    diff = tile_repo("1.5.1", "1.5.1", ["skills/dbt/skills/"])
-    assert vr.check_tile_version_increment(diff) == []
-
-
-def test_tile_skips_when_there_is_nothing_to_compare(vr, tile_repo):
-    tile_repo("1.5.1", "1.5.1", [])
-    assert vr.check_tile_version_increment(vr.DiffContext("main", None, [])) == []
+def test_lockstep_requires_a_release(vr, lockstep_repo):
+    errors = vr.check_lockstep_versions()
+    assert len(errors) == 1 and "No release found" in errors[0]
 
 
 # --------------------------------------------------------------------------- #
-# check_version_increments — the per-plugin path
+# check_marketplace_sources
 # --------------------------------------------------------------------------- #
 
 
 @pytest.fixture
-def plugin_version_repo(vr, tmp_path, monkeypatch):
-    """A synthetic plugin whose manifest version can be set at both ends."""
+def sources_repo(vr, tmp_path, monkeypatch):
+    claude_json = tmp_path / ".claude-plugin" / "marketplace.json"
+    claude_json.parent.mkdir()
     monkeypatch.setattr(vr, "REPO_ROOT", tmp_path)
-    monkeypatch.setattr(vr, "SKILLS_DIR", tmp_path / "skills")
-    plugin_dir = tmp_path / "skills" / "dbt"
-    manifest = plugin_dir / vr.PLUGIN_MANIFESTS["claude"]
-    manifest.parent.mkdir(parents=True)
+    monkeypatch.setattr(vr, "MARKETPLACE_JSON", claude_json)
 
-    def configure(head_version, base_version, changed=("skills/dbt/skills/a/SKILL.md",)):
-        manifest.write_text(json.dumps({"name": "dbt", "version": head_version}))
-        monkeypatch.setattr(
-            vr,
-            "git_file_at_ref",
-            lambda ref, path: None
-            if base_version is None
-            else json.dumps({"name": "dbt", "version": base_version}),
+    def write(*sources):
+        claude_json.write_text(
+            json.dumps(
+                {"plugins": [{"name": f"p{i}", "source": s} for i, s in enumerate(sources)]}
+            )
         )
-        return {"dbt": plugin_dir}, vr.DiffContext("main", set(changed), [])
 
-    return configure
-
-
-def test_plugin_version_accepts_an_increase(vr, plugin_version_repo):
-    dirs, diff = plugin_version_repo("1.5.1", "1.5.0")
-    assert vr.check_version_increments(dirs, diff) == []
+    return write
 
 
-def test_plugin_version_rejects_an_unchanged_version(vr, plugin_version_repo):
-    dirs, diff = plugin_version_repo("1.5.0", "1.5.0")
-    errors = vr.check_version_increments(dirs, diff)
-    assert len(errors) == 1
-    assert "is not an increase over the base" in errors[0]
+def on_stable(ref="stable", **overrides):
+    return {
+        "source": "git-subdir",
+        "url": "https://github.com/dbt-labs/dbt-agent-skills.git",
+        "path": "skills/dbt",
+        "ref": ref,
+        **overrides,
+    }
 
 
-def test_plugin_version_rejects_a_downgrade(vr, plugin_version_repo):
-    """Differs from the base, so an equality test would have passed it."""
-    dirs, diff = plugin_version_repo("1.4.0", "1.5.0")
-    errors = vr.check_version_increments(dirs, diff)
-    assert len(errors) == 1
-    assert "is not an increase over the base" in errors[0]
+def test_sources_accept_entries_on_the_release_branch(vr, sources_repo):
+    sources_repo(on_stable(), on_stable(path="skills/dbt-extras"))
+    assert vr.check_marketplace_sources() == []
 
 
-def test_plugin_version_reports_an_unparseable_version(vr, plugin_version_repo):
-    dirs, diff = plugin_version_repo("nightly", "1.5.0")
-    errors = vr.check_version_increments(dirs, diff)
-    assert len(errors) == 1
-    assert "cannot compare versions" in errors[0]
+def test_sources_reject_a_relative_path_source(vr, sources_repo):
+    """A relative path serves main, unreleased changes included."""
+    sources_repo("./skills/dbt")
+    errors = vr.check_marketplace_sources()
+    assert len(errors) == 1 and "must use a 'git-subdir' source" in errors[0]
 
 
-def test_plugin_version_ignores_non_skill_changes(vr, plugin_version_repo):
-    dirs, diff = plugin_version_repo(
-        "1.5.0", "1.5.0", changed=("skills/dbt/.claude-plugin/plugin.json", "README.md")
-    )
-    assert vr.check_version_increments(dirs, diff) == []
+@pytest.mark.parametrize("ref", ["main", "v2.0.0", None])
+def test_sources_reject_any_other_ref(vr, sources_repo, ref):
+    """main serves unreleased changes; a tag on main can name a tag not yet created."""
+    sources_repo(on_stable(ref=ref))
+    errors = vr.check_marketplace_sources()
+    assert len(errors) == 1 and f"not ref {ref!r}" in errors[0]
 
 
-def test_plugin_version_skips_a_new_plugin(vr, plugin_version_repo):
-    """No manifest at the base ref means the plugin is new; nothing to compare."""
-    dirs, diff = plugin_version_repo("1.0.0", None)
-    assert vr.check_version_increments(dirs, diff) == []
+def test_sources_reject_a_sha_override(vr, sources_repo):
+    """Claude Code checks out `sha` over `ref`, so a sha would silently win."""
+    sources_repo(on_stable(sha="a" * 40))
+    errors = vr.check_marketplace_sources()
+    assert len(errors) == 1 and "and sha 'aaaa" in errors[0]
 
 
-# --------------------------------------------------------------------------- #
-# version_increased
-# --------------------------------------------------------------------------- #
+def test_sources_reject_another_repository(vr, sources_repo):
+    sources_repo(on_stable(url="https://github.com/someone/fork.git"))
+    errors = vr.check_marketplace_sources()
+    assert len(errors) == 1 and "fork.git" in errors[0]
+
+
+def test_sources_skip_a_missing_marketplace(vr, tmp_path, monkeypatch):
+    monkeypatch.setattr(vr, "MARKETPLACE_JSON", tmp_path / "marketplace.json")
+    assert vr.check_marketplace_sources() == []
 
 
 @pytest.mark.parametrize(
-    "current,base,expected",
+    "source,folder",
     [
-        ("1.5.2", "1.5.1", True),
-        ("1.6.0", "1.5.9", True),
-        ("2.0.0", "1.9.9", True),
-        ("1.5.1", "1.5.1", False),   # unchanged
-        ("1.5.1", "1.5.2", False),   # downgrade
-        ("1.4.0", "1.5.0", False),   # downgrade
-        ("1.10.0", "1.9.0", True),   # numeric, not lexicographic
-        ("1.9.0", "1.10.0", False),
-        ("1.5", "1.5.1", False),
-        ("v1.5.2", "1.5.1", None),   # unparseable
-        ("1.5.2-rc1", "1.5.1", None),
-        (None, "1.5.1", None),
-        ("1.5.2", None, None),
+        ("./skills/dbt", "dbt"),
+        ({"source": "git-subdir", "path": "skills/dbt-migration"}, "dbt-migration"),
+        ({"source": "git-subdir"}, ""),
+        (None, ""),
     ],
 )
-def test_version_increased(vr, current, base, expected):
-    assert vr.version_increased(current, base) is expected
+def test_entry_folder(vr, source, folder):
+    assert vr.entry_folder(source) == folder
 
 
-def test_tile_rejects_a_version_downgrade(vr, tile_repo):
-    """An equality test would pass this: 1.5.1 differs from 1.5.2."""
-    diff = tile_repo("1.5.1", "1.5.2", ["skills/dbt/skills/a-skill/SKILL.md"])
-    errors = vr.check_tile_version_increment(diff)
+# --------------------------------------------------------------------------- #
+# check_changelog_entries
+# --------------------------------------------------------------------------- #
+
+
+@pytest.fixture
+def entries_repo(vr, tmp_path, monkeypatch):
+    monkeypatch.setattr(vr, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(vr, "SKILLS_DIR", tmp_path / "skills")
+    monkeypatch.setattr(vr, "CHANGES_DIR", tmp_path / ".changes")
+    monkeypatch.setattr(vr, "CHANGELOG_MD", tmp_path / "CHANGELOG.md")
+
+    def configure(changed, added=()):
+        return vr.DiffContext("main", set(changed) | set(added), set(added), [])
+
+    return configure
+
+
+SKILL_FILE = "skills/dbt/skills/a-skill/SKILL.md"
+FRAGMENT = ".changes/unreleased/Fixes-20261021-120000.yaml"
+
+
+def test_entries_accept_a_skill_change_with_a_new_fragment(vr, entries_repo):
+    diff = entries_repo([SKILL_FILE], added=[FRAGMENT])
+    assert vr.check_changelog_entries(diff) == []
+
+
+def test_entries_reject_a_skill_change_without_a_fragment(vr, entries_repo):
+    diff = entries_repo([SKILL_FILE])
+    errors = vr.check_changelog_entries(diff)
     assert len(errors) == 1
-    assert "is not an increase over the base" in errors[0]
+    assert "no changelog fragment" in errors[0] and SKILL_FILE in errors[0]
 
 
-def test_tile_reports_an_unparseable_version(vr, tile_repo):
-    diff = tile_repo("nightly", "1.5.1", ["skills/dbt/skills/a-skill/SKILL.md"])
-    errors = vr.check_tile_version_increment(diff)
-    assert len(errors) == 1
-    assert "Cannot compare" in errors[0]
+def test_entries_do_not_count_an_edited_old_fragment(vr, entries_repo):
+    """Touching someone else's fragment is not a changelog entry for this PR."""
+    diff = entries_repo([SKILL_FILE, FRAGMENT])
+    assert len(vr.check_changelog_entries(diff)) == 1
+
+
+def test_entries_cover_plugin_manifests_and_packages(vr, entries_repo):
+    """Everything under skills/ ships, not only skill content."""
+    diff = entries_repo(["skills/dbt/dbt_project.yml"])
+    assert len(vr.check_changelog_entries(diff)) == 1
+
+
+def test_entries_ignore_changes_that_do_not_ship(vr, entries_repo):
+    diff = entries_repo(["README.md", "scripts/validate_repo.py", "evals/x.py"])
+    assert vr.check_changelog_entries(diff) == []
+
+
+def test_entries_reject_a_hand_edited_changelog(vr, entries_repo):
+    diff = entries_repo(["CHANGELOG.md"], added=[FRAGMENT])
+    errors = vr.check_changelog_entries(diff)
+    assert len(errors) == 1 and "changed outside a release" in errors[0]
+
+
+def test_entries_accept_a_release(vr, entries_repo):
+    """A release PR rewrites CHANGELOG.md and versioned files and deletes fragments."""
+    diff = entries_repo(
+        ["CHANGELOG.md", "skills/dbt/.claude-plugin/plugin.json", FRAGMENT],
+        added=[".changes/v2.1.0.md"],
+    )
+    assert vr.check_changelog_entries(diff) == []
+
+
+def test_entries_do_not_treat_an_edited_release_file_as_a_release(vr, entries_repo):
+    diff = entries_repo(["CHANGELOG.md", ".changes/v2.0.0.md"])
+    assert len(vr.check_changelog_entries(diff)) == 1
+
+
+def test_entries_report_context_errors(vr):
+    diff = vr.DiffContext("main", None, None, ["Base branch 'main' not found"])
+    assert vr.check_changelog_entries(diff) == ["Base branch 'main' not found"]
+
+
+def test_entries_skip_when_there_is_nothing_to_compare(vr):
+    assert vr.check_changelog_entries(vr.DiffContext("main", None, None, [])) == []
+
+
+# --------------------------------------------------------------------------- #
+# check_changelog_fragments
+# --------------------------------------------------------------------------- #
+
+
+CHANGIE_CONFIG = """\
+components:
+  - dbt
+  - repo
+kinds:
+  - label: Features
+    auto: minor
+  - label: Fixes
+    auto: patch
+"""
+
+
+@pytest.fixture
+def fragments_repo(vr, tmp_path, monkeypatch):
+    monkeypatch.setattr(vr, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(vr, "CHANGES_DIR", tmp_path / ".changes")
+    monkeypatch.setattr(vr, "CHANGIE_YAML", tmp_path / ".changie.yaml")
+    (tmp_path / ".changie.yaml").write_text(CHANGIE_CONFIG)
+    unreleased = tmp_path / ".changes" / "unreleased"
+    unreleased.mkdir(parents=True)
+
+    def write(name, text):
+        (unreleased / name).write_text(text)
+
+    return write
+
+
+def test_fragments_accept_a_valid_fragment(vr, fragments_repo):
+    fragments_repo("a.yaml", "component: dbt\nkind: Fixes\nbody: Fix a thing\n")
+    assert vr.check_changelog_fragments() == []
+
+
+def test_fragments_reject_invalid_yaml(vr, fragments_repo):
+    """The live bug: an unquoted `key: value` inside a body broke `changie batch`."""
+    fragments_repo(
+        "a.yaml",
+        "component: dbt\nkind: Fixes\nbody: Fix gaps —\n    extend `static_analysis: off` guidance\n",
+    )
+    errors = vr.check_changelog_fragments()
+    assert len(errors) == 1 and "is not valid YAML" in errors[0]
+
+
+def test_fragments_reject_a_missing_component(vr, fragments_repo):
+    """changie files these under an empty heading instead of failing."""
+    fragments_repo("a.yaml", "kind: Fixes\nbody: Fix a thing\n")
+    errors = vr.check_changelog_fragments()
+    assert len(errors) == 1 and "component None" in errors[0]
+
+
+def test_fragments_reject_an_unknown_component(vr, fragments_repo):
+    fragments_repo("a.yaml", "component: dbt-typo\nkind: Fixes\nbody: Fix a thing\n")
+    errors = vr.check_changelog_fragments()
+    assert len(errors) == 1 and "'dbt-typo'" in errors[0]
+
+
+def test_fragments_reject_an_unknown_kind(vr, fragments_repo):
+    fragments_repo("a.yaml", "component: dbt\nkind: Bug Fix\nbody: Fix a thing\n")
+    errors = vr.check_changelog_fragments()
+    assert len(errors) == 1 and "'Bug Fix'" in errors[0]
+
+
+def test_fragments_reject_an_empty_body(vr, fragments_repo):
+    fragments_repo("a.yaml", "component: dbt\nkind: Fixes\nbody: ''\n")
+    errors = vr.check_changelog_fragments()
+    assert errors and "empty body" in errors[0]
 
 
 # --------------------------------------------------------------------------- #
@@ -802,8 +903,8 @@ def test_tile_reports_an_unparseable_version(vr, tile_repo):
 def test_real_repo_passes_layout_checks(vr):
     """Guards the checks against the repo as it actually stands.
 
-    Version-increment checks are excluded: they diff against a base branch and
-    are exercised by CI on a real PR, not here.
+    The changelog-entry check is excluded: it diffs against a base branch and
+    is exercised by CI on a real PR, not here.
     """
     skills = vr.find_all_skills()
     plugin_dirs = vr.find_all_plugin_dirs()
@@ -813,3 +914,6 @@ def test_real_repo_passes_layout_checks(vr):
     assert vr.check_manifest_coherence(plugin_dirs) == []
     assert vr.check_file_references(skills) == []
     assert vr.check_frontmatter(skills) == []
+    assert vr.check_lockstep_versions() == []
+    assert vr.check_marketplace_sources() == []
+    assert vr.check_changelog_fragments() == []

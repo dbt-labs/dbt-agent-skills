@@ -1,0 +1,104 @@
+name: Release
+
+# Publishes a release once its release PR (see create-release-pr.yml) lands on
+# main: tags the merge commit, creates the GitHub release from the changie
+# notes, and publishes the Tessl tile at that tag.
+#
+# The trigger is "the latest changie version has no tag yet" rather than a
+# commit-message prefix, so a release cut by hand, or a run that failed
+# half-way, is picked up by re-running this workflow.
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - CHANGELOG.md
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  github-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the tag and the release
+    outputs:
+      version: ${{ steps.changie-latest.outputs.output }}
+      released: ${{ steps.check-tag.outputs.released }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Get the latest version
+        id: changie-latest
+        uses: miniscruff/changie-action@6dcc2533cac0495148ed4046c438487e4dceaa23
+        with:
+          version: latest
+          args: latest
+
+      - name: Skip if already released
+        id: check-tag
+        env:
+          VERSION: ${{ steps.changie-latest.outputs.output }}
+        run: |
+          if git rev-parse --verify --quiet "refs/tags/$VERSION" >/dev/null; then
+            echo "$VERSION is already tagged; nothing to release."
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "released=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # astral-sh/setup-uv@v10.0.1
+        if: steps.check-tag.outputs.released == 'true'
+        with:
+          enable-cache: true
+
+      # Never tag a commit whose versioned files disagree with the release.
+      - name: Validate repo integrity
+        if: steps.check-tag.outputs.released == 'true'
+        run: uv run python scripts/validate_repo.py
+
+      - name: Create the tag and GitHub release
+        if: steps.check-tag.outputs.released == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.changie-latest.outputs.output }}
+        run: |
+          gh release create "$VERSION" \
+            --target "$GITHUB_SHA" \
+            --title "dbt-agent-skills $VERSION" \
+            --notes-file ".changes/$VERSION.md"
+
+      # Not gated on check-tag, so a re-run finishes a release that failed
+      # after tagging.
+      - name: Move the stable branch to the release
+        env:
+          VERSION: ${{ steps.changie-latest.outputs.output }}
+        run: |
+          git fetch --quiet origin "refs/tags/$VERSION:refs/tags/$VERSION"
+          git push origin "refs/tags/$VERSION^{commit}:refs/heads/stable"
+
+  publish-tile:
+    needs: github-release
+    if: needs.github-release.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # OIDC token for Tessl
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
+        with:
+          ref: ${{ needs.github-release.outputs.version }}
+
+      - uses: tesslio/setup-tessl@25ec223fc0da33b41b8044ff5ab2b85235f4f91e # v2
+        with:
+          token: ${{ secrets.TESSL_API_TOKEN }}
+
+      - run: tessl tile publish --skip-evals

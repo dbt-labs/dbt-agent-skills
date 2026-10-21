@@ -5,20 +5,41 @@ changelogPath: CHANGELOG.md
 versionExt: md
 envPrefix: CHANGIE_
 versionFormat: '## dbt-agent-skills {{.Version}} - {{.Time.Format "January 02, 2006"}}'
-kindFormat: '### {{.Kind}}'
+componentFormat: '### {{.Component}}'
+kindFormat: '#### {{.Kind}}'
 changeFormat: '* {{.Body}}'
+
+# Every release versions the whole repo in lockstep: one version number for all
+# plugins, the Tessl tile and the dbt packages (see RELEASING.md). Components
+# give each plugin its own section in the changelog instead of its own version.
+# `repo` is for anything that does not ship inside a plugin: CI, scripts, docs.
+components:
+  - dbt
+  - dbt-migration
+  - dbt-extras
+  - repo
+
 kinds:
   - label: Breaking Changes
+    auto: major
   - label: Features
+    auto: minor
   - label: Fixes
+    auto: patch
   - label: Docs
+    auto: patch
   - label: Under the Hood
+    auto: patch
   - label: Dependencies
+    auto: patch
   - label: Security
+    auto: patch
+
 newlines:
   afterChangelogHeader: 1
   afterKind: 1
   afterChangelogVersion: 1
+  beforeComponent: 1
   beforeKind: 1
   endOfVersion: 1
 
@@ -31,3 +52,25 @@ custom:
   label: GitHub Issue Number (separated by a single space if multiple)
   type: string
   minLength: 1
+
+# `changie merge` writes the released version into every versioned file, so a
+# release PR needs no hand edits. scripts/validate_repo.py checks that each of
+# these agrees with the latest released version; a new versioned file must be
+# added both here and to VERSIONED_FILES there.
+replacements:
+  - path: skills/*/.claude-plugin/plugin.json
+    find: '^  "version": ".*",$'
+    replace: '  "version": "{{.VersionNoPrefix}}",'
+  - path: skills/*/.cursor-plugin/plugin.json
+    find: '^  "version": ".*",$'
+    replace: '  "version": "{{.VersionNoPrefix}}",'
+  - path: skills/*/dbt_project.yml
+    find: '^version: .*$'
+    replace: 'version: "{{.VersionNoPrefix}}"'
+  - path: tile.json
+    find: '^  "version": ".*",$'
+    replace: '  "version": "{{.VersionNoPrefix}}",'
+  # Keeps the `dbt deps` install snippet pinned to the newest release tag.
+  - path: README.md
+    find: '^    revision: v[0-9.]+$'
+    replace: '    revision: {{.Version}}'
