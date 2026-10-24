@@ -41,10 +41,16 @@ def load_models(manifest_path):
         )
     with open(manifest_path, encoding="utf-8") as manifest_file:
         manifest = json.load(manifest_file)
+    # The manifest also holds models from installed packages, whose
+    # `original_file_path` is relative to the package root. Keep only the root
+    # project's models so package models are not merged into project folders.
+    # `metadata.project_name` is absent from manifests older than dbt 1.6.
+    project_name = (manifest.get("metadata") or {}).get("project_name")
     return [
         node
         for node in manifest.get("nodes", {}).values()
         if node.get("resource_type") == "model"
+        and (project_name is None or node.get("package_name") == project_name)
     ]
 
 

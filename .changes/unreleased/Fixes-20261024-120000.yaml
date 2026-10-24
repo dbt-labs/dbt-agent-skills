@@ -1,0 +1,6 @@
+kind: Fixes
+body: Exclude installed package models from the maintaining-dbt-documentation coverage audit
+time: 2026-10-24T12:00:00.000000+00:00
+custom:
+    Author: RaphaelFakhri
+    Issue: "184"
