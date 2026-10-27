@@ -12,11 +12,13 @@
 metrics (
   orders.total_orders        as count(distinct orders.order_id),
   orders.total_revenue       as sum(orders.order_amount),
-  customers.total_customers  as count(distinct customers.customer_id),
+  orders.distinct_customers  as count(distinct orders.customer_id),
   avg_order_value            as orders.total_revenue / orders.total_orders,
-  orders_per_customer        as orders.total_orders / customers.total_customers
+  orders_per_customer        as orders.total_orders / orders.distinct_customers
 )
 ```
+
+Define the customer count on the **orders** table (the foreign key `orders.customer_id`), not on the customers table: a metric can only be grouped by dimensions of its own table or of tables at the same or a coarser grain, so `orders.distinct_customers` can be sliced by `orders.order_month`, while `customers.total_customers` cannot. Put a metric on the customers table only when it is sliced by customer attributes.
 
 The division is recomputed for whatever dimensions a query picks. A stored `avg_order_value` column averaged by a dashboard gives the wrong week, month or segment.
 
@@ -29,7 +31,7 @@ adjustments.total_adjustments as sum(adjustments.adjustment_amount),
 true_avg_order_value as (orders.total_revenue + coalesce(adjustments.total_adjustments, 0)) / orders.total_orders
 ```
 
-- **Decide which month a correction belongs to, and say it in the metric's `COMMENT`.** Through the relationship adjustments → orders, a query by order month credits each correction to the order's original month: a restated view. A ledger usually books it in the month it was recognised, which keeps closed periods unchanged. For that view, slice the adjustments by a dimension on their own table (`adjustments.recognized_month`), not by the order month.
+- **Decide which month a correction belongs to, and say it in the metric's `COMMENT`.** Through the relationship adjustments → orders, a query by order month credits each correction to the order's original month: a restated view. A ledger usually books it in the month it was recognised, which keeps closed periods unchanged. For that view, define a separate metric on the adjustments table (`adjustments.recognized_adjustments as sum(adjustments.adjustment_amount)`) and query it by a dimension of the same table (`adjustments.recognized_month`); metrics of the orders table cannot be grouped by a dimension of the finer-grained adjustments table. Combine the two results by month in a downstream model.
 - Keep the as-reported metric (`avg_order_value`) next to the corrected one and name the difference.
 - `coalesce` once, in the derived metric: a group without adjustments has no adjustment rows.
 

@@ -30,6 +30,7 @@ Name the targets that read clones in one variable, an allow-list, so that any ot
 # dbt_project.yml
 vars:
   clone_targets: [test]
+  protected_databases: [RAW_DB, PROD_DB]   # refresh_src never runs in these, whatever the target is called
 ```
 
 ```yaml
@@ -51,8 +52,8 @@ A clone shares storage with its source until either one changes, so refreshing t
 -- macros/refresh_src.sql
 -- Destructive: replaces the SRC schema of the target database. Nothing else may live in that schema.
 {% macro refresh_src() %}
-  {% if target.name not in var('clone_targets') %}
-    {{ exceptions.raise_compiler_error("refresh_src runs only on the targets in var clone_targets") }}
+  {% if target.name not in var('clone_targets') or target.database | upper in var('protected_databases') %}
+    {{ exceptions.raise_compiler_error("refresh_src runs only on the targets in var clone_targets, and never in a protected database") }}
   {% endif %}
   {% set clones = {'SRC_ORDERS': 'ORDERS', 'SRC_CUSTOMERS': 'CUSTOMERS'} %}
   {% set src = target.database ~ '.SRC' %}
@@ -69,7 +70,7 @@ dbt run-operation refresh_src
 dbt build
 ```
 
-- **Guard by allow-list.** Checking for a single production name (`target.name == 'prod'`) would let a target called `production` wipe a schema in the production database.
+- **Guard by allow-list, and by database.** The target name alone is not enough: a `test` target whose `database` is mis-set to the production database would pass, so the macro also refuses the databases listed in `protected_databases`. Checking for a single production name (`target.name == 'prod'`) would let a target called `production` wipe a schema in the production database.
 - **Clone table by table.** A clone is created and owned by the current primary role, so the dbt role can later replace it. A schema or database clone carries over the grants of its child objects, so its tables can stay owned by their original role and dbt may not be able to replace them.
 - **A clone is a point-in-time copy.** Refresh it explicitly; it does not follow raw data.
 - **`dbt clone` is a different tool:** it clones *dbt-built* relations from another environment's state (for deferral and CI). `refresh_src` clones *raw* tables as test data.

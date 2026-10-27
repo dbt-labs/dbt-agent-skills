@@ -20,7 +20,7 @@ Lateral column aliases (`select a + b as s, s * 2 as d`) work in Snowflake but n
 - Compare values that may be NULL with `is distinct from` / `is not distinct from`, also in singular tests: `where a != b` lets a NULL on either side pass silently.
 - `avg` skips NULLs; do not `coalesce(x, 0)` before averaging.
 - Default counts to 0, keep rates NULL: `coalesce(rate, 0)` turns "no data" into "0%".
-- Division: `a / nullif(b, 0)`, or `div0null(a, b)`.
+- Division: `a / nullif(b, 0)` returns NULL when `b` is 0. (`div0null(a, b)` returns 0 instead, which turns "no data" into 0: use it only where 0 is the right answer.)
 
 ## Identifiers and case
 
@@ -45,6 +45,6 @@ Snowflake often reports one compile error at a time. Fix it and run again to rea
 
 ## Debugging a model
 
-1. Preview the compiled SQL: `dbt show --select <model> --limit 50`.
+1. See the compiled SQL with `dbt compile --select <model>`; preview rows with `dbt show --select <model> --limit 50` (it runs the query on the warehouse).
 2. Count at each CTE: `select count(*), count(distinct <key>)`.
 3. Compare one metric with a count you can make by hand for one day or one key.

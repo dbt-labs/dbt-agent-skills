@@ -70,6 +70,27 @@ where (select sum(amount) from {{ ref('fct_orders') }})
 -- is distinct from, not !=: with != a NULL on either side makes the test pass silently
 ```
 
+A grand total cannot catch a ratio or a distinct count that is wrong per month, so test each non-additive metric at the grain it is used at:
+
+```sql
+-- tests/sv_order_economics_avg_order_value_by_month.sql
+with from_view as (
+    select order_month, avg_order_value
+    from semantic_view({{ ref('sv_order_economics') }} dimensions orders.order_month metrics avg_order_value)
+),
+from_fact as (
+    select date_trunc('month', order_date) as order_month,
+           sum(amount) / nullif(count(distinct order_id), 0) as avg_order_value
+    from {{ ref('fct_orders') }}
+    group by 1
+)
+select coalesce(v.order_month, f.order_month) as order_month, v.avg_order_value as in_view, f.avg_order_value as in_fact
+from from_view v
+full outer join from_fact f
+    on v.order_month = f.order_month
+where v.avg_order_value is distinct from f.avg_order_value   -- also catches a month that exists on one side only
+```
+
 ```sql
 -- tests/sv_order_economics_has_comment.sql
 select 'missing comment' as failure

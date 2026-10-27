@@ -36,6 +36,7 @@ Use a key pair (`SNOWFLAKE_JWT`) instead of a password, for people and for servi
          user: "{{ env_var('SNOWFLAKE_USER') }}"
          authenticator: snowflake_jwt
          private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH') }}"
+         # object names are not secrets: written here, not read from the environment
          role: <dbt_role>
          warehouse: <warehouse>
          database: <test_db>
