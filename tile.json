@@ -1,6 +1,6 @@
 {
   "name": "dbt-labs/dbt-agent-skills",
-  "version": "1.6.4",
+  "version": "1.7.0",
   "summary": "A curated collection of Agent Skills for working with dbt, to help AI agents understand and execute dbt workflows more effectively.",
   "private": false,
   "docs": "README.md",
@@ -8,6 +8,7 @@
     "adding-dbt-unit-test": { "path": "skills/dbt/skills/adding-dbt-unit-test/SKILL.md" },
     "answering-natural-language-questions-with-dbt": { "path": "skills/dbt/skills/answering-natural-language-questions-with-dbt/SKILL.md" },
     "building-dbt-semantic-layer": { "path": "skills/dbt/skills/building-dbt-semantic-layer/SKILL.md" },
+    "building-snowflake-semantic-views-with-dbt": { "path": "skills/dbt/skills/building-snowflake-semantic-views-with-dbt/SKILL.md" },
     "configuring-dbt-mcp-server": { "path": "skills/dbt/skills/configuring-dbt-mcp-server/SKILL.md" },
     "fetching-dbt-docs": { "path": "skills/dbt/skills/fetching-dbt-docs/SKILL.md" },
     "maintaining-dbt-documentation": { "path": "skills/dbt/skills/maintaining-dbt-documentation/SKILL.md" },
@@ -16,6 +17,7 @@
     "troubleshooting-dbt-job-errors": { "path": "skills/dbt/skills/troubleshooting-dbt-job-errors/SKILL.md" },
     "using-dbt-for-analytics-engineering": { "path": "skills/dbt/skills/using-dbt-for-analytics-engineering/SKILL.md" },
     "using-dbt-state": { "path": "skills/dbt/skills/using-dbt-state/SKILL.md" },
+    "using-dbt-with-snowflake": { "path": "skills/dbt/skills/using-dbt-with-snowflake/SKILL.md" },
     "working-with-dbt-mesh": { "path": "skills/dbt/skills/working-with-dbt-mesh/SKILL.md" },
     "migrating-dbt-core-to-v2": { "path": "skills/dbt-migration/skills/migrating-dbt-core-to-v2/SKILL.md" },
     "migrating-dbt-project-across-platforms": { "path": "skills/dbt-migration/skills/migrating-dbt-project-across-platforms/SKILL.md" },

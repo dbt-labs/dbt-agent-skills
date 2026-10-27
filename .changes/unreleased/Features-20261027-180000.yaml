@@ -1,0 +1,6 @@
+kind: Features
+body: Add the `using-dbt-with-snowflake` and `building-snowflake-semantic-views-with-dbt` skills. They cover key-pair auth and least-privilege roles for the dbt service user, raw / test / prod databases with zero-copy clones as test data, Snowflake cost and query tuning, Snowflake SQL pitfalls, and Snowflake semantic views built with the `semantic_view` materialization (DDL, metric design, materializations, tests).
+time: 2026-10-27T18:00:00.000000Z
+custom:
+    Author: liudmilaz
+    Issue: "186"
