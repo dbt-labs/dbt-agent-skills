@@ -1,0 +1,9 @@
+sets:
+  - name: no-skills
+    model: sonnet
+    skills: []
+
+  - name: using-dbt-with-snowflake
+    model: sonnet
+    skills:
+      - skills/dbt/skills/using-dbt-with-snowflake

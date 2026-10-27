@@ -1,0 +1,9 @@
+sets:
+  - name: no-skills
+    model: sonnet
+    skills: []
+
+  - name: building-snowflake-semantic-views-with-dbt
+    model: sonnet
+    skills:
+      - skills/dbt/skills/building-snowflake-semantic-views-with-dbt

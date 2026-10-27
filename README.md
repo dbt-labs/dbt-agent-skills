@@ -148,6 +148,8 @@ These skills work with AI agents that support the [Agent Skills](https://agentsk
 | `building-dbt-semantic-layer` | Create semantic models, metrics, and dimensions with MetricFlow |
 | `answering-natural-language-questions-with-dbt` | Answer business questions by querying the semantic layer |
 | `working-with-dbt-mesh` | Implement dbt Mesh governance (contracts, access, groups, versions) and cross-project collaboration |
+| `using-dbt-with-snowflake` | Run dbt on Snowflake: key-pair auth, least-privilege roles, raw / test / prod databases with zero-copy clones, cost and query tuning, Snowflake SQL |
+| `building-snowflake-semantic-views-with-dbt` | Build and test Snowflake semantic views with the `semantic_view` materialization: DDL, metric design, materializations |
 | `troubleshooting-dbt-job-errors` | Diagnose and resolve dbt platform job failures |
 | `configuring-dbt-mcp-server` | Set up the dbt MCP server for Claude, Cursor, or VS Code |
 | `fetching-dbt-docs` | Look up dbt documentation efficiently |
