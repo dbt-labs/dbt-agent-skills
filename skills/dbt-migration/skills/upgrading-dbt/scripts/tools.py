@@ -898,6 +898,10 @@ def _set_flags_in_text(text: str, wanted: dict[str, bool]) -> tuple[str, dict[st
                 found = j
                 break
         if found is None:
+            # The block can end the file without a trailing newline; without one
+            # the new key would be glued onto the last line.
+            if not lines[last_content].endswith("\n"):
+                lines[last_content] += "\n"
             lines.insert(last_content + 1, want)
             last_content += 1
             actions[k] = "added"
