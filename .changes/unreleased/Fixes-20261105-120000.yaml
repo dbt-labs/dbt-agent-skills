@@ -1,0 +1,6 @@
+kind: Fixes
+body: Fix upgrading-dbt set-flag joining the new flag onto the last line of a dbt_project.yml that has no trailing newline
+time: 2026-11-05T12:00:00.000000+00:00
+custom:
+    Author: RaphaelFakhri
+    Issue: "189"
