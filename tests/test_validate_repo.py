@@ -52,6 +52,22 @@ def write_marketplace(path: Path, folders: list[str], names: dict[str, str] | No
     )
 
 
+def write_codex_marketplace(path: Path, folders: list[str]):
+    """Codex nests each plugin's path inside a `source` object."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "name": "dbt-agent-marketplace",
+                "plugins": [
+                    {"name": f, "source": {"source": "local", "path": f"./skills/{f}"}}
+                    for f in folders
+                ],
+            }
+        )
+    )
+
+
 def write_manifest(vr, plugin_dir: Path, marketplace: str, name: str, version: str):
     path = plugin_dir / vr.PLUGIN_MANIFESTS[marketplace]
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -425,6 +441,79 @@ def test_cursor_reports_missing_marketplace_file(vr, cursor_repo):
 
 
 # --------------------------------------------------------------------------- #
+# check_codex_marketplace
+# --------------------------------------------------------------------------- #
+
+
+@pytest.fixture
+def codex_repo(vr, tmp_path, monkeypatch):
+    """A synthetic repo with three plugin folders and a Codex marketplace file."""
+    skills_dir = tmp_path / "skills"
+    plugin_dirs = {}
+    for name in ("dbt", "dbt-migration", "dbt-extras"):
+        d = skills_dir / name
+        d.mkdir(parents=True)
+        plugin_dirs[name] = d
+    codex_json = tmp_path / ".agents" / "plugins" / "marketplace.json"
+    monkeypatch.setattr(vr, "CODEX_MARKETPLACE_JSON", codex_json)
+    return plugin_dirs, codex_json
+
+
+def test_codex_reads_nested_source_paths(vr, codex_repo):
+    _, codex_json = codex_repo
+    write_codex_marketplace(codex_json, ["dbt", "dbt-migration"])
+    assert vr.read_marketplace_entries(codex_json) == {
+        "dbt": "dbt",
+        "dbt-migration": "dbt-migration",
+    }
+
+
+def test_codex_accepts_every_plugin_listed_with_manifest(vr, codex_repo):
+    plugin_dirs, codex_json = codex_repo
+    write_codex_marketplace(codex_json, list(plugin_dirs))
+    for name, d in plugin_dirs.items():
+        write_manifest(vr, d, "codex", name, "1.0.0")
+    assert vr.check_codex_marketplace(plugin_dirs) == []
+
+
+def test_codex_rejects_an_unlisted_plugin(vr, codex_repo):
+    """Unlike Cursor, Codex offers every plugin, so an unlisted folder is an error."""
+    plugin_dirs, codex_json = codex_repo
+    write_codex_marketplace(codex_json, ["dbt", "dbt-migration"])
+    for name in ("dbt", "dbt-migration"):
+        write_manifest(vr, plugin_dirs[name], "codex", name, "1.0.0")
+    errors = vr.check_codex_marketplace(plugin_dirs)
+    assert len(errors) == 1
+    assert "dbt-extras" in errors[0] and "missing from" in errors[0]
+
+
+def test_codex_rejects_listing_without_manifest(vr, codex_repo):
+    plugin_dirs, codex_json = codex_repo
+    write_codex_marketplace(codex_json, list(plugin_dirs))
+    for name in ("dbt", "dbt-migration"):
+        write_manifest(vr, plugin_dirs[name], "codex", name, "1.0.0")
+    errors = vr.check_codex_marketplace(plugin_dirs)
+    assert len(errors) == 1
+    assert "dbt-extras" in errors[0] and ".codex-plugin/plugin.json is missing" in errors[0]
+
+
+def test_codex_rejects_listing_without_folder(vr, codex_repo):
+    plugin_dirs, codex_json = codex_repo
+    write_codex_marketplace(codex_json, [*plugin_dirs, "ghost-plugin"])
+    for name, d in plugin_dirs.items():
+        write_manifest(vr, d, "codex", name, "1.0.0")
+    errors = vr.check_codex_marketplace(plugin_dirs)
+    assert len(errors) == 1
+    assert "ghost-plugin" in errors[0] and "no folder" in errors[0]
+
+
+def test_codex_reports_missing_marketplace_file(vr, codex_repo):
+    plugin_dirs, _ = codex_repo
+    errors = vr.check_codex_marketplace(plugin_dirs)
+    assert errors == [".agents/plugins/marketplace.json not found"]
+
+
+# --------------------------------------------------------------------------- #
 # check_manifest_coherence
 # --------------------------------------------------------------------------- #
 
@@ -436,10 +525,13 @@ def coherence_repo(vr, tmp_path, monkeypatch):
     plugin_dir.mkdir(parents=True)
     claude_json = tmp_path / ".claude-plugin" / "marketplace.json"
     cursor_json = tmp_path / ".cursor-plugin" / "marketplace.json"
+    codex_json = tmp_path / ".agents" / "plugins" / "marketplace.json"
     monkeypatch.setattr(vr, "MARKETPLACE_JSON", claude_json)
     monkeypatch.setattr(vr, "CURSOR_MARKETPLACE_JSON", cursor_json)
+    monkeypatch.setattr(vr, "CODEX_MARKETPLACE_JSON", codex_json)
     write_marketplace(claude_json, ["dbt"])
     write_marketplace(cursor_json, ["dbt"])
+    write_codex_marketplace(codex_json, ["dbt"])
     return {"dbt": plugin_dir}, claude_json, cursor_json
 
 
@@ -458,6 +550,15 @@ def test_coherence_rejects_version_drift(vr, coherence_repo):
     errors = vr.check_manifest_coherence(plugin_dirs)
     assert len(errors) == 1
     assert "claude=1.5.0" in errors[0] and "cursor=1.4.0" in errors[0]
+
+
+def test_coherence_rejects_codex_version_drift(vr, coherence_repo):
+    plugin_dirs, _, _ = coherence_repo
+    write_manifest(vr, plugin_dirs["dbt"], "claude", "dbt", "1.5.0")
+    write_manifest(vr, plugin_dirs["dbt"], "codex", "dbt", "1.4.0")
+    errors = vr.check_manifest_coherence(plugin_dirs)
+    assert len(errors) == 1
+    assert "claude=1.5.0" in errors[0] and "codex=1.4.0" in errors[0]
 
 
 def test_coherence_ignores_plugins_with_a_single_manifest(vr, coherence_repo):
@@ -501,6 +602,18 @@ def test_coherence_rejects_manifest_name_mismatch(vr, coherence_repo):
     write_manifest(vr, plugin_dirs["dbt"], "claude", "dbt-renamed", "1.5.0")
     errors = vr.check_manifest_coherence(plugin_dirs)
     assert any("declares name 'dbt-renamed'" in e for e in errors)
+
+
+def test_coherence_rejects_codex_entry_name_mismatch(vr, tmp_path, coherence_repo):
+    """Codex installs by entry name, so `codex plugin add dbt@...` finds no misnamed entry."""
+    plugin_dirs, _, _ = coherence_repo
+    codex_json = tmp_path / ".agents" / "plugins" / "marketplace.json"
+    marketplace = json.loads(codex_json.read_text())
+    marketplace["plugins"][0]["name"] = "dbt-typo"
+    codex_json.write_text(json.dumps(marketplace))
+    write_manifest(vr, plugin_dirs["dbt"], "claude", "dbt", "1.5.0")
+    errors = vr.check_manifest_coherence(plugin_dirs)
+    assert any("codex marketplace" in e and "named 'dbt-typo'" in e for e in errors)
 
 
 def test_coherence_rejects_marketplace_entry_name_mismatch(vr, coherence_repo):
@@ -810,6 +923,7 @@ def test_real_repo_passes_layout_checks(vr):
     assert vr.check_tile_json(skills) == []
     assert vr.check_marketplace(plugin_dirs) == []
     assert vr.check_cursor_marketplace(plugin_dirs) == []
+    assert vr.check_codex_marketplace(plugin_dirs) == []
     assert vr.check_manifest_coherence(plugin_dirs) == []
     assert vr.check_file_references(skills) == []
     assert vr.check_frontmatter(skills) == []

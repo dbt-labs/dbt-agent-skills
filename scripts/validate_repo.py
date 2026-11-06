@@ -5,13 +5,14 @@ Checks:
 1. All skills are listed in tile.json (and paths are correct)
 2. All plugin folders under skills/ are listed in marketplace.json
 3. Every plugin listed in the Cursor marketplace has a matching Cursor manifest
-4. Plugin manifest names and versions agree across marketplaces
-5. All non-SKILL.md files within skill folders are referenced via markdown links
-6. Every SKILL.md declares valid frontmatter
-7. Plugin versions are incremented when skill content changes (vs. main branch)
-8. tile.json is versioned alongside skill changes (vs. main branch)
+4. Every plugin folder is listed in the Codex marketplace and has a Codex manifest
+5. Plugin manifest names and versions agree across marketplaces
+6. All non-SKILL.md files within skill folders are referenced via markdown links
+7. Every SKILL.md declares valid frontmatter
+8. Plugin versions are incremented when skill content changes (vs. main branch)
+9. tile.json is versioned alongside skill changes (vs. main branch)
 
-Checks 7 and 8 share one resolved diff against the base branch (see DiffContext).
+Checks 8 and 9 share one resolved diff against the base branch (see DiffContext).
 
 Usage:
     uv run python scripts/validate_repo.py
@@ -32,12 +33,14 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 TILE_JSON = REPO_ROOT / "tile.json"
 MARKETPLACE_JSON = REPO_ROOT / ".claude-plugin" / "marketplace.json"
 CURSOR_MARKETPLACE_JSON = REPO_ROOT / ".cursor-plugin" / "marketplace.json"
+CODEX_MARKETPLACE_JSON = REPO_ROOT / ".agents" / "plugins" / "marketplace.json"
 SKILLS_DIR = REPO_ROOT / "skills"
 
 # Per-plugin manifest locations, keyed by the marketplace they serve
 PLUGIN_MANIFESTS = {
     "claude": ".claude-plugin/plugin.json",
     "cursor": ".cursor-plugin/plugin.json",
+    "codex": ".codex-plugin/plugin.json",
 }
 # RELEASING.md lists a Claude manifest for every plugin, so a missing one is an
 # error. Cursor lists a deliberate subset of the plugins (#93), so its manifest
@@ -78,8 +81,12 @@ def read_marketplace_entries(path: Path) -> dict[str, str]:
     marketplace = json.loads(path.read_text())
     entries: dict[str, str] = {}
     for plugin in marketplace.get("plugins", []):
+        source = plugin.get("source", "")
+        # Codex nests the path: {"source": "local", "path": "./skills/dbt"}
+        if isinstance(source, dict):
+            source = source.get("path", "")
         # "./skills/dbt" -> "dbt"
-        folder = Path(plugin.get("source", "")).name
+        folder = Path(source).name
         entries[folder] = plugin.get("name", "")
     return entries
 
@@ -192,7 +199,47 @@ def check_cursor_marketplace(plugin_dirs: dict[str, Path]) -> list[str]:
 
 
 # --------------------------------------------------------------------------- #
-# Check 4: cross-marketplace manifest coherence
+# Check 4: Codex marketplace
+# --------------------------------------------------------------------------- #
+
+
+def check_codex_marketplace(plugin_dirs: dict[str, Path]) -> list[str]:
+    """Verify the Codex marketplace lists every plugin, each with a manifest.
+
+    Like the Claude marketplace and unlike Cursor's, Codex offers all plugins,
+    so a plugin folder missing from it is an error.
+    """
+    errors: list[str] = []
+    marketplace_rel = ".agents/plugins/marketplace.json"
+
+    if not CODEX_MARKETPLACE_JSON.exists():
+        return [f"{marketplace_rel} not found"]
+
+    listed = set(read_marketplace_entries(CODEX_MARKETPLACE_JSON))
+    manifest_rel = PLUGIN_MANIFESTS["codex"]
+
+    for folder in sorted(set(plugin_dirs) - listed):
+        errors.append(
+            f"Plugin folder 'skills/{folder}' exists but is missing from {marketplace_rel}"
+        )
+
+    for folder in sorted(listed - set(plugin_dirs)):
+        errors.append(
+            f"Plugin '{folder}' is in {marketplace_rel} but has no folder under skills/"
+        )
+
+    for folder in sorted(listed & set(plugin_dirs)):
+        if not (plugin_dirs[folder] / manifest_rel).exists():
+            errors.append(
+                f"Plugin '{folder}' is in {marketplace_rel} but "
+                f"skills/{folder}/{manifest_rel} is missing"
+            )
+
+    return errors
+
+
+# --------------------------------------------------------------------------- #
+# Check 5: cross-marketplace manifest coherence
 # --------------------------------------------------------------------------- #
 
 
@@ -203,6 +250,7 @@ def check_manifest_coherence(plugin_dirs: dict[str, Path]) -> list[str]:
     marketplaces = {
         "claude": MARKETPLACE_JSON,
         "cursor": CURSOR_MARKETPLACE_JSON,
+        "codex": CODEX_MARKETPLACE_JSON,
     }
     for marketplace, path in marketplaces.items():
         if not path.exists():
@@ -252,7 +300,7 @@ def check_manifest_coherence(plugin_dirs: dict[str, Path]) -> list[str]:
 
 
 # --------------------------------------------------------------------------- #
-# Check 5: file references via markdown links
+# Check 6: file references via markdown links
 # --------------------------------------------------------------------------- #
 
 
@@ -342,7 +390,7 @@ def check_file_references(skills: dict[str, Path]) -> list[str]:
 
 
 # --------------------------------------------------------------------------- #
-# Check 6: SKILL.md frontmatter
+# Check 7: SKILL.md frontmatter
 # --------------------------------------------------------------------------- #
 
 # Fields a SKILL.md may declare at the top level. Anything else (version,
@@ -473,7 +521,7 @@ def check_frontmatter(skills: dict[str, Path]) -> list[str]:
 
 
 # --------------------------------------------------------------------------- #
-# Check 7: plugin version increments
+# Check 8: plugin version increments
 # --------------------------------------------------------------------------- #
 
 
@@ -630,7 +678,7 @@ def check_version_increments(
 
 
 # --------------------------------------------------------------------------- #
-# Check 8: tile.json version increment
+# Check 9: tile.json version increment
 # --------------------------------------------------------------------------- #
 
 
@@ -720,6 +768,14 @@ def main() -> int:
             lambda: (
                 f"All {len(read_marketplace_entries(CURSOR_MARKETPLACE_JSON))} "
                 f"listed Cursor plugin(s) have manifests"
+            ),
+        ),
+        (
+            "Codex marketplace manifests",
+            lambda: check_codex_marketplace(plugin_dirs),
+            lambda: (
+                f"All {len(read_marketplace_entries(CODEX_MARKETPLACE_JSON))} "
+                f"listed Codex plugin(s) have manifests"
             ),
         ),
         (

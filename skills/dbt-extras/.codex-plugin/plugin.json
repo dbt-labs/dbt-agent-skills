@@ -1,0 +1,37 @@
+{
+  "name": "dbt-extras",
+  "version": "1.2.0",
+  "description": "Miscellaneous skills for dbt.",
+  "author": {
+    "name": "dbt Labs",
+    "email": "support@getdbt.com",
+    "url": "https://www.getdbt.com/"
+  },
+  "homepage": "https://docs.getdbt.com/",
+  "repository": "https://github.com/dbt-labs/dbt-agent-skills",
+  "license": "Apache-2.0",
+  "keywords": [
+    "dbt",
+    "extras",
+    "utilities"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "dbt Extras",
+    "shortDescription": "Miscellaneous dbt skills, such as Mermaid DAG diagrams",
+    "longDescription": "Extra skills for dbt projects, such as rendering a project's DAG as a Mermaid diagram.",
+    "developerName": "dbt Labs",
+    "category": "Data & Analytics",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://www.getdbt.com/",
+    "privacyPolicyURL": "https://www.getdbt.com/cloud/privacy-policy",
+    "termsOfServiceURL": "https://www.getdbt.com/terms-of-use",
+    "defaultPrompt": [
+      "Draw a Mermaid diagram of my dbt DAG."
+    ]
+  }
+}

@@ -35,6 +35,24 @@ Add the dbt skills marketplace and install the plugins:
 /plugin install dbt-migration@dbt-agent-marketplace
 ```
 
+### OpenAI Codex
+
+Add the dbt skills marketplace and install the plugins:
+
+```bash
+# Add the marketplace
+codex plugin marketplace add dbt-labs/dbt-agent-skills
+
+# Install the skills for analytics engineering, the semantic layer, and testing
+codex plugin add dbt@dbt-agent-marketplace
+
+# Install the migration skills, which you usually need only once
+codex plugin add dbt-migration@dbt-agent-marketplace
+
+# Get the latest skills
+codex plugin marketplace upgrade dbt-agent-marketplace
+```
+
 ### Other AI Clients
 
 #### Vercel Skills CLI

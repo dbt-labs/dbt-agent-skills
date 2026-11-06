@@ -1,0 +1,44 @@
+{
+  "name": "dbt-agent-marketplace",
+  "interface": {
+    "displayName": "dbt Agent Skills"
+  },
+  "plugins": [
+    {
+      "name": "dbt",
+      "source": {
+        "source": "local",
+        "path": "./skills/dbt"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Data & Analytics"
+    },
+    {
+      "name": "dbt-migration",
+      "source": {
+        "source": "local",
+        "path": "./skills/dbt-migration"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Data & Analytics"
+    },
+    {
+      "name": "dbt-extras",
+      "source": {
+        "source": "local",
+        "path": "./skills/dbt-extras"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Data & Analytics"
+    }
+  ]
+}

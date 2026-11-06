@@ -8,13 +8,13 @@ Bump the `version` field in each plugin manifest that has changed:
 
 | Plugin | Manifest files |
 |--------|----------------|
-| dbt | `skills/dbt/.claude-plugin/plugin.json`, `skills/dbt/.cursor-plugin/plugin.json` |
-| dbt-migration | `skills/dbt-migration/.claude-plugin/plugin.json` |
-| dbt-extras | `skills/dbt-extras/.claude-plugin/plugin.json` |
+| dbt | `skills/dbt/.claude-plugin/plugin.json`, `skills/dbt/.cursor-plugin/plugin.json`, `skills/dbt/.codex-plugin/plugin.json` |
+| dbt-migration | `skills/dbt-migration/.claude-plugin/plugin.json`, `skills/dbt-migration/.codex-plugin/plugin.json` |
+| dbt-extras | `skills/dbt-extras/.claude-plugin/plugin.json`, `skills/dbt-extras/.codex-plugin/plugin.json` |
 | tessl (all plugins) | `tile.json` |
 
-A plugin with manifests in more than one marketplace (currently `dbt`) must carry
-the **same version** in each of them — `scripts/validate_repo.py` enforces this.
+Each plugin must carry the **same version** in all of its manifests.
+`scripts/validate_repo.py` enforces this.
 
 ---
 
@@ -29,6 +29,10 @@ After merging updates to `main`, notify the Cursor marketplace team so changes c
 ## skills.sh
 
 [skills.sh](https://skills.sh) automatically scans this repository — no manual action needed after merging to `main`.
+
+## Codex Marketplace
+
+Codex reads `.agents/plugins/marketplace.json` from this repository, so a merge to `main` needs no manual step. Users get the changes when they run `codex plugin marketplace upgrade`.
 
 ## Claude Marketplace
 
