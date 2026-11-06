@@ -1,0 +1,280 @@
+Find the models in this project that can run on Lake Compute
+
+Usage: dbt init lakecompute [OPTIONS]
+
+Options:
+      --json
+          Print the report as JSON (with --quiet, stdout is the report alone)
+
+      --summary
+          With --json, report counts, grouped blockers and the plan, not each model
+
+      --all
+          List every model, not just a summary
+
+      --no-rewrite
+          Don't rewrite SQL that Lake Compute rejects
+
+      --switch
+          Switch the models that can move: show the diff, then edit config and SQL
+
+      --snowflake
+          Compile on Snowflake (as dbt compile does), then size and price models from query history, EXPLAIN and table sizes (read-only queries)
+
+      --history-days <HISTORY_DAYS>
+          With --snowflake, the days of query history to read
+          
+          [default: 30]
+
+      --dry-run
+          Write nothing with --switch; print queries without running them with --snowflake
+
+  -y, --yes
+          With --switch or --snowflake, go ahead without asking
+
+      --convert-views
+          With --switch, also convert views that block models from moving
+
+      --baseline
+          Before switching, fingerprint each model's Snowflake table for --validate
+
+      --validate
+          After switched models build on Lake Compute, compare their tables with --baseline's
+
+      --include-unverified
+          With --switch, also switch models whose SQL couldn't be checked
+
+      --run-results <RUN_RESULTS>
+          Read build times from this run_results.json (of a `dbt run` or `dbt build`) [default: <target-path>/run_results.json]
+
+      --warehouse-size <WAREHOUSE_SIZE>
+          Warehouse size to price build times at
+          
+          [default: xsmall]
+          [possible values: xsmall, small, medium, large, xlarge, 2xlarge, 3xlarge, 4xlarge, 5xlarge, 6xlarge]
+
+      --maximum-seed-size-mib <MAXIMUM_SEED_SIZE_MIB>
+          Maximum size (MiB) for seed files whose contents are hashed. Larger seeds fall back to a path-based checksum. Set to 0 to disable the limit (always hash contents). Defaults to 1 MiB when unset
+          
+          [env: DBT_MAXIMUM_SEED_SIZE_MIB=]
+
+      --no-manage-state
+          Disable service-backed dbt State
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Project:
+  -t, --target <TARGET>
+          The target to execute
+          
+          [env: DBT_TARGET=]
+
+      --project-dir <PROJECT_DIR>
+          The directory to load the dbt project from
+          
+          [env: DBT_PROJECT_DIR=]
+
+      --profile <PROFILE>
+          The profile to use
+          
+          [env: DBT_PROFILE=]
+
+      --profiles-dir <PROFILES_DIR>
+          The directory to load the profiles from
+          
+          [env: DBT_PROFILES_DIR=]
+
+      --packages-install-path <PACKAGES_INSTALL_PATH>
+          The directory to install packages
+          
+          [env: DBT_PACKAGES_INSTALL_PATH=]
+
+      --target-path <TARGET_PATH>
+          The output directory for all produced assets
+          
+          [env: DBT_TARGET_PATH=]
+
+      --vars <VARS>
+          Supply var bindings in yml format e.g. '{key: value}' or as separate key: value pairs
+
+      --ai-provider <AI_PROVIDER>...
+          The AI coding agent(s) to install package skills for, e.g. 'claude'. Accepts a comma-separated list. Skills are only installed when this is set
+          
+          [env: DBT_ENGINE_AI_PROVIDER=]
+
+Selection:
+  -s, --select <SELECT>...
+          Select nodes to run
+
+      --exclude <EXCLUDE>...
+          Select nodes to exclude
+
+      --selector <SELECTOR>
+          The name of the yml defined selector to use
+
+      --indirect-selection <INDIRECT_SELECTION>
+          Choose which tests to select adjacent to resources: eager (most inclusive), cautious (most exclusive), buildable (inbetween) or empty
+          
+          [env: DBT_INDIRECT_SELECTION=]
+
+Logging:
+  -q, --quiet
+          Suppress all non-error logging to stdout. Does not affect {{ print() }} macro calls
+          
+          [env: DBT_QUIET=]
+
+  -d, --debug
+          Display debug logging during dbt execution. Useful for debugging and making bug reports
+          
+          [env: DBT_DEBUG=]
+
+      --log-path <LOG_PATH>
+          Set 'log-path' for the current run, overriding 'DBT_LOG_PATH'
+          
+          [env: DBT_LOG_PATH=]
+
+      --otel-file-name <OTEL_FILE_NAME>
+          Set 'otel-file-name' for the current run, overriding 'DBT_OTEL_FILE_NAME'. If set, OTEL telemetry will be written to `$log_path/otel-file-name`
+          
+          [env: DBT_OTEL_FILE_NAME=]
+
+      --otel-parquet-file-name <OTEL_PARQUET_FILE_NAME>
+          Set 'otel-parquet-file-name' for the current run, overriding 'DBT_OTEL_PARQUET_FILE_NAME'. If set, OTEL telemetry will be written to `$target_path/metadata/otel-parquet-file-name` in Parquet format
+          
+          [env: DBT_OTEL_PARQUET_FILE_NAME=]
+
+      --log-format <LOG_FORMAT>
+          Set logging format; use --log-format-file to override
+          
+          [env: DBT_LOG_FORMAT=]
+          [default: default]
+          [possible values: text, json, default, otel]
+
+      --log-format-file <LOG_FORMAT_FILE>
+          Set log file format, overriding the default and --log-format setting
+          
+          [env: DBT_LOG_FORMAT_FILE=]
+          [possible values: text, json, default, otel]
+
+      --log-level <LOG_LEVEL>
+          Set minimum severity for console/log file; use --log-level-file to set log file severity separately
+          
+          [env: DBT_LOG_LEVEL=]
+          [possible values: off, error, warn, info, debug, trace]
+
+      --log-level-file <LOG_LEVEL_FILE>
+          Set minimum log file severity, overriding the default and --log-level setting
+          
+          [env: DBT_LOG_LEVEL_FILE=]
+          [possible values: off, error, warn, info, debug, trace]
+
+      --invocation-id <INVOCATION_ID>
+          Override the invocation ID with a UUID string or integer
+          
+          [env: DBT_INVOCATION_ID=]
+
+      --parent-span-id <PARENT_SPAN_ID>
+          Set the parent span ID for trace correlation (16-character hex or u64)
+          
+          [env: DBT_PARENT_SPAN_ID=]
+
+Execution:
+      --threads <THREADS>
+          The number of threads to use [Run with --threads 0 to use max_cpu [default: max_cpu]]
+
+      --compute <COMPUTE>
+          Execution backend to use
+
+          Possible values:
+          - remote:  Execute on the remote warehouse (Snowflake, BigQuery, etc.)
+          - inline:  Run computations in-process
+          - sidecar: Run computations in a separate, ephemeral worker process
+          - service: Run via the remote compute service (persistent workers/cluster)
+          
+          [env: DBT_COMPUTE=]
+          [default: remote]
+
+      --defer
+          [env: DBT_DEFER=]
+
+      --state <STATE>
+          Unless overridden, use this state directory for both state comparison and deferral
+          
+          [env: DBT_STATE=]
+
+      --dirty
+          Select only nodes whose source files have changed or been added since the last --partial-parse run, plus all their downstream dependents. Implies --partial-parse. Use with --partial-load for full speed: --partial-load --dirty
+          
+          [env: DBT_DIRTY=]
+
+      --no-version-check
+          Disable online version check for dbt updates
+          
+          [env: DBT_DISABLE_VERSION_CHECK=]
+
+      --store-failures
+          Store test failures in the database (equivalent to dbt-core `--store-failures`)
+          
+          [env: DBT_STORE_FAILURES=]
+
+      --manage-state
+          Enable service-backed dbt State without legacy task-cache coordination
+
+Artifacts:
+      --write-json
+          Write JSON artifacts to disk [env: DBT_WRITE_JSON=]. Use --no-write-json to suppress writing JSON artifacts
+          
+          [env: DBT_WRITE_JSON=]
+
+      --write-catalog
+          Write a catalog.json file to the target directory
+          
+          [env: DBT_WRITE_CATALOG=]
+
+      --metadata-dir <METADATA_DIR>
+          Directory for metadata parquet output (default: <target>/private/metadata/)
+          
+          [env: DBT_METADATA_DIR=]
+
+      --generate-info-schema
+          Write the dbt information schema to target/info_schema/: a queryable parquet layer over your project's metadata. With --static-analysis strict, also writes column types and column-level lineage
+          
+          [env: DBT_ENGINE_GENERATE_INFO_SCHEMA=]
+
+      --info-schema-dir <INFO_SCHEMA_DIR>
+          Directory for information schema parquet output (default: <target>/info_schema/)
+          
+          [env: DBT_ENGINE_INFO_SCHEMA_DIR=]
+
+Unstable:
+      --feature <NAME[=VALUE]>
+          Turn on a feature flag (`NAME`) or set it (`NAME=true|false`). Repeatable; also read from DBT_ENGINE_FEATURES as a comma-separated list. Unstable: features may change or be removed between releases
+
+Advanced:
+      --send-anonymous-usage-stats
+          [env: DBT_SEND_ANONYMOUS_USAGE_STATS=]
+
+      --no-send-anonymous-usage-stats
+          
+
+      --use-v2-compatible-package-downloads
+          When installing packages from Package Hub, use v2-compatible downloads if available
+          
+          [env: DBT_USE_V2_COMPATIBLE_PACKAGE_DOWNLOADS=]
+
+      --require-hub-verified-downloads
+          When installing packages from Package Hub, require a Hub-provided sha1 checksum and verify it, failing the install if Hub offers neither
+          
+          [env: DBT_REQUIRE_HUB_VERIFIED_DOWNLOADS=]
+
+Microbatch Event Time:
+      --event-time-end <EVENT_TIME_END>
+          If specified, the end datetime dbt uses to filter microbatch model inputs (exclusive)
+          
+          [env: DBT_EVENT_TIME_END=]
+
+      --event-time-start <EVENT_TIME_START>
+          If specified, the start datetime dbt uses to filter microbatch model inputs (inclusive)
+          
+          [env: DBT_EVENT_TIME_START=]

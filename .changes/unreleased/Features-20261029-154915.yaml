@@ -1,0 +1,10 @@
+kind: Features
+body: 'New dbt-migration skills for moving a Snowflake project''s models to Lake Compute:
+  migrating-dbt-project-to-lake-compute drives `dbt init lakecompute` (assess, switch,
+  build, validate), fixing-lake-compute-blockers covers what the tool can''t fix,
+  and validating-lake-compute-migration checks switched tables against a Snowflake
+  baseline; with a migration reviewer subagent.'
+time: 2026-10-29T15:49:15.782050085-07:00
+custom:
+  Author: jasonlin45
+  Issue: N/A

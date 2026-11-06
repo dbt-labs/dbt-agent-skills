@@ -139,12 +139,11 @@ def build_grading_prompt(
     changes_dir = output_dir / "changes"
     modified_files = []
     if changes_dir.exists():
-        for f in changes_dir.rglob("*"):
+        for f in sorted(changes_dir.rglob("*")):
             if f.is_file():
-                rel_path = f.relative_to(changes_dir)
-                modified_files.append(str(rel_path))
+                modified_files.append(_modified_file(f, f.relative_to(changes_dir)))
 
-    modified_files_str = "\n".join(f"- {f}" for f in modified_files) if modified_files else "No files modified."
+    modified_files_str = "\n".join(modified_files) if modified_files else "No files modified."
 
     return GRADING_PROMPT_TEMPLATE.format(
         prompt=prompt_content,
@@ -153,6 +152,38 @@ def build_grading_prompt(
         tools_used=tools_str,
         modified_files=modified_files_str,
     )
+
+
+# Larger modified files are listed by name only.
+MAX_SHOWN_BYTES = 8_000
+
+
+def _modified_file(path: Path, rel_path: Path) -> str:
+    """A modified file for the grader: its name, and its content when small."""
+    if path.stat().st_size > MAX_SHOWN_BYTES:
+        return f"- {rel_path} (too large to show)"
+    try:
+        content = path.read_text()
+    except UnicodeDecodeError:
+        return f"- {rel_path} (binary)"
+    return f"- {rel_path}:\n```\n{content.rstrip()}\n```"
+
+
+_FREE_TEXT = re.compile(r"^(\s*)(notes|observations):[ \t]+(?![\"'|>])(.+)$", re.MULTILINE)
+
+
+def _quote_free_text(yaml_content: str) -> str:
+    """Quote the one-line free-text fields (`notes`, `observations`).
+
+    Graders often write a `: ` inside them, which plain YAML reads as a nested
+    mapping.
+    """
+
+    def quote(match: re.Match) -> str:
+        indent, key, value = match.groups()
+        return f"{indent}{key}: '" + value.strip().replace("'", "''") + "'"
+
+    return _FREE_TEXT.sub(quote, yaml_content)
 
 
 def parse_grade_response(response: str) -> Grade:
@@ -166,7 +197,10 @@ def parse_grade_response(response: str) -> Grade:
         yaml_content = response.strip()
 
     try:
-        parsed = yaml.safe_load(yaml_content)
+        try:
+            parsed = yaml.safe_load(yaml_content)
+        except yaml.YAMLError:
+            parsed = yaml.safe_load(_quote_free_text(yaml_content))
         if not isinstance(parsed, dict):
             return Grade(notes=f"Failed to parse: {response[:100]}")
 

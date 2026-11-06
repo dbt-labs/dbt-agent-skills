@@ -1,0 +1,8 @@
+catalogs:
+  # Snowflake catalog-linked database backed by an Iceberg REST catalog.
+  - name: jaffle_lake
+    type: iceberg_rest
+    table_format: iceberg
+    config:
+      snowflake:
+        catalog_database: JAFFLE_LAKE

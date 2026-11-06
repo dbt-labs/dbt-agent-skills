@@ -1,0 +1,7 @@
+exposures:
+  - name: products_dashboard
+    type: dashboard
+    owner:
+      email: data@example.com
+    depends_on:
+      - ref('exposed_view')

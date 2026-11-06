@@ -1,0 +1,30 @@
+{
+  "rules": [
+    {
+      "args": [
+        "--version"
+      ],
+      "stdout_text": "dbt-fusion 2.0.3\n"
+    },
+    {
+      "args": [
+        "init",
+        "lakecompute"
+      ],
+      "stderr_text": "error: unrecognized subcommand 'lakecompute'\n\nUsage: dbt init [OPTIONS]\n\nFor more information, try '--help'.\n",
+      "exit": 2
+    },
+    {
+      "args": [
+        "compile"
+      ],
+      "stdout_text": "Compiled 7 models, 3 sources\n"
+    },
+    {
+      "args": [
+        "parse"
+      ],
+      "stdout_text": "Parsed 7 models, 3 sources\n"
+    }
+  ]
+}

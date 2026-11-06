@@ -1,0 +1,11 @@
+{"rules": [
+  {"args": ["--version"], "stdout": "recordings/version.txt"},
+  {"args": ["init", "lakecompute", "--help"], "stdout": "recordings/help.txt"},
+  {"args": ["init", "lakecompute"], "not_args": ["--dry-run"],
+   "stderr_text": "error: this eval doesn't record commands that write or read the warehouse\n", "exit": 1},
+  {"args": ["init", "lakecompute", "--select"], "if_file": {"models/staging/stg_order_events.sql": "[\\w\\]\"]:[A-Za-z_\"]"}, "stdout": "recordings/only_before.json"},
+  {"args": ["init", "lakecompute", "--select"], "if_file": {"models/staging/stg_order_events.sql": "(?i)flatten"}, "stdout": "recordings/only_after.json"},
+  {"args": ["init", "lakecompute", "--select"], "stdout": "recordings/only_unnest.json"},
+  {"args": ["init", "lakecompute", "--summary"], "stdout": "recordings/summary.json"},
+  {"args": ["init", "lakecompute"], "stdout": "recordings/full.json"}
+]}

@@ -1,0 +1,1 @@
+We sized our project from Snowflake. Is our orders model too big for Lake Compute?

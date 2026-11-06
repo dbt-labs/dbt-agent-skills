@@ -1,0 +1,15 @@
+# Test fixture profile. No real credentials: everything comes from env vars
+# with placeholder defaults so `dbt parse` works offline.
+event_analytics:
+  target: snowflake
+  outputs:
+    snowflake:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT', 'fake_account') }}"
+      user: "{{ env_var('SNOWFLAKE_USER', 'fake_user') }}"
+      password: "{{ env_var('SNOWFLAKE_PASSWORD', 'fake_password') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE', 'TRANSFORMER') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE', 'TRANSFORMING') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE', 'EVENTS') }}"
+      schema: "{{ env_var('SNOWFLAKE_SCHEMA', 'dbt_fixture') }}"
+      threads: 8

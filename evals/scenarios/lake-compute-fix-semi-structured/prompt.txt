@@ -1,0 +1,1 @@
+`dbt init lakecompute` says stg_order_events is blocked by Snowflake semi-structured syntax. Fix the model so it can move to Lake Compute.

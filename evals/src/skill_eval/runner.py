@@ -24,6 +24,9 @@ from claude_code_transcripts import generate_html
 
 from skill_eval.models import Scenario, SkillSet
 
+# A scenario context's directory of stand-in commands, put first on PATH.
+SHIMS_DIR = ".eval-bin"
+
 
 @dataclass
 class RunResult:
@@ -552,6 +555,18 @@ class Runner:
         env = os.environ.copy()
         env.update(extra_env or {})
         env["CLAUDE_CONFIG_DIR"] = str(env_dir / ".claude")
+        # A scenario can put stand-in commands (a recorded CLI) first on PATH.
+        # They move out of the project first, so the agent can't read or edit
+        # their recordings; they find the project through EVAL_PROJECT_DIR.
+        shims = env_dir / SHIMS_DIR
+        shims_root: Path | None = None
+        if shims.is_dir():
+            shims_root = Path(tempfile.mkdtemp(prefix="skill-eval-shims-"))
+            moved = shims_root / SHIMS_DIR
+            shutil.move(shims, moved)
+            shims = moved
+            env["PATH"] = f"{shims}{os.pathsep}{env.get('PATH', '')}"
+            env["EVAL_PROJECT_DIR"] = str(env_dir)
 
         cmd = [
             "claude",
@@ -641,6 +656,9 @@ class Runner:
 
         except Exception as e:
             return {}, False, str(e), ""
+        finally:
+            if shims_root:
+                shutil.rmtree(shims_root, ignore_errors=True)
 
     def run_scenario(
         self,

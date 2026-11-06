@@ -1,6 +1,7 @@
 """Tests for skill_eval runner."""
 
 import json
+import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -1221,6 +1222,38 @@ def test_run_claude_normal_completion(tmp_path: Path) -> None:
 
     assert success is True
     assert error is None
+
+
+def test_run_claude_puts_scenario_shims_first_on_path(tmp_path: Path) -> None:
+    """run_claude moves the scenario's .eval-bin out of the project, first on PATH."""
+    import io
+
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    env_dir = tmp_path / "env"
+    (env_dir / ".claude").mkdir(parents=True)
+    (env_dir / ".eval-bin").mkdir()
+
+    runner = Runner(evals_dir=evals_dir)
+
+    mock_proc = MagicMock()
+    mock_proc.poll.side_effect = [None, 0]
+    mock_proc.returncode = 0
+    mock_proc.stdout = io.StringIO('{"type":"result","result":"done"}\n')
+    mock_proc.stderr = io.StringIO("")
+
+    with patch.object(runner_module.subprocess, "Popen", return_value=mock_proc) as popen:
+        with patch.object(runner_module.select, "select", return_value=([mock_proc.stdout], [], [])):
+            runner.run_claude(env_dir, "test prompt", timeout=10, stall_timeout=5)
+
+    env = popen.call_args.kwargs["env"]
+    shims = Path(env["PATH"].split(os.pathsep)[0])
+    # Out of the project, where the agent can't edit the recordings.
+    assert shims.name == ".eval-bin" and env_dir not in shims.parents
+    assert not (env_dir / ".eval-bin").exists()
+    assert env["EVAL_PROJECT_DIR"] == str(env_dir)
+    # Removed once the run ends.
+    assert not shims.exists()
 
 
 def test_run_claude_passes_model_flag(tmp_path: Path) -> None:

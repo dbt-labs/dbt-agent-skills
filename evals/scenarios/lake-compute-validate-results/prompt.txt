@@ -1,0 +1,1 @@
+I switched three models to Lake Compute, built them, and ran `dbt init lakecompute --validate`. The output is in target/lakecompute/validate.json. Is the migration done?

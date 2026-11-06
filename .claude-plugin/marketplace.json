@@ -14,7 +14,7 @@
     },
     {
       "name": "dbt-migration",
-      "description": "Skills for migrating dbt projects — moving from dbt Core to the Fusion engine or across data platforms.",
+      "description": "Skills for migrating dbt projects — moving from dbt Core to the Fusion engine, across data platforms, or to Lake Compute.",
       "source": "./skills/dbt-migration"
     },
     {
