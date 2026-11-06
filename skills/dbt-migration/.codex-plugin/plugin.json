@@ -1,0 +1,39 @@
+{
+  "name": "dbt-migration",
+  "version": "1.3.9",
+  "description": "Skills for migrating dbt projects from dbt Core to dbt v2 or across data platforms.",
+  "author": {
+    "name": "dbt Labs",
+    "email": "support@getdbt.com",
+    "url": "https://www.getdbt.com/"
+  },
+  "homepage": "https://docs.getdbt.com/",
+  "repository": "https://github.com/dbt-labs/dbt-agent-skills",
+  "license": "Apache-2.0",
+  "keywords": [
+    "dbt",
+    "migration",
+    "v2",
+    "fusion",
+    "platform-migration"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "dbt Migration",
+    "shortDescription": "Upgrade dbt Core, move to dbt v2, or migrate across data platforms",
+    "longDescription": "One-off skills for migrating dbt projects: upgrading older dbt Core versions, moving from dbt Core to dbt v2, and porting a project across data platforms.",
+    "developerName": "dbt Labs",
+    "category": "Data & Analytics",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://www.getdbt.com/",
+    "privacyPolicyURL": "https://www.getdbt.com/cloud/privacy-policy",
+    "termsOfServiceURL": "https://www.getdbt.com/terms-of-use",
+    "defaultPrompt": [
+      "Upgrade this dbt project to the latest dbt version."
+    ]
+  }
+}

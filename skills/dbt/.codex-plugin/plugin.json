@@ -1,0 +1,39 @@
+{
+  "name": "dbt",
+  "version": "1.6.0",
+  "description": "Skills for analytics engineering with dbt, such as building models, writing tests, querying the semantic layer, and troubleshooting jobs.",
+  "author": {
+    "name": "dbt Labs",
+    "email": "support@getdbt.com",
+    "url": "https://www.getdbt.com/"
+  },
+  "homepage": "https://docs.getdbt.com/",
+  "repository": "https://github.com/dbt-labs/dbt-agent-skills",
+  "license": "Apache-2.0",
+  "keywords": [
+    "dbt",
+    "analytics-engineering",
+    "data-modeling",
+    "semantic-layer",
+    "testing"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "dbt",
+    "shortDescription": "Build models, write tests, query the semantic layer, and troubleshoot dbt jobs",
+    "longDescription": "Agent skills for dbt: data modeling, analytics engineering, semantic layer metrics, unit testing, job troubleshooting, and dbt MCP server setup. The skills cover dbt Core, the dbt Fusion engine, and the dbt platform.",
+    "developerName": "dbt Labs",
+    "category": "Data & Analytics",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://www.getdbt.com/",
+    "privacyPolicyURL": "https://www.getdbt.com/cloud/privacy-policy",
+    "termsOfServiceURL": "https://www.getdbt.com/terms-of-use",
+    "defaultPrompt": [
+      "Add a unit test for my orders model."
+    ]
+  }
+}

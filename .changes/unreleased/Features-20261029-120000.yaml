@@ -1,0 +1,6 @@
+kind: Features
+body: Add an OpenAI Codex plugin marketplace, so the `dbt`, `dbt-migration`, and `dbt-extras` plugins install with `codex plugin marketplace add dbt-labs/dbt-agent-skills`. `scripts/validate_repo.py` now checks the Codex marketplace and the version in each `.codex-plugin/plugin.json`.
+time: 2026-10-29T12:00:00.000000Z
+custom:
+    Author: jasonlin45
+    Issue: "N/A"
