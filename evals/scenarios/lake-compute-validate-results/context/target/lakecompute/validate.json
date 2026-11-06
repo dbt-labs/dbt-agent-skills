@@ -1,0 +1,5 @@
+{"schema_version":1,"validation":{"taken":0,"validated":[
+ {"unique_id":"model.jaffle_shop.orders","relation":"JAFFLE_SHOP.DBT_FIXTURE.ORDERS","status":"matches"},
+ {"unique_id":"model.jaffle_shop.customer_status","relation":"JAFFLE_SHOP.DBT_FIXTURE.CUSTOMER_STATUS","status":"differs","differences":["TENURE_DAYS: sums 41213 before, 41120 now","TENURE_DAYS: its values differ"]},
+ {"unique_id":"model.jaffle_shop.daily_order_stats","relation":"JAFFLE_SHOP.DBT_FIXTURE.DAILY_ORDER_STATS","status":"not_rebuilt"}
+]}}

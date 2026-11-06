@@ -1,0 +1,106 @@
+{
+ "metadata": {
+  "dbt_schema_version": "https://schemas.getdbt.com/dbt/run-results/v6.json",
+  "generated_by": "synthetic fixture, not a real run"
+ },
+ "args": {
+  "which": "build"
+ },
+ "results": [
+  {
+   "unique_id": "model.jaffle_shop.stg_customers",
+   "status": "success",
+   "execution_time": 0.9
+  },
+  {
+   "unique_id": "model.jaffle_shop.stg_orders",
+   "status": "success",
+   "execution_time": 1.1
+  },
+  {
+   "unique_id": "model.jaffle_shop.stg_order_items",
+   "status": "success",
+   "execution_time": 0.8
+  },
+  {
+   "unique_id": "model.jaffle_shop.stg_products",
+   "status": "success",
+   "execution_time": 0.7
+  },
+  {
+   "unique_id": "model.jaffle_shop.stg_supplies",
+   "status": "success",
+   "execution_time": 0.8
+  },
+  {
+   "unique_id": "model.jaffle_shop.stg_locations",
+   "status": "success",
+   "execution_time": 0.6
+  },
+  {
+   "unique_id": "model.jaffle_shop.stg_order_events",
+   "status": "success",
+   "execution_time": 1.0
+  },
+  {
+   "unique_id": "model.jaffle_shop.stg_test",
+   "status": "success",
+   "execution_time": 0.5
+  },
+  {
+   "unique_id": "model.jaffle_shop.order_items",
+   "status": "success",
+   "execution_time": 184.0
+  },
+  {
+   "unique_id": "model.jaffle_shop.orders",
+   "status": "success",
+   "execution_time": 242.5
+  },
+  {
+   "unique_id": "model.jaffle_shop.customers",
+   "status": "success",
+   "execution_time": 96.3
+  },
+  {
+   "unique_id": "model.jaffle_shop.locations",
+   "status": "success",
+   "execution_time": 4.2
+  },
+  {
+   "unique_id": "model.jaffle_shop.products",
+   "status": "success",
+   "execution_time": 3.1
+  },
+  {
+   "unique_id": "model.jaffle_shop.supplies",
+   "status": "success",
+   "execution_time": 2.8
+  },
+  {
+   "unique_id": "model.jaffle_shop.daily_order_stats",
+   "status": "success",
+   "execution_time": 38.7
+  },
+  {
+   "unique_id": "model.jaffle_shop.customer_status",
+   "status": "success",
+   "execution_time": 61.4
+  },
+  {
+   "unique_id": "model.jaffle_shop.customer_status_summary",
+   "status": "success",
+   "execution_time": 12.9
+  },
+  {
+   "unique_id": "model.jaffle_shop.location_regions",
+   "status": "success",
+   "execution_time": 5.5
+  },
+  {
+   "unique_id": "model.jaffle_shop.orders_incremental",
+   "status": "success",
+   "execution_time": 420.0
+  }
+ ]
+}

@@ -1,0 +1,17 @@
+{"rules": [
+  {"args": ["--version"], "stdout": "recordings/version.txt"},
+  {"args": ["init", "lakecompute", "--help"], "stdout": "recordings/help.txt"},
+  {"args": ["init", "lakecompute", "--snowflake"], "not_args": ["--dry-run"],
+   "stderr_text": "Opening a browser to log in to Snowflake...\nerror: the browser login timed out after 120s\n", "exit": 1},
+  {"args": ["init", "lakecompute", "--baseline"], "not_args": ["--dry-run"],
+   "stderr_text": "Opening a browser to log in to Snowflake...\nerror: the browser login timed out after 120s\n", "exit": 1},
+  {"args": ["init", "lakecompute", "--switch"], "not_args": ["--dry-run"],
+   "stderr_text": "error: this eval doesn't record writes\n", "exit": 1},
+  {"args": ["init", "lakecompute", "--dry-run", "--snowflake"], "stdout": "recordings/snowflake_dry_run.json"},
+  {"args": ["init", "lakecompute", "--dry-run", "--switch"], "stdout": "recordings/switch_dry_run.json"},
+  {"args": ["init", "lakecompute", "--dry-run", "--select"], "stdout": "recordings/only_stg_events_invocation.json"},
+  {"args": ["init", "lakecompute", "--dry-run", "--summary"], "stdout": "recordings/summary.json"},
+  {"args": ["init", "lakecompute", "--dry-run"], "stdout": "recordings/full.json"},
+  {"args": ["compile"], "stdout_text": "Compiled 7 models, 3 sources\n"},
+  {"args": ["parse"], "stdout_text": "Parsed 7 models, 3 sources\n"}
+]}

@@ -1,0 +1,27 @@
+name: jaffle_shop
+
+profile: jaffle_shop
+
+seed-paths: ["seeds"]
+model-paths: ["models"]
+macro-paths: ["macros"]
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+seeds:
+  jaffle_shop:
+    +schema: raw
+
+models:
+  jaffle_shop:
+    staging:
+      # Tables, so they can move to Lake Compute (it doesn't run views yet);
+      # stg_locations stays a view to cover that.
+      +materialized: table
+    marts:
+      +materialized: table
+
+flags:
+  use_catalogs_v2: true
+  require_generic_test_arguments_property: true

@@ -1,0 +1,1 @@
+Just switch everything that can move to Lake Compute, including whatever it skipped. Here's the dry run: target/lakecompute/switch-plan.json (from `dbt init lakecompute --json --quiet --dry-run --switch --convert-views`). Tell me exactly what command you'll run.

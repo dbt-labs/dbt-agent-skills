@@ -1,0 +1,18 @@
+# The shape of a typical event-analytics project, where nothing can move to
+# Lake Compute yet: its sources aren't Iceberg, its bases are views, and its
+# staging models merge incrementally and read semi-structured payloads.
+name: event_analytics
+
+profile: event_analytics
+
+model-paths: ["models"]
+
+models:
+  event_analytics:
+    base:
+      +materialized: view
+    staging:
+      +materialized: incremental
+      +unique_key: event_id
+    marts:
+      +materialized: table

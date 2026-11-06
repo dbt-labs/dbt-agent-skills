@@ -41,6 +41,7 @@ def test_build_grading_prompt_includes_all_sections(tmp_path: Path) -> None:
     changes_dir = output_dir / "changes"
     changes_dir.mkdir()
     (changes_dir / "fixed_file.py").write_text("# fixed")
+    (changes_dir / "large.log").write_text("x" * 9_000)
 
     prompt = build_grading_prompt(scenario_dir, output_dir)
 
@@ -53,6 +54,8 @@ def test_build_grading_prompt_includes_all_sections(tmp_path: Path) -> None:
     assert "debugging" in prompt  # Skills available
     assert "dbt" in prompt  # MCP server
     assert "fixed_file.py" in prompt  # Modified files
+    assert "# fixed" in prompt  # A small one's content
+    assert "large.log (too large to show)" in prompt
 
 
 def test_build_grading_prompt_handles_missing_files(tmp_path: Path) -> None:
@@ -346,3 +349,19 @@ def test_load_grades_returns_valid_grades(tmp_path: Path) -> None:
     (tmp_path / "grades.yaml").write_text(yaml.dump(grades))
 
     assert load_grades(tmp_path) == grades
+
+
+def test_parse_grade_response_quotes_free_text_with_colons() -> None:
+    """A note with `: ` in it still parses."""
+    response = """```yaml
+success: true
+score: 4
+tool_usage: appropriate
+criteria:
+  read_report: true
+notes: Covers all four criteria: it summarized the plan and asked first
+observations: none
+```"""
+    result = parse_grade_response(response)
+    assert result.score == 4
+    assert result.notes.startswith("Covers all four criteria: it summarized")

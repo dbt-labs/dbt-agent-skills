@@ -1,6 +1,6 @@
 {
   "name": "dbt-labs/dbt-agent-skills",
-  "version": "1.6.4",
+  "version": "1.7.0",
   "summary": "A curated collection of Agent Skills for working with dbt, to help AI agents understand and execute dbt workflows more effectively.",
   "private": false,
   "docs": "README.md",
@@ -19,6 +19,9 @@
     "working-with-dbt-mesh": { "path": "skills/dbt/skills/working-with-dbt-mesh/SKILL.md" },
     "migrating-dbt-core-to-v2": { "path": "skills/dbt-migration/skills/migrating-dbt-core-to-v2/SKILL.md" },
     "migrating-dbt-project-across-platforms": { "path": "skills/dbt-migration/skills/migrating-dbt-project-across-platforms/SKILL.md" },
+    "migrating-dbt-project-to-lake-compute": { "path": "skills/dbt-migration/skills/migrating-dbt-project-to-lake-compute/SKILL.md" },
+    "fixing-lake-compute-blockers": { "path": "skills/dbt-migration/skills/fixing-lake-compute-blockers/SKILL.md" },
+    "validating-lake-compute-migration": { "path": "skills/dbt-migration/skills/validating-lake-compute-migration/SKILL.md" },
     "upgrading-dbt": { "path": "skills/dbt-migration/skills/upgrading-dbt/SKILL.md" },
     "creating-mermaid-dbt-dag": { "path": "skills/dbt-extras/skills/creating-mermaid-dbt-dag/SKILL.md" }
   }

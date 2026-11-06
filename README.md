@@ -162,6 +162,9 @@ These skills are typically used once during a migration project rather than in e
 |-------|-------------|
 | `migrating-dbt-core-to-v2` | Migrate dbt projects from dbt Core to dbt v2 |
 | `migrating-dbt-project-across-platforms` | Migrate dbt projects across data platforms |
+| `migrating-dbt-project-to-lake-compute` | Move a Snowflake project's models to Lake Compute with `dbt init lakecompute`: assess, switch, build and validate |
+| `fixing-lake-compute-blockers` | Fix what keeps a model from moving to Lake Compute: Snowflake-only SQL, incremental strategies, hooks, inputs |
+| `validating-lake-compute-migration` | Check that switched models build the same tables on Lake Compute, and find why one differs |
 | `upgrading-dbt` | Upgrade a dbt-core v1 project (1.3-1.7) to the latest dbt, applying breaking, behavior, and deprecated changes |
 
 ## Prerequisites

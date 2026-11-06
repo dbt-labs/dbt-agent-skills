@@ -1,0 +1,1 @@
+Fix whatever blocks stg_events_invocation from moving to Lake Compute.

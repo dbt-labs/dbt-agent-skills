@@ -1,0 +1,1 @@
+Size our models from Snowflake and tell me which ones fit on Lake Compute.

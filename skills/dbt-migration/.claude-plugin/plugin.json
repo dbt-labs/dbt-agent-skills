@@ -1,12 +1,12 @@
 {
   "name": "dbt-migration",
-  "description": "Skills for migrating dbt projects — moving from dbt Core to dbt v2 or across data platforms.",
-  "version": "1.3.9",
+  "description": "Skills for migrating dbt projects — moving from dbt Core to dbt v2, across data platforms, or to Lake Compute.",
+  "version": "1.4.0",
   "author": {
     "name": "dbt Labs"
   },
   "license": "Apache-2.0",
   "homepage": "https://docs.getdbt.com/",
   "repository": "https://github.com/dbt-labs/dbt-agent-skills",
-  "keywords": ["dbt", "migration", "v2", "fusion", "platform-migration"]
+  "keywords": ["dbt", "migration", "v2", "fusion", "platform-migration", "lake-compute"]
 }

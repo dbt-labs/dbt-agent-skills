@@ -1,0 +1,1 @@
+Which of our dbt models can we move to Lake Compute? Don't change anything yet.

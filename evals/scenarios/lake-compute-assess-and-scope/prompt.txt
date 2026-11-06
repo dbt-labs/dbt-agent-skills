@@ -1,0 +1,1 @@
+I want to start moving this Snowflake dbt project to Lake Compute. Which models can move, and what should I move first? I already ran `dbt init lakecompute --json --quiet --dry-run`; its output is in target/lakecompute/report.json. Don't change anything yet.

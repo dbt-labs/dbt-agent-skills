@@ -1,0 +1,16 @@
+version: 2
+
+sources:
+  # Snowflake tables loaded by an event pipeline; not Iceberg.
+  - name: telemetry
+    schema: TELEMETRY
+    tables:
+      - name: events_invocation
+        columns: &event
+          - {name: EVENT_ID, data_type: varchar}
+          - {name: EMITTED_AT, data_type: timestamp_ntz}
+          - {name: PAYLOAD, data_type: variant}
+      - name: events_command
+        columns: *event
+      - name: events_adapter
+        columns: *event

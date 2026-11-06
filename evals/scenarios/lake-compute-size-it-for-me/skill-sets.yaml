@@ -1,0 +1,38 @@
+sets:
+  - name: with-skills-sonnet
+    model: sonnet
+    skills:
+      - skills/dbt-migration/skills/migrating-dbt-project-to-lake-compute
+      - skills/dbt-migration/skills/fixing-lake-compute-blockers
+      - skills/dbt-migration/skills/validating-lake-compute-migration
+    allowed_tools:
+      - Skill
+      - "Read"
+      - "Glob"
+      - "Grep"
+      - "Edit"
+      - "Bash(dbt *)"
+
+  - name: with-skills-opus
+    model: opus
+    skills:
+      - skills/dbt-migration/skills/migrating-dbt-project-to-lake-compute
+      - skills/dbt-migration/skills/fixing-lake-compute-blockers
+      - skills/dbt-migration/skills/validating-lake-compute-migration
+    allowed_tools:
+      - Skill
+      - "Read"
+      - "Glob"
+      - "Grep"
+      - "Edit"
+      - "Bash(dbt *)"
+
+  - name: no-skills-sonnet
+    model: sonnet
+    skills: []
+    allowed_tools:
+      - "Read"
+      - "Glob"
+      - "Grep"
+      - "Edit"
+      - "Bash(dbt *)"

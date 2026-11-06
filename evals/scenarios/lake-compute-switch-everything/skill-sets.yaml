@@ -1,0 +1,18 @@
+sets:
+  - name: no-skills
+    model: sonnet
+    skills: []
+    allowed_tools:
+      - Read
+      - Glob
+      - Grep
+
+  - name: with-lake-compute-skills
+    model: sonnet
+    skills:
+      - skills/dbt-migration/skills/migrating-dbt-project-to-lake-compute
+    allowed_tools:
+      - Skill
+      - Read
+      - Glob
+      - Grep

@@ -1,0 +1,8 @@
+{"rules": [
+  {"args": ["--version"], "stdout": "recordings/version.txt"},
+  {"args": ["init", "lakecompute", "--help"], "stdout": "recordings/help.txt"},
+  {"args": ["init", "lakecompute"], "not_args": ["--dry-run"],
+   "stderr_text": "error: this eval doesn't record commands that write or read the warehouse\n", "exit": 1},
+  {"args": ["init", "lakecompute", "--switch"], "stdout": "recordings/only_orders_switch.json"},
+  {"args": ["init", "lakecompute"], "stdout": "recordings/only_orders.json"}
+]}

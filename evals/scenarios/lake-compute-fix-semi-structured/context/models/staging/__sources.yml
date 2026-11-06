@@ -1,0 +1,69 @@
+version: 2
+
+sources:
+  # Iceberg tables in a catalog-linked database, declared via catalogs.yml.
+  - name: ecom
+    schema: ECOM
+    config:
+      catalog_name: jaffle_lake
+    description: E-commerce data for the Jaffle Shop, landed as Iceberg
+    tables:
+      - name: raw_customers
+        columns:
+          - {name: ID, data_type: varchar}
+          - {name: NAME, data_type: varchar}
+      - name: raw_orders
+        config:
+          loaded_at_field: ordered_at
+        columns:
+          - {name: ID, data_type: varchar}
+          - {name: CUSTOMER, data_type: varchar}
+          - {name: ORDERED_AT, data_type: timestamp_ntz}
+          - {name: STORE_ID, data_type: varchar}
+          - {name: SUBTOTAL, data_type: "number(38,0)"}
+          - {name: TAX_PAID, data_type: "number(38,0)"}
+          - {name: ORDER_TOTAL, data_type: "number(38,0)"}
+      - name: raw_items
+        columns:
+          - {name: ID, data_type: varchar}
+          - {name: ORDER_ID, data_type: varchar}
+          - {name: SKU, data_type: varchar}
+      - name: raw_stores
+        config:
+          loaded_at_field: opened_at
+        columns:
+          - {name: ID, data_type: varchar}
+          - {name: NAME, data_type: varchar}
+          - {name: OPENED_AT, data_type: timestamp_ntz}
+          - {name: TAX_RATE, data_type: float}
+      - name: raw_products
+        columns:
+          - {name: SKU, data_type: varchar}
+          - {name: NAME, data_type: varchar}
+          - {name: TYPE, data_type: varchar}
+          - {name: PRICE, data_type: "number(38,0)"}
+          - {name: DESCRIPTION, data_type: varchar}
+      - name: raw_supplies
+        columns:
+          - {name: ID, data_type: varchar}
+          - {name: NAME, data_type: varchar}
+          - {name: COST, data_type: "number(38,0)"}
+          - {name: PERISHABLE, data_type: boolean}
+          - {name: SKU, data_type: varchar}
+      - name: raw_order_events
+        columns:
+          - {name: EVENT_ID, data_type: varchar}
+          - {name: ORDER_ID, data_type: varchar}
+          - {name: EVENT_AT, data_type: timestamp_ntz}
+          - {name: PAYLOAD, data_type: variant}
+
+  # Native Snowflake tables, no catalog_name. Fusion lets lakecompute models
+  # read these, but they are not Iceberg, so lakecompute cannot.
+  - name: legacy
+    database: JAFFLE_SHOP
+    schema: RAW_NATIVE
+    tables:
+      - name: test_debug
+        columns:
+          - {name: ID, data_type: "number(38,0)"}
+          - {name: DATE, data_type: date}

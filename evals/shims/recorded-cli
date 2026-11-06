@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+"""A recorded command line for evals.
+
+A scenario links it as `context/.eval-bin/<command>` (the runner puts
+`.eval-bin` first on PATH), next to a `rules.json`:
+
+    {"rules": [
+        {"args": ["init", "lakecompute", "--summary"],
+         "not_args": ["--snowflake"],
+         "if_file": {"models/stg.sql": ":status"},
+         "stdout": "recordings/summary.json",
+         "exit": 0}
+    ]}
+
+The first rule whose `args` are all in the call, whose `not_args` are not,
+and whose `if_file` patterns (regexes) match the project's files, answers
+it: `stdout` and `stderr` are files under `.eval-bin`, or text with
+`stdout_text` and `stderr_text`. A call no rule answers fails with exit 2.
+The runner moves `.eval-bin` out of the project before the agent starts, and
+passes the project as `EVAL_PROJECT_DIR`. Each call is logged to the
+project's `.eval-calls.log`, so graders see what ran.
+"""
+
+import json
+import os
+import re
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).absolute().parent
+PROJECT = Path(os.environ.get("EVAL_PROJECT_DIR", HERE.parent))
+
+
+def has(argv: list[str], arg: str) -> bool:
+    return any(a == arg or a.startswith(f"{arg}=") for a in argv)
+
+
+def matches(rule: dict, argv: list[str]) -> bool:
+    if not all(has(argv, a) for a in rule.get("args", [])):
+        return False
+    if any(has(argv, a) for a in rule.get("not_args", [])):
+        return False
+    for path, pattern in rule.get("if_file", {}).items():
+        file = PROJECT / path
+        if not file.is_file() or not re.search(pattern, file.read_text()):
+            return False
+    return True
+
+
+def text(rule: dict, stream: str) -> str:
+    if stream in rule:
+        return (HERE / rule[stream]).read_text()
+    return rule.get(f"{stream}_text", "")
+
+
+def main() -> int:
+    argv = sys.argv[1:]
+    rules = json.loads((HERE / "rules.json").read_text())["rules"]
+    rule = next((r for r in rules if matches(r, argv)), None)
+    with (PROJECT / ".eval-calls.log").open("a") as log:
+        log.write(f"{Path(sys.argv[0]).name} {' '.join(argv)}\n")
+    if rule is None:
+        sys.stderr.write(f"error: unexpected arguments: {' '.join(argv)}\n")
+        return 2
+    sys.stdout.write(text(rule, "stdout"))
+    sys.stderr.write(text(rule, "stderr"))
+    return rule.get("exit", 0)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
